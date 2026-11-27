@@ -1,0 +1,76 @@
+Twenty-one prime divisors when four proper columns are at most seventeen
+
+Let a>=X=10^128 occur in four distinct proper columns at most 17,
+with n>=2k for a representation C(n,k)=a. Then a has at least
+21 distinct prime divisors.
+
+1. Enumeration of column patterns
+
+Suppose there are at most twenty prime bases. The first reduction
+repeats Erdos849TwentyLow.txt with a cap of twenty. Four proper
+columns avoiding the published pairs always have two columns 7<=j<d.
+The original polynomial archive gives P<=Q_p Y^(1/17) for every full
+prime power P=p^v_p(a), Y=a/X. Ordinary primes share one constant,
+and 2,3,5,7,11,13 each have a separate constant. Choose the smallest
+available bound separately for each prime-base category among the
+occupied column pairs.
+
+In a row of column k assign every power to a numerator term of maximal
+p-adic valuation. Every term divided by its assigned powers is a
+positive integer cofactor dividing M_k=lcm(1,...,k); the product of
+these cofactors is k! (Erdos849NineteenLow.txt, section 1). Enumerate
+all unordered k-tuples of nonnegative occupancies summing to twenty,
+padding by ordinary units if necessary. The lower bounds for
+individual cofactors and their complete product from the previous
+calculation exclude every tuple except for the 62 column patterns
+identified by the verifier. This step uses the nine classified
+pairs and the separate (7,8) result from Erdos849PairPowerSlots.txt.
+Every surviving pattern contains at least one of the following pairs:
+
+  (7,9), (7,10), (8,9), (8,10), (9,10),
+  (j,d) with j in {8,9,10,11} and d in {16,17}.
+
+2. Local polynomials for thirteen pairs
+
+For each remaining pair choose a target column k, either 7, 8, 9, 16
+or 17, as listed in the verifier. Put t=floor(20/k). For every offset
+pair, an integral polynomial with vanishing order h, largest weight w
+and absolute-value bound H is verified exactly as in
+Erdos849InterpolatedPowers.txt. The original certificate is used unless
+the supplementary archive gives a replacement. Check ktw<=jdh and set
+  Q = max over offset pairs of ceil(H^(1/h)).
+Writing D=lcm(1,...,d-1), the local divisibility estimate gives
+  P <= p^v_p(D) Q Y^(1/(kt)).
+Indeed the local denominator divides D, p^(h(e-v_p(D))) divides
+the nonzero integer F, and |F|<=H Y^(w/(jd)). When P<=d the bound
+holds directly. Exactly the same bound applies no matter which
+k-column slot hosts the prime power.
+
+3. Cofactor contradiction in the target column
+
+Let L=floor((k!X)^(1/k))-k+1, so every term is at least L Y^(1/k).
+Write A_u for the product of the u largest full prime powers dividing
+D, using all if u exceeds their number, and A_0=1. At most u distinct
+small bases can contribute an exceptional loss to u factors in a slot.
+The verifier checks
+  L > M_k A_(t-1) Q^(t-1).
+Thus a slot with at most t-1 powers is smaller than its lower bound;
+padding by units handles fewer than t-1. Every slot has at least t
+powers.
+
+For k=7, t=2 and the stronger comparison L>M_k A_2 Q^2 holds, so
+all seven slots have at least three powers, immediately giving 21.
+Otherwise at least b=(t+1)k-20 slots have exactly t powers. Select
+any b such slots. Each cofactor is at least L/Q^t divided by the
+exceptional factors p^v_p(D) in its assigned powers. These exceptional
+factors have product at most D across all b slots, since each prime
+base is assigned once in a row. Consequently
+  k! >= (L/Q^t)^b / D.
+The verifier checks the opposite strict inequality using integers.
+This disposes of all thirteen pairs, hence all 62 initial patterns.
+
+Run python Erdos849TwentyOneLow.py with the supplementary
+Erdos849TwentyOneLow.json.gz and the existing interpolation files.
+Across the thirteen target pairs the checker verifies 1,629 local
+branches. The supplementary archive stores 1,447 replacements and
+uses the original data for the other 182 branches.
