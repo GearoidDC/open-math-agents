@@ -543,16 +543,167 @@ theorem successor_exponent {n p a : ℕ} (pp : p.Prime) (op : Odd p) (ha : 0<a)
     by_contra nr
     exact ex ⟨r, pr, nr, dr⟩
 
+lemma pell_divisibility {x y : ℕ} (he : x^2+1=5*y^2) (hd : 5 ∣ y) : 61 ∣ y := by
+  let states : List (ℕ × ℕ) := [(2,1),(38,17),(72,0),(38,288),(2,304),
+    (303,304),(267,288),(233,0),(267,17),(303,1)]
+  have closed : ∀ z ∈ states, ((9*z.1+20*z.2)%305,(4*z.1+9*z.2)%305) ∈ states := by
+    decide +kernel
+  have sieve : ∀ z ∈ states, 5 ∣ z.2 → 61 ∣ z.2 := by decide +kernel
+  have orbit (b a : ℕ) (eqn : a^2+1=5*b^2) : (a%305,b%305) ∈ states := by
+    induction b using Nat.strong_induction_on generalizing a with
+    | h b ih =>
+      by_cases small : b < 5
+      · have ab : a ≤ 8 := by nlinarith [Nat.mul_self_le_mul_self (show b ≤ 4 by omega)]
+        interval_cases b <;> interval_cases a <;> norm_num at eqn
+        all_goals decide +kernel
+      · have lb : 5 ≤ b := by omega
+        have low : 20*b ≤ 9*a := by
+          by_contra! bad
+          nlinarith only [eqn, Nat.mul_self_le_mul_self bad.le, Nat.mul_self_le_mul_self lb]
+        have high : 4*a ≤ 9*b := by
+          by_contra! bad
+          nlinarith only [eqn, Nat.mul_self_le_mul_self bad.le, Nat.zero_le (b*b)]
+        have strict : 2*b < a := by
+          by_contra! bad
+          nlinarith only [eqn, Nat.mul_self_le_mul_self bad, Nat.mul_self_le_mul_self lb]
+        let u := 9*a-20*b
+        let v := 9*b-4*a
+        have eu : u+20*b=9*a := Nat.sub_add_cancel low
+        have ev : v+4*a=9*b := Nat.sub_add_cancel high
+        have evsmall : v<b := by omega
+        have norm : u^2+1=5*v^2 := by
+          have az : (a:ℤ)^2+1=5*(b:ℤ)^2 := by exact_mod_cast eqn
+          have uz : (u:ℤ)=9*(a:ℤ)-20*(b:ℤ) := by dsimp [u]; push_cast [Nat.cast_sub low]; ring
+          have vz : (v:ℤ)=9*(b:ℤ)-4*(a:ℤ) := by dsimp [v]; push_cast [Nat.cast_sub high]; ring
+          have nz : (u:ℤ)^2+1=5*(v:ℤ)^2 := by rw [uz,vz]; linear_combination az
+          exact_mod_cast nz
+        have prev := closed _ (ih v evsmall u norm)
+        have m := (Nat.mod_modEq u 305).symm
+        have n := (Nat.mod_modEq v 305).symm
+        have ax := (m.mul_left 9).add (n.mul_left 20)
+        have by' := (m.mul_left 4).add (n.mul_left 9)
+        change (9*u+20*v)%305=_ at ax
+        change (4*u+9*v)%305=_ at by'
+        rwa [show a=9*u+20*v by omega, show b=4*u+9*v by omega, ax, by']
+  have d5 : 5 ∣ y%305 := by omega
+  have d61 := sieve (x%305,y%305) (orbit y x he) d5
+  change 61 ∣ y%305 at d61
+  omega
+
+/-- The only possible positive square root of a power of five minus one is two. -/
+theorem square_plus_one_five {z e : ℕ} (h : z^2+1=5^e) : z ≤ 2 := by
+  rcases Nat.even_or_odd e with ⟨b, rfl⟩|⟨b, rfl⟩
+  · have eq : z^2+1=(5^b)^2 := by simpa [pow_add,pow_two] using h
+    by_contra! big
+    by_cases le : 5^b ≤ z
+    · nlinarith [Nat.mul_self_le_mul_self le]
+    · have l : z+1 ≤ 5^b := by omega
+      nlinarith [Nat.mul_self_le_mul_self l]
+  · have eq : z^2+1=5*(5^b)^2 := by
+      rw [h, pow_succ, mul_comm 2 b, pow_mul, mul_comm]
+    by_cases b0 : b=0
+    · simp [b0] at eq
+      nlinarith
+    · have d := pell_divisibility eq (dvd_pow_self (5:ℕ) b0)
+      have pr : Nat.Prime 61 := by decide
+      have bad := pr.dvd_of_dvd_pow d
+      omega
+
+lemma large_prime_of_square {u : ℕ} (ev : Even u) (hu : 2<u) :
+    ∃ p : ℕ, p.Prime ∧ 5<p ∧ p ∣ u^2+1 := by
+  by_contra! none
+  have no3 : ¬3 ∣ u^2+1 := by
+    rw [Nat.dvd_iff_mod_eq_zero, Nat.add_mod, pow_two, Nat.mul_mod]
+    have bound := Nat.mod_lt u (by decide : 0<3)
+    interval_cases r : u%3 <;> decide
+  obtain ⟨w, hw⟩ := ev
+  have no2 : ¬2 ∣ u^2+1 := by
+    have form : u^2+1 = 2*(2*w^2)+1 := by rw [hw]; ring
+    omega
+  have pure : u^2+1 = 5^(u^2+1).primeFactorsList.length := by
+    apply Nat.eq_prime_pow_of_unique_prime_dvd (by omega)
+    intro p pp dp
+    have le : p≤5 := by by_contra! big; exact none p pp big dp
+    have choices : p=2 ∨ p=3 ∨ p=5 := by interval_cases p <;> norm_num at *
+    rcases choices with rfl|rfl|rfl
+    · exact False.elim (no2 dp)
+    · exact False.elim (no3 dp)
+    · rfl
+  exact (Nat.not_le_of_gt hu) (square_plus_one_five pure)
+
+/-- At offset five, the two Sophie Germain factors each supply a prime
+above five, for every odd fourth root greater than three. -/
+theorem fourth_power_witness {x : ℕ} (ox : Odd x) (hx : 3<x) :
+    ∃ p q : ℕ, p.Prime ∧ q.Prime ∧ p≠q ∧ 5<p ∧ 5<q ∧ p ∣ x^4+4 ∧ q ∣ x^4+4 := by
+  obtain ⟨w, hw⟩ := ox
+  let L := (2*w)^2+1
+  let R := (2*w+2)^2+1
+  obtain ⟨p, pp, pbig, dp⟩ := large_prime_of_square (u:=2*w) ⟨w,by omega⟩ (by omega)
+  obtain ⟨q, pq, qbig, dq⟩ := large_prime_of_square (u:=2*w+2) ⟨w+1,by omega⟩ (by omega)
+  change p ∣ L at dp
+  change q ∣ R at dq
+  have fac : x^4+4=L*R := by dsimp [L,R]; rw [hw]; ring
+  refine ⟨p,q,pp,pq,?_,pbig,qbig,fac ▸ dvd_mul_of_dvd_left dp _,fac ▸ dvd_mul_of_dvd_right dq _⟩
+  rintro rfl
+  have diff : R=L+4*x := by dsimp [L,R]; rw [hw]; ring
+  rw [diff] at dq
+  have d4x := (Nat.dvd_add_iff_right dp).mpr dq
+  have dx : p ∣ x := pp.dvd_mul.mp d4x |>.resolve_left (by
+    intro d
+    have := Nat.le_of_dvd (by decide : 0<4) d
+    omega)
+  have eq : L+2*x=x^2+2 := by dsimp [L]; rw [hw]; ring
+  have dl := dvd_add dp (dvd_mul_of_dvd_right dx 2)
+  rw [eq] at dl
+  have ds : p ∣ x^2 := dx.trans (dvd_pow_self x (by decide : 2≠0))
+  have bad := (Nat.dvd_add_iff_right ds).mpr dl
+  have := Nat.le_of_dvd (by decide : 0<2) bad
+  omega
+
+/-- A uniform witness for successors that are prime squares suffices for
+all proper powers of odd primes with power-of-two exponent. -/
+theorem dyadic_of_prime_squares
+    (squares : ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
+      ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+        q ∣ p^2+d ∧ s ∣ p^2+d) :
+    ∃ B : ℕ, ∀ p t : ℕ, p.Prime → Odd p → 0<t → B < p^(2^t) →
+      ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+        q ∣ p^(2^t)+d ∧ s ∣ p^(2^t)+d := by
+  obtain ⟨B, hB⟩ := squares
+  refine ⟨B+81, ?_⟩
+  intro p t pp op ht big
+  cases t with
+  | zero => omega
+  | succ j =>
+    cases j with
+    | zero =>
+      change B+81 < p^2 at big
+      exact hB p pp op (by omega)
+    | succ j =>
+      let x := p^(2^j)
+      have eq : p^(2^(j+1+1))=x^4 := by
+        dsimp [x]
+        rw [← pow_mul, show j+1+1=j+2 by omega, pow_add]
+        rfl
+      rw [eq] at big ⊢
+      have xbig : 3<x := by
+        by_contra! small
+        have bound := Nat.pow_le_pow_left small 4
+        norm_num at bound
+        omega
+      obtain ⟨q,s,pq,ps,ne,hq,hs,dq,ds⟩ := fourth_power_witness (x:=x) op.pow xbig
+      exact ⟨4,q,s,pq,ps,ne,hq,hs,dq,ds⟩
+
 /-- At every sufficiently large odd prime, find a later or equal integer
 with two distinct prime factors larger than the offset from its predecessor. -/
 def H1 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p+d ∧ s ∣ p+d
 
-/-- The same witness question for proper powers with dyadic exponent. -/
-def H2 : Prop := ∃ B : ℕ, ∀ p t : ℕ, p.Prime → Odd p → 0 < t → B < p^(2^t) →
+/-- Only prime squares remain from the proper powers with dyadic exponent. -/
+def H2 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
-      q ∣ p^(2^t)+d ∧ s ∣ p^(2^t)+d
+      q ∣ p^2+d ∧ s ∣ p^2+d
 
 /-- The remaining odd exponents are primes at least five, and the only
 bases that need be considered are Mersenne primes. -/
@@ -562,7 +713,8 @@ def H3 : Prop := ∃ B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → (∃ b : ℕ,
       q ∣ p^r+d ∧ s ∣ p^r+d
 
 theorem main : H1 → H2 → H3 → type_of% @Erdos889.erdos_889.variants.v1_eq_1_finite := by
-  rintro ⟨A, primeCase⟩ ⟨B, dyadicCase⟩ ⟨C, mersenneCase⟩
+  rintro ⟨A, primeCase⟩ squares ⟨C, mersenneCase⟩
+  obtain ⟨B, dyadicCase⟩ := dyadic_of_prime_squares squares
   refine (Set.finite_le_nat (A+B+C+26)).subset ?_
   intro n hn
   change v_l 1 n = 1 at hn
