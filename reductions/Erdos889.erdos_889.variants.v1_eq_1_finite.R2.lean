@@ -6,7 +6,8 @@ also been settled in the earlier R1 reduction. Here the new restriction on
 even solutions comes from factoring an odd power plus one at offset two
 and applying the lifting-the-exponent lemma to its odd cofactor. Fourth powers
 and prime squares admit additional restrictions by elementary Pell descents
-and quadratic reciprocity.
+and quadratic reciprocity. The final steps also use factorizations in the
+Eisenstein integers, modular certificates, and classifications of higher powers.
 -/
 
 namespace OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
@@ -1346,17 +1347,803 @@ theorem fifth_seventh_exclusion {n x r : ℕ} (hx : 1 < x) (hr : r=5 ∨ r=7)
   have rearr : n+(d+1)=p^r+d := by omega
   exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (rearr ▸ dq) (rearr ▸ ds) sol
 
+private theorem odd_power_cannot_precede_prime_power {x r : ℕ} (hx : 3 ≤ x)
+    (ex : Even x) (ro : Odd r) (hr : 3 ≤ r) : ¬IsPrimePow (x^r+1) := by
+  intro pure
+  have grow (j : ℕ) : (j+2)*(x+1) ≤ x^(j+2) := by
+    induction j with
+    | zero =>
+      change 2*(x+1) ≤ x^2
+      nlinarith [Nat.mul_le_mul_right x hx]
+    | succ j ih =>
+      have le : j+3 ≤ (j+2)*x := by
+        have hb := Nat.mul_le_mul_left (j+2) hx
+        omega
+      have a := Nat.mul_le_mul_right (x+1) le
+      have b := Nat.mul_le_mul_right x ih
+      rw [show j+1+2=(j+2)+1 by omega,pow_succ]
+      nlinarith only [a,b]
+  have g := grow (r-2)
+  rw [show r-2+2=r by omega] at g
+  have d : x+1 ∣ x^r+1 := by simpa using (ro.nat_add_dvd_pow_add_pow (x:=x) (y:=1))
+  obtain ⟨c,fac⟩ := d
+  have hc : r < c := by
+    by_contra! small
+    have h := Nat.mul_le_mul_left (x+1) small
+    nlinarith only [h,g,fac]
+  obtain ⟨q,e,pq,_,eq⟩ := (isPrimePow_nat_iff _).mp pure
+  have facq : (x+1)*c=q^e := fac.symm.trans eq.symm
+  obtain ⟨a,_,ea⟩ := (Nat.dvd_prime_pow pq).mp (facq ▸ dvd_mul_right (x+1) c)
+  obtain ⟨b,_,eb⟩ := (Nat.dvd_prime_pow pq).mp (facq ▸ dvd_mul_left c (x+1))
+  have ap : a ≠ 0 := by rintro rfl; simp at ea; omega
+  have dq : q ∣ x+1 := ea ▸ dvd_pow_self q ap
+  have oq := pq.odd_of_ne_two (by
+    rintro rfl
+    obtain ⟨t,ht⟩ := ex
+    omega)
+  have nx : ¬q ∣ x := by
+    intro dx
+    have d1 := (Nat.dvd_add_iff_right dx).mpr dq
+    have := Nat.le_of_dvd Nat.one_pos d1
+    have := pq.two_le
+    omega
+  let _ : Fact q.Prime := ⟨pq⟩
+  have v := padicValNat.pow_add_pow (x:=x) (y:=1) oq dq nx ro
+  rw [one_pow,fac,padicValNat.mul (by omega) (by omega)] at v
+  have val : padicValNat q c=padicValNat q r := by omega
+  have power : q^(padicValNat q c)=c := by
+    conv_lhs => arg 2; rw [eb,padicValNat.prime_pow]
+    exact eb.symm
+  have cd : c ∣ r := by rw [←power,val]; exact pow_padicValNat_dvd
+  exact (Nat.not_le_of_gt hc) (Nat.le_of_dvd (by omega) cd)
+
+private theorem even_fourth_power_excluded {x : ℕ} (hx : 2 < x) (ex : Even x) :
+    v_l 1 (x^4) ≠ 1 := by
+  obtain ⟨u,hu⟩ := ex
+  let z := u-1
+  have xz : x=2*(z+1) := by dsimp [z]; omega
+  let L := 2*z^2+2*z+1
+  let R := 2*z^2+6*z+5
+  have zl : 1 ≤ z := by omega
+  have f : x^4+4=4*L*R := by rw [xz]; dsimp [L,R]; ring
+  have lb : 2 ≤ L := by dsimp [L]; omega
+  have rb : 2 ≤ R := by dsimp [R]; omega
+  obtain ⟨p,pp,dp⟩ := Nat.exists_prime_and_dvd (show L ≠ 1 by omega)
+  obtain ⟨q,pq,dq⟩ := Nat.exists_prime_and_dvd (show R ≠ 1 by omega)
+  have no3 : ¬3 ∣ L ∧ ¬3 ∣ R := by
+    have m := (Nat.mod_modEq z 3).symm
+    have ml := (((m.pow 2).mul_left 2).add (m.mul_left 2)).add_right 1
+    have mr := (((m.pow 2).mul_left 2).add (m.mul_left 6)).add_right 5
+    change L%3=_ at ml
+    change R%3=_ at mr
+    have h := Nat.mod_lt z (by decide : 0<3)
+    simp only [Nat.dvd_iff_mod_eq_zero,ml,mr]
+    interval_cases e : z%3 <;> decide
+  have high (t : ℕ) (pt : t.Prime) (dv : t ∣ L ∨ t ∣ R) : 4<t := by
+    by_contra! small
+    have choices : t=2 ∨ t=3 := by interval_cases t <;> norm_num at *
+    rcases choices with rfl|rfl
+    · rcases dv with h|h <;> dsimp [L,R] at h <;> omega
+    · tauto
+  have ph := high p pp (Or.inl dp)
+  have qh := high q pq (Or.inr dq)
+  have diff : R=L+4*(z+1) := by dsimp [R,L]; ring
+  have ne : p≠q := by
+    rintro rfl
+    rw [diff] at dq
+    have dd := (Nat.dvd_add_iff_right dp).mpr dq
+    have dz := pp.dvd_mul.mp dd |>.resolve_left (by
+      intro bad
+      have := Nat.le_of_dvd (by decide : 0<4) bad
+      omega)
+    have ll : L=2*z*(z+1)+1 := by dsimp [L]; ring
+    rw [ll] at dp
+    have d1 := (Nat.dvd_add_iff_right (dvd_mul_of_dvd_right dz (2*z))).mpr dp
+    have := Nat.le_of_dvd Nat.one_pos d1
+    omega
+  exact two_primes (k:=4) (by decide) pp pq ne ph qh
+    (f ▸ dvd_mul_of_dvd_left (dvd_mul_of_dvd_right dp 4) _) (f ▸ dvd_mul_of_dvd_right dq _)
+
+private theorem odd_actual_power {x r : ℕ} (hx : 1<x) (hr : 3≤r) (ro : Odd r)
+    (sol : v_l 1 (x^r)=1) : x^r=8 := by
+  have pos : 0 < x^r := Nat.pow_pos (by omega)
+  have pure := prime_power_succ pos sol
+  rcases Nat.even_or_odd x with ex|ox
+  · by_cases eq : x=2
+    · subst x
+      rcases prime_power_neighbor (by omega) pure with h|⟨t,ht⟩
+      · simp [h]
+      · have t0 : t≠0 := by rintro rfl; norm_num at ht; omega
+        have d2 := dvd_pow_self (2:ℕ) t0
+        obtain ⟨w,hw⟩ := ro
+        omega
+    · exact False.elim (odd_power_cannot_precede_prime_power (by omega) ex ro hr pure)
+  · have high : 27 ≤ x^r := by
+      have three : 3 ≤ x := by obtain ⟨t,ht⟩ := ox; omega
+      exact (Nat.pow_le_pow_left three 3).trans (Nat.pow_le_pow_right (by omega) hr)
+    rcases (odd_classification ox.pow).mp sol with h|h|h|h <;> omega
+
+/-- The only positive solutions that are perfect powers of exponent at least three are 8 and 16. -/
+theorem higher_perfect_power {x r : ℕ} (hx : 1<x) (hr : 3≤r) :
+    v_l 1 (x^r)=1 ↔ x^r=8 ∨ x^r=16 := by
+  constructor
+  · intro sol
+    by_cases four : 4 ∣ r
+    · obtain ⟨j,hj⟩ := four
+      let y := x^j
+      have eq : x^r=y^4 := by dsimp [y]; rw [hj,←pow_mul,Nat.mul_comm]
+      rw [eq] at sol ⊢
+      have hy : 1<y := Nat.one_lt_pow (by omega : j ≠ 0) hx
+      rcases Nat.even_or_odd y with ev|od
+      · have small : y≤2 := by by_contra! large; exact even_fourth_power_excluded large ev sol
+        right
+        rw [show y=2 by omega]
+        decide
+      · have large : 81 ≤ y^4 := Nat.pow_le_pow_left (show 3≤y by obtain ⟨t,ht⟩ := od; omega) 4
+        rcases (odd_classification od.pow).mp sol with h|h|h|h <;> omega
+    · left
+      rcases Nat.even_or_odd r with ⟨j,hj⟩|ro
+      · have oj : Odd j := by rw [Nat.odd_iff]; omega
+        have eq : x^r=(x^2)^j := by rw [hj,←pow_mul,two_mul]
+        rw [eq] at sol ⊢
+        exact odd_actual_power (Nat.one_lt_pow (by decide : 2≠0) hx) (by omega) oj sol
+      · exact odd_actual_power hx hr ro sol
+  · rintro (h|h) <;> rw [h] <;> apply (solutions_through_330 (by decide) (by decide)).mpr <;> decide +kernel
+
+
+private theorem solution_prime_power_factor {n k c : ℕ} (sol : v_l 1 n = 1)
+    (hk : 0 < k) (hc : 2 ≤ c) (div : c ∣ n+k)
+    (eligible : ∀ p : ℕ, p.Prime → p ∣ c → k < p) : IsPrimePow c := by
+  by_contra bad
+  obtain ⟨p, hp, q, hq, different⟩ := (Nat.not_isPrimePow_iff_nontrivial_of_two_le hc).mp bad
+  obtain ⟨pp, dp, _⟩ := Nat.mem_primeFactors.mp hp
+  obtain ⟨pq, dq, _⟩ := Nat.mem_primeFactors.mp hq
+  exact two_primes hk pp pq different (eligible p pp dp) (eligible q pq dq)
+    (dp.trans div) (dq.trans div) sol
+
+/-- All powers of two which attain the lowercase supremum one. -/
+theorem power_two_solution {n b : ℕ} (hn : n=2^b) :
+    v_l 1 n = 1 ↔ n=1 ∨ n=2 ∨ n=4 ∨ n=8 ∨ n=16 := by
+  constructor
+  · intro sol
+    have bound : b ≤ 4 := by
+      by_contra! eb
+      have pp := prime_power_succ (n:=n) (by rw [hn]; positivity) sol
+      rw [hn] at pp
+      obtain ⟨t,ht⟩ := (prime_power_neighbor (by omega) pp).resolve_left (by omega)
+      have tp : t≠0 := by rintro rfl; simp at ht; omega
+      have evenb : 2 ∣ b := ht ▸ dvd_pow_self 2 tp
+      let a := b-1
+      have ha : b=a+1 := by dsimp [a]; omega
+      have ea : 2 ∣ 2^a := dvd_pow_self _ (by omega)
+      have mid : n+2=2*(2^a+1) := by rw [hn,ha,pow_succ]; ring
+      have pp2 : IsPrimePow (2^a+1) :=
+        solution_prime_power_factor sol (k:=2) (by decide) (by have := @Nat.one_le_two_pow a; omega)
+          (mid ▸ dvd_mul_left _ _) (by
+            intro q pq dq
+            have := pq.two_le
+            by_contra! low
+            have eq : q=2 := by omega
+            rw [eq] at dq
+            omega)
+      obtain ⟨u,hu⟩ := (prime_power_neighbor (by omega) pp2).resolve_left (by omega)
+      have up : u≠0 := by rintro rfl; simp at hu; omega
+      have evena : 2 ∣ a := hu ▸ dvd_pow_self 2 up
+      omega
+    interval_cases b <;> norm_num at hn <;> omega
+  · rintro (rfl|rfl|rfl|rfl|rfl) <;> apply (solutions_through_330 (by decide) (by decide)).mpr <;> decide
+
+private theorem shifted_double_orbit {n t s k p q r : ℕ} (hn : n+2=2*2^(2^t))
+    (j : ℕ) (ht : t=s+12*j) (hk : 0<k)
+    (pp : p.Prime) (pq : q.Prime) (ne : p≠q) (hp : k<p) (hq : k<q)
+    (base : Nat.ModEq (p*q) (2^(2^s)) r) (period : Nat.ModEq (p*q) (r^4096) r)
+    (hit : Nat.ModEq (p*q) (2*r+k) 2) : v_l 1 n ≠ 1 := by
+  have orbit (i : ℕ) : Nat.ModEq (p*q) (2^(2^(s+12*i))) r := by
+    induction i with
+    | zero => simpa using base
+    | succ i ih =>
+      rw [show s+12*(i+1)=(s+12*i)+12 by omega,pow_add,pow_mul]
+      calc
+        _ ≡ r^(2^12) [MOD p*q] := ih.pow (2^12)
+        _ ≡ r [MOD p*q] := by rw [show (2:ℕ)^12=4096 by decide]; exact period
+  have cover := (((orbit j).mul_left 2).add_right k).trans hit
+  rw [←ht,←hn,show n+2+k=(n+k)+2 by omega] at cover
+  have d := Nat.modEq_zero_iff_dvd.mp (Nat.ModEq.add_right_cancel' 2 (b:=0) cover)
+  exact two_primes hk pp pq ne hp hq ((dvd_mul_right p q).trans d) ((dvd_mul_left q p).trans d)
+
+set_option maxRecDepth 16384 in
+private theorem shifted_double_exclusion {n t : ℕ} (hn : n+2=2*2^(2^t)) (ht : 3≤t) :
+    v_l 1 n ≠ 1 := by
+  let j := (t-3)/12
+  have classes : t=3+12*j ∨ t=4+12*j ∨ t=5+12*j ∨ t=6+12*j ∨ t=7+12*j ∨ t=8+12*j ∨ t=9+12*j ∨ t=10+12*j ∨ t=11+12*j ∨ t=12+12*j ∨ t=13+12*j ∨ t=14+12*j := by
+    dsimp [j]; omega
+  rcases classes with h|h|h|h|h|h|h|h|h|h|h|h
+  · apply shifted_double_orbit (k:=1) (p:=7) (q:=73) (r:=256) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=10) (p:=29) (q:=113) (r:=3273) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=10) (p:=13) (q:=41) (r:=529) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=6) (p:=19) (q:=43) (r:=815) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=10) (p:=13) (q:=29) (r:=373) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=9) (p:=13) (q:=79) (r:=510) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=1) (p:=7) (q:=73) (r:=256) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=11) (p:=19) (q:=41) (r:=385) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=7) (p:=11) (q:=53) (r:=289) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=6) (p:=11) (q:=19) (r:=207) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=10) (p:=13) (q:=29) (r:=373) hn j h <;> decide +kernel
+  · apply shifted_double_orbit (k:=34) (p:=241) (q:=433) (r:=104337) hn j h <;> decide +kernel
+
+private theorem shifted_even_exclusion {n j : ℕ} (hn : n+2=2^(j+j)) (hj : 2 ≤ j) :
+    v_l 1 n ≠ 1 := by
+  let x := 2^j
+  have large : 4≤x := Nat.pow_le_pow_right (by decide : 0 < 2) hj
+  have evenx : 2 ∣ x := dvd_pow_self 2 (by omega)
+  have sq : n+2=x*x := by simpa [x,pow_add] using hn
+  have fac : n+1=(x-1)*(x+1) := by
+    have u : x-1+1=x := by omega
+    nlinarith
+  let p := (x-1).minFac
+  let q := (x+1).minFac
+  have pp : p.Prime := Nat.minFac_prime (by omega)
+  have pq : q.Prime := Nat.minFac_prime (by omega)
+  have dp : p ∣ x-1 := Nat.minFac_dvd _
+  have dq : q ∣ x+1 := Nat.minFac_dvd _
+  have ne : p≠q := by
+    intro e
+    rw [←e] at dq
+    have diff := Nat.dvd_sub dq dp
+    rw [show x+1-(x-1)=2 by omega] at diff
+    have := Nat.le_of_dvd (by decide) diff
+    have := pp.two_le
+    have eq : p=2 := by omega
+    rw [eq] at dq
+    omega
+  exact two_primes (k:=1) (by decide) pp pq ne pp.one_lt pq.one_lt
+    (fac ▸ dvd_mul_of_dvd_left dp _) (fac ▸ dvd_mul_of_dvd_right dq _)
+
+/-- All positive solutions two below a power of two. -/
+theorem two_below_power_two_solution {n b : ℕ} (pos : 0<n) (hn : n+2=2^b) :
+    v_l 1 n=1 ↔ n=2 ∨ n=6 ∨ n=30 := by
+  constructor
+  · intro sol
+    have b2 : 2≤b := by by_contra! low; interval_cases b <;> norm_num at hn <;> omega
+    rcases Nat.even_or_odd b with ⟨j,hj⟩ | ⟨j,hj⟩
+    · by_cases large : 2 ≤ j
+      · exact False.elim (shifted_even_exclusion (hj ▸ hn) large sol)
+      · have j1 : j=1 := by omega
+        rw [hj,j1] at hn
+        norm_num at hn
+        omega
+    · let a := 2*j
+      have ha : b=a+1 := hj
+      have ea : 2 ∣ 2^a := dvd_pow_self _ (by omega)
+      have m3 : 2^a%3=1 := by
+        change Nat.ModEq 3 (2^a) 1
+        have c : Nat.ModEq 3 (2^2) 1 := by decide
+        have u := c.pow j
+        simpa only [a,pow_mul,one_pow] using u
+      have adj : n+4=2*(2^a+1) := by rw [ha,pow_succ] at hn; omega
+      have pp : IsPrimePow (2^a+1) :=
+        solution_prime_power_factor sol (k:=4) (by decide) (by have := @Nat.one_le_two_pow a; omega)
+          (adj ▸ dvd_mul_left _ _) (by
+            intro q pq dq
+            by_contra! lq
+            have choices : q=2 ∨ q=3 := by interval_cases q <;> norm_num at *
+            rcases choices with rfl|rfl <;> omega)
+      obtain ⟨t,ht⟩ := (prime_power_neighbor (by omega) pp).resolve_left (by dsimp [a]; omega)
+      have expr : n+2=2*2^(2^t) := by rw [ha,pow_succ,ht] at hn; simpa [Nat.mul_comm] using hn
+      have small : t≤2 := by by_contra! large; exact shifted_double_exclusion expr large sol
+      interval_cases t <;> norm_num at expr <;> omega
+  · rintro (rfl|rfl|rfl) <;> apply (solutions_through_330 (by decide) (by decide)).mpr <;> decide
+
+private theorem shifted_prime_above_three {m : ℕ} (hm : 1 < m) (oddm : ¬2 ∣ m)
+    (ex : ∀ e : ℕ, m≠3^e) : ∃ p : ℕ, p.Prime ∧ 3<p ∧ p ∣ m := by
+  by_contra! none
+  exact ex _ (Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+    intro p pp dp
+    have low : p ≤ 3 := by by_contra! big; exact none p pp big dp
+    have := pp.two_le
+    by_contra different
+    have e : p=2 := by omega
+    exact oddm (e ▸ dp)))
+
+private theorem shifted_plus_not_three {j e : ℕ} (hj : 4≤j) : 2^j+1≠3^e := by
+  intro eq
+  have ep : e≠0 := by
+    rintro rfl
+    have := @Nat.one_le_two_pow j
+    simp at eq
+  have primepower : IsPrimePow (2^j+1) := (isPrimePow_nat_iff _).mpr
+    ⟨3,e,Nat.prime_three,Nat.pos_of_ne_zero ep,eq.symm⟩
+  obtain ⟨t,ht⟩ := (prime_power_neighbor (by omega) primepower).resolve_left (by omega)
+  have tn : t≠0 := by rintro rfl; simp at ht; omega
+  obtain ⟨u,hu⟩ : 2 ∣ j := ht ▸ dvd_pow_self 2 tn
+  have red : Nat.ModEq 3 (2^j) 1 := by
+    rw [hu,pow_mul]
+    have m : Nat.ModEq 3 (2^2) 1 := by decide
+    simpa only [one_pow] using m.pow u
+  change 2^j%3=1 at red
+  have d : 3 ∣ 2^j+1 := eq ▸ dvd_pow_self _ ep
+  omega
+
+/-- All positive solutions four below a power of two. -/
+theorem four_below_power_two_solution {n b : ℕ} (pos : 0<n) (hn : n+4=2^b) :
+    v_l 1 n=1 ↔ n=4 ∨ n=12 ∨ n=60 := by
+  constructor
+  · intro sol
+    have bound : b≤6 := by
+      by_contra! large
+      let j := b/2
+      let x := 2^j
+      have j3 : 3≤j := by dsimp [j]; omega
+      have xl : 8≤x := Nat.pow_le_pow_right (by decide : 0 < 2) j3
+      have xe : 8 ∣ x := pow_dvd_pow (2:ℕ) j3
+      have e0 : ¬2 ∣ x-1 := by omega
+      have e1 : ¬2 ∣ x+1 := by omega
+      have disjoint {p q : ℕ} (hp : 2<p) (dp : p ∣ x-1) (dq : q ∣ x+1) : p≠q := by
+        rintro rfl
+        have d := Nat.dvd_sub dq dp
+        rw [show x+1-(x-1)=2 by omega] at d
+        have := Nat.le_of_dvd (by decide) d
+        omega
+      have fac : x*x=(x-1)*(x+1)+1 := by
+        have h : x-1+1=x := by omega
+        nlinarith
+      by_cases evenb : b=2*j
+      · have j4 : 4≤j := by omega
+        have shifted : n+3=(x-1)*(x+1) := by
+          rw [evenb,Nat.mul_comm 2 j,pow_mul,pow_two] at hn
+          change n+4=x*x at hn
+          omega
+        obtain ⟨p,pp,hp,dp⟩ := shifted_prime_above_three (m:=x-1) (by omega) e0 (by
+          intro e eq
+          have rr : 3^e%8=1 ∨ 3^e%8=3 := three_pow_mod_eight e
+          omega)
+        obtain ⟨q,pq,hq,dq⟩ := shifted_prime_above_three (m:=x+1) (by omega) e1
+          (fun _ => shifted_plus_not_three j4)
+        exact two_primes (k:=3) (by decide) pp pq (disjoint (by omega) dp dq) hp hq
+          (shifted ▸ dvd_mul_of_dvd_left dp _) (shifted ▸ dvd_mul_of_dvd_right dq _) sol
+      · have oddb : b=2*j+1 := by dsimp [j] at *; omega
+        have shifted : n+2=2*((x-1)*(x+1)) := by
+          rw [oddb,pow_succ,Nat.mul_comm 2 j,pow_mul,pow_two] at hn
+          change n+4=x*x*2 at hn
+          omega
+        let p := (x-1).minFac
+        let q := (x+1).minFac
+        have pp : p.Prime := Nat.minFac_prime (by omega)
+        have pq : q.Prime := Nat.minFac_prime (by omega)
+        have dp : p ∣ x-1 := Nat.minFac_dvd _
+        have dq : q ∣ x+1 := Nat.minFac_dvd _
+        have hp : 2<p := by
+          have := pp.two_le
+          by_contra! low
+          have eq : p=2 := by omega
+          exact e0 (eq ▸ dp)
+        have hq : 2<q := by
+          have := pq.two_le
+          by_contra! low
+          have eq : q=2 := by omega
+          exact e1 (eq ▸ dq)
+        exact two_primes (k:=2) (by decide) pp pq (disjoint hp dp dq) hp hq
+          (shifted ▸ dvd_mul_of_dvd_right (dvd_mul_of_dvd_left dp _) _)
+          (shifted ▸ dvd_mul_of_dvd_right (dvd_mul_of_dvd_right dq _) _) sol
+    have bad : n≠28 := by
+      rintro rfl
+      have m := (solutions_through_330 (n:=28) (by decide) (by decide)).mp sol
+      exact (by decide : 28 ∉ ([1,2,3,4,6,7,8,10,12,15,16,18,22,24,26,30,36,42,46,
+        48,60,70,78,80,96,120,190,222,330] : List ℕ)) m
+    interval_cases b <;> norm_num at hn <;> omega
+  · rintro (rfl|rfl|rfl) <;> apply (solutions_through_330 (by decide) (by decide)).mpr <;> decide
+
+private theorem binary_cofactor_at {n k : ℕ} (hk : 0<k) (ev : 2 ∣ n+k)
+    (notpure : ∀ e : ℕ, n+k≠2^e) (sol : v_l 1 n=1)
+    (eligible : ∀ q : ℕ, q.Prime → q≠2 → q ∣ n+k → k<q) :
+    ∃ q a b : ℕ, q.Prime ∧ k<q ∧ 0<a ∧ 0<b ∧ n+k=2^a*q^b := by
+  let N := n+k
+  let a := N.factorization 2
+  let m := N/2^a
+  have nz : N≠0 := by dsimp [N]; omega
+  have fac : 2^a*m=N := Nat.ordProj_mul_ordCompl_eq_self N 2
+  have dm : m ∣ n+k := Nat.ordCompl_dvd N 2
+  have pos : 0 < m := Nat.ordCompl_pos 2 nz
+  have oddm : ¬2 ∣ m := Nat.not_dvd_ordCompl Nat.prime_two nz
+  have ap : 0<a := (Nat.Prime.dvd_iff_one_le_factorization Nat.prime_two nz).mp ev
+  have m2 : 2 ≤ m := by
+    by_contra! small
+    have one : m=1 := by omega
+    exact notpure a (by simpa only [one,mul_one] using fac.symm)
+  have ok (q : ℕ) (pq : q.Prime) (dq : q ∣ m) : k<q :=
+    eligible q pq (by rintro rfl; exact oddm dq) (dq.trans dm)
+  have pure := solution_prime_power_factor sol hk m2 dm ok
+  obtain ⟨q,b,pq,bp,rep⟩ := (isPrimePow_nat_iff _).mp pure
+  have dq : q ∣ m := rep ▸ dvd_pow_self q bp.ne'
+  exact ⟨q,a,b,pq,ok q pq dq,ap,bp,by rw [rep]; exact fac.symm⟩
+
+/-- The odd parts of both even neighbors p+1 and p+3 are nontrivial prime powers. -/
+theorem prime_successor_survivor {n p : ℕ} (pp : p.Prime) (eq : n+1=p)
+    (large : 60<n) (sol : v_l 1 n=1) :
+    (∀ e : ℕ, p ≠ 2^e+1) ∧ ∃ q r a b c d : ℕ,
+      q.Prime ∧ r.Prime ∧ 2<q ∧ 3<r ∧ q≠r ∧ 0<a ∧ 0<b ∧ 0<c ∧ 0<d ∧
+      (a=1 ∨ c=1) ∧ p+1=2^a*q^b ∧ p+3=2^c*r^d := by
+  have oddp := pp.odd_of_ne_two (by omega)
+  obtain ⟨u,hu⟩ := oddp
+  constructor
+  · intro e he
+    have claim := (power_two_solution (n:=n) (b:=e) (by omega)).mp sol
+    omega
+  · have no2 (e : ℕ) : n+2≠2^e := by
+      intro he
+      have small := (two_below_power_two_solution (by omega) he).mp sol
+      omega
+    have no4 (e : ℕ) : n+4≠2^e := by
+      intro he
+      have small := (four_below_power_two_solution (by omega) he).mp sol
+      omega
+    obtain ⟨q,a,b,pq,qbig,ap,bp,fa⟩ := binary_cofactor_at (by decide : 0<2)
+      (by omega) no2 sol (by intro z pz nz _; have := pz.two_le; omega)
+    obtain ⟨r,c,d,pr,rbig,cp,dp,fc⟩ := binary_cofactor_at (by decide : 0<4)
+      (by omega) no4 sol (by
+        intro z pz nz dz
+        by_contra! small
+        have z3 : z=3 := by interval_cases z <;> norm_num at *
+        rw [z3] at dz
+        have d3 : 3 ∣ p := by omega
+        have bad := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pp).mp d3
+        omega)
+    have neq : q≠r := by
+      rintro rfl
+      have d2 : q ∣ n+2 := fa ▸ dvd_mul_of_dvd_right (dvd_pow_self q bp.ne') _
+      have d4 : q ∣ n+4 := fc ▸ dvd_mul_of_dvd_right (dvd_pow_self q dp.ne') _
+      have diff := Nat.dvd_sub d4 d2
+      rw [show n+4-(n+2)=2 by omega] at diff
+      have := Nat.le_of_dvd (by decide) diff
+      omega
+    have one : a=1 ∨ c=1 := by
+      by_contra! bad
+      have da : 4 ∣ n+2 := fa ▸ dvd_mul_of_dvd_left (pow_dvd_pow (2:ℕ) (show 2≤a by omega)) _
+      have dc : 4 ∣ n+4 := fc ▸ dvd_mul_of_dvd_left (pow_dvd_pow (2:ℕ) (show 2≤c by omega)) _
+      omega
+    exact ⟨q,r,a,b,c,d,pq,pr,qbig,by omega,neq,ap,bp,cp,dp,one,by omega,by omega⟩
+
+
+open NumberField
+
+
+private theorem eisenstein_model : Nonempty ((QuadraticAlgebra ℤ (-1) (-1)) ≃ₐ[ℤ] 𝓞 (CyclotomicField 3 ℚ)) := by
+  let _ : IsCyclotomicExtension {3} ℚ (CyclotomicField 3 ℚ) := CyclotomicField.isCyclotomicExtension 3 ℚ
+  let z := IsCyclotomicExtension.zeta 3 ℚ (CyclotomicField 3 ℚ)
+  have hz : IsPrimitiveRoot z 3 := IsCyclotomicExtension.zeta_spec 3 ℚ (CyclotomicField 3 ℚ)
+  let w := hz.toInteger
+  have sq : w*w=(-1:ℤ) • (1:𝓞 (CyclotomicField 3 ℚ))+(-1:ℤ) • w := by
+    have h := IsCyclotomicExtension.Rat.Three.eta_sq hz
+    change w^2 = -w-1 at h
+    simp only [neg_smul,one_smul]
+    linear_combination h
+  let f : (QuadraticAlgebra ℤ (-1) (-1)) →ₐ[ℤ] 𝓞 (CyclotomicField 3 ℚ) := QuadraticAlgebra.lift ⟨w,sq⟩
+  have inj : Function.Injective f := by
+    apply (injective_iff_map_eq_zero f).2
+    intro x hx
+    have e := congrArg f (QuadraticAlgebra.algebraMap_norm_eq_mul_star x)
+    rw [AlgHom.commutes,map_mul,hx,zero_mul] at e
+    have en : x.norm=0 := by
+      change (x.norm : 𝓞 (CyclotomicField 3 ℚ))=0 at e
+      exact_mod_cast e
+    change x.re*x.re+(-1)*x.re*x.im-(-1)*x.im*x.im=0 at en
+    ext
+    · change x.re=0
+      nlinarith [sq_nonneg (x.re-2*x.im),sq_nonneg x.re, sq_nonneg x.im]
+    · change x.im=0
+      nlinarith [sq_nonneg (2*x.re-x.im),sq_nonneg x.re,sq_nonneg x.im]
+  have surj : Function.Surjective f := by
+    let _ : IsCyclotomicExtension {3^1} ℚ (CyclotomicField 3 ℚ) := by norm_num; infer_instance
+    let B := (show IsPrimitiveRoot z (3^1) from hz).integralPowerBasisOfPrimePow
+    have hg : B.gen=w := IsPrimitiveRoot.integralPowerBasisOfPrimePow_gen _
+    have incl : Algebra.adjoin ℤ ({B.gen} : Set (𝓞 (CyclotomicField 3 ℚ))) ≤ f.range := by
+      apply Algebra.adjoin_le
+      intro v hv
+      obtain rfl := Set.mem_singleton_iff.mp hv
+      exact ⟨QuadraticAlgebra.omega,by simp [f,QuadraticAlgebra.lift,hg]⟩
+    rw [B.adjoin_gen_eq_top] at incl
+    exact fun t => incl (show t ∈ (⊤ : Subalgebra ℤ (𝓞 (CyclotomicField 3 ℚ))) by trivial)
+  exact ⟨AlgEquiv.ofBijective f ⟨inj,surj⟩⟩
+
+private theorem eisenstein_unit_six (u : (𝓞 (CyclotomicField 3 ℚ))ˣ) : (u : 𝓞 (CyclotomicField 3 ℚ))^6=1 := by
+  let _ : IsCyclotomicExtension {3} ℚ (CyclotomicField 3 ℚ) := CyclotomicField.isCyclotomicExtension 3 ℚ
+  let z := IsCyclotomicExtension.zeta 3 ℚ (CyclotomicField 3 ℚ)
+  have hz : IsPrimitiveRoot z 3 := IsCyclotomicExtension.zeta_spec 3 ℚ (CyclotomicField 3 ℚ)
+  have mem := IsCyclotomicExtension.Rat.Three.Units.mem hz u
+  let w := hz.toInteger
+  have h3 : w^3=1 := hz.toInteger_cube_eq_one
+  have h6 : w^6=1 := by rw [show 6=3*2 by decide,pow_mul,h3,one_pow]
+  simp only [List.mem_cons,List.not_mem_nil,or_false] at mem
+  rcases mem with rfl|rfl|rfl|rfl|rfl|rfl
+  all_goals simp only [Units.val_one,Units.val_neg,Units.val_pow_eq_pow_val,IsUnit.unit_spec,one_pow,Even.neg_pow (by decide : Even 6)]
+  all_goals first | exact h6 | change (w^2)^6=1; rw [←pow_mul, Nat.mul_comm, pow_mul,h6,one_pow]
+
+private theorem eisenstein_extract {x y z : (QuadraticAlgebra ℤ (-1) (-1))} {d : ℕ} (pd : d.Prime) (hd : 3 < d)
+    (cop : IsCoprime x y) (prod : x*y=z^d) : ∃ a : (QuadraticAlgebra ℤ (-1) (-1)), a^d=x := by
+  obtain ⟨f⟩ := eisenstein_model
+  let _ : IsCyclotomicExtension {3} ℚ (CyclotomicField 3 ℚ) := CyclotomicField.isCyclotomicExtension 3 ℚ
+  let _ : IsPrincipalIdealRing (𝓞 (CyclotomicField 3 ℚ)) := IsCyclotomicExtension.Rat.three_pid (CyclotomicField 3 ℚ)
+  obtain ⟨a,u,hu⟩ := exists_associated_pow_of_mul_eq_pow' (cop.map f.toRingHom)
+    (show f x*f y=(f z)^d by rw [←map_mul,prod,map_pow])
+  have h6 := eisenstein_unit_six u
+  have od := pd.odd_of_ne_two (by omega)
+  have nd3 : ¬3 ∣ d := by
+    intro h
+    have := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pd).mp h
+    omega
+  obtain ⟨j,hj⟩ := od
+  have key (e : ℕ) (he : e%6=1) : (u : 𝓞 (CyclotomicField 3 ℚ))^e=u := by
+    have rep : e=e%6+6*(e/6) := (Nat.mod_add_div _ _).symm
+    conv_lhs => rw [rep,pow_add,pow_mul,he,h6,one_pow,mul_one,pow_one]
+  have root : ∃ v : 𝓞 (CyclotomicField 3 ℚ), v^d=u := by
+    rcases (show d%6=1 ∨ d%6=5 by omega) with h|h
+    · exact ⟨u,key d h⟩
+    · exact ⟨(u : 𝓞 (CyclotomicField 3 ℚ))^5,by rw [←pow_mul]; exact key _ (by omega)⟩
+  obtain ⟨v,hv⟩ := root
+  refine ⟨f.symm (a*v),f.injective ?_⟩
+  rw [map_pow,AlgEquiv.apply_symm_apply,mul_pow,hv,hu]
+  rfl
+
+private theorem eisenstein_im_dvd (v : (QuadraticAlgebra ℤ (-1) (-1))) (n : ℕ) : v.im ∣ (v^n).im := by
+  induction n with
+  | zero => simp [QuadraticAlgebra.im_one]
+  | succ n ih =>
+    rw [pow_succ,QuadraticAlgebra.im_mul]
+    exact dvd_add (dvd_add (dvd_mul_left _ _) (dvd_mul_of_dvd_left ih _)) (dvd_mul_left _ _)
+
+/-- A prime square plus three cannot be four times a nontrivial power
+with prime exponent larger than three. -/
+theorem square_plus_three_exclusion {p y d : ℕ} (pp : p.Prime) (hp : 3 < p)
+    (pd : d.Prime) (hd : 3 < d) (hy : 1 < y) (eq : p^2+3=4*y^d) : False := by
+  obtain ⟨w,hw⟩ := pp.odd_of_ne_two (by omega)
+  let α : (QuadraticAlgebra ℤ (-1) (-1)) := ⟨(w:ℤ)+1,1⟩
+  have pw : (p:ℤ)=2*(w:ℤ)+1 := by exact_mod_cast hw
+  have ppow : (p:ℤ)^2+3=4*(y:ℤ)^d := by exact_mod_cast eq
+  have tr : α+star α=(p:(QuadraticAlgebra ℤ (-1) (-1))) := by
+    ext <;> simp [α]
+    omega
+  have diff : (α-star α)^2=(-3:(QuadraticAlgebra ℤ (-1) (-1))) := by
+    ext <;> simp [α,pow_two,QuadraticAlgebra.re_ofNat,QuadraticAlgebra.im_ofNat]
+  have normα : α.norm=(y:ℤ)^d := by
+    simp [α,QuadraticAlgebra.norm_def]
+    rw [pw] at ppow
+    nlinarith
+  have copZ : IsCoprime (p:ℤ) 3 := by
+    apply Int.isCoprime_iff_nat_coprime.mpr
+    change p.Coprime 3
+    exact pp.coprime_iff_not_dvd.mpr (by intro h; have := Nat.le_of_dvd (by decide : 0<3) h; omega)
+  obtain ⟨u,v,uv⟩ := copZ
+  have cop : IsCoprime α (star α) := by
+    refine ⟨(u:(QuadraticAlgebra ℤ (-1) (-1)))-v*(α-star α),(u:(QuadraticAlgebra ℤ (-1) (-1)))+v*(α-star α),?_⟩
+    calc
+      _ = (u:(QuadraticAlgebra ℤ (-1) (-1)))*(α+star α)-v*(α-star α)^2 := by ring
+      _ = 1 := by rw [tr,diff]; simpa using (show (u:(QuadraticAlgebra ℤ (-1) (-1)))*(p:(QuadraticAlgebra ℤ (-1) (-1)))+(v:(QuadraticAlgebra ℤ (-1) (-1)))*3=1 by exact_mod_cast uv)
+  have prod : α*star α=(y:(QuadraticAlgebra ℤ (-1) (-1)))^d := by
+    rw [← QuadraticAlgebra.algebraMap_norm_eq_mul_star,normα,map_pow]
+    rfl
+  obtain ⟨a,ha⟩ := eisenstein_extract pd hd cop prod
+  have idiv := eisenstein_im_dvd a d
+  rw [ha] at idiv
+  change a.im ∣ 1 at idiv
+  have absim : a.im.natAbs=1 := by
+    obtain ⟨k,hk⟩ := idiv
+    apply Nat.dvd_one.mp
+    exact ⟨k.natAbs,by simpa [Int.natAbs_mul] using congrArg Int.natAbs hk⟩
+  have ims : a.im^2=1 := by
+    have hh := congrArg (fun t : ℕ => (t:ℤ)^2) absim
+    simpa [Int.natCast_natAbs,sq_abs] using hh
+  let S : ℤ := 2*a.re-a.im
+  have ts : a+star a=(S:(QuadraticAlgebra ℤ (-1) (-1))) := by
+    ext
+    · change a.re+(a.re+(-1)*a.im)=2*a.re-a.im
+      ring
+    · change a.im+ -a.im=0
+      omega
+  have ad := (pd.odd_of_ne_two (by omega)).add_dvd_pow_add_pow a (star a)
+  rw [ts,←star_pow,ha,tr] at ad
+  obtain ⟨k,hk⟩ := ad
+  have div : S ∣ (p:ℤ) := ⟨k.re,by simpa using congrArg QuadraticAlgebra.re hk⟩
+  have absdiv : S.natAbs ∣ p := by
+    obtain ⟨b,hb⟩ := div
+    exact ⟨b.natAbs,by simpa [Int.natAbs_mul] using congrArg Int.natAbs hb⟩
+  have nform : 4*a.norm=S^2+3 := by
+    simp only [QuadraticAlgebra.norm_def,S]
+    linear_combination 3*ims
+  have hn : a.norm^d=(y:ℤ)^d := by rw [←map_pow,ha,normα]
+  have ybig : (1:ℤ)<(y:ℤ)^d := one_lt_pow₀ (by exact_mod_cast hy) pd.ne_zero
+  have big : 1 < a.norm := by
+    by_contra! le
+    have pos : 0 < a.norm := by nlinarith [sq_nonneg S]
+    have one : a.norm=1 := by omega
+    rw [one,one_pow] at hn
+    omega
+  have gt : a.norm < a.norm^d := by simpa using pow_lt_pow_right₀ big (show 1 < d by omega)
+  have hs : (S.natAbs:ℤ)^2=S^2 := by rw [Int.natCast_natAbs,sq_abs]
+  rcases (Nat.dvd_prime pp).mp absdiv with one|same
+  · rw [one] at hs
+    norm_num at hs
+    omega
+  · rw [same] at hs
+    nlinarith
+
+/-- For a surviving prime square, the third cofactor's odd exponent must be a power of three. -/
+theorem square_third_exponent {p r b : ℕ} (pp : p.Prime) (hp : 3 < p)
+    (hr : 1 < r) (ob : Odd b) (eq : p^2+3=4*r^b) :
+    ∃ k : ℕ, b=3^k := by
+  obtain ⟨w,hw⟩ := ob
+  refine ⟨_,Nat.eq_prime_pow_of_unique_prime_dvd (by omega) ?_⟩
+  intro d pd dd
+  by_contra ne
+  have d2 : d≠2 := by rintro rfl; omega
+  have big : 3 < d := by have := pd.two_le; omega
+  obtain ⟨j,hj⟩ := dd
+  have jp : j ≠ 0 := by rintro rfl; simp at hj; omega
+  apply square_plus_three_exclusion pp hp pd big (Nat.one_lt_pow jp hr)
+  rw [←pow_mul,Nat.mul_comm j d,←hj,eq]
+
+
+private theorem gaussian_unit_four (u : GaussianIntˣ) : (u:GaussianInt)^4=1 := by
+  have un := (Zsqrtd.norm_eq_one_iff' (by decide : (-1:ℤ)≤0) (u:GaussianInt)).mpr u.isUnit
+  generalize (u:GaussianInt)=v at un ⊢
+  obtain ⟨a,b⟩ := v
+  change a*a-(-1)*b*b=1 at un
+  have a₁ : -1 ≤ a := by nlinarith [sq_nonneg b]
+  have a₂ : a ≤ 1 := by nlinarith [sq_nonneg b]
+  have b₁ : -1 ≤ b := by nlinarith [sq_nonneg a]
+  have b₂ : b ≤ 1 := by nlinarith [sq_nonneg a]
+  interval_cases a <;> interval_cases b <;> norm_num at un
+  all_goals decide +kernel
+
+private theorem gaussian_odd_root {u : GaussianInt} (hu : u^4=1) {d : ℕ} (od : Odd d) :
+    ∃ v : GaussianInt, v^d=u := by
+  obtain ⟨w,hw⟩ := od
+  have key (e : ℕ) (he : e%4=1) : u^e=u := by
+    have rep : e=e%4+4*(e/4) := (Nat.mod_add_div _ _).symm
+    conv_lhs => rw [rep,pow_add,pow_mul,he,hu,one_pow,mul_one,pow_one]
+  rcases (show d%4=1 ∨ d%4=3 by omega) with h|h
+  · exact ⟨u,key _ h⟩
+  · exact ⟨u^3,by rw [←pow_mul]; exact key _ (by omega)⟩
+
+private theorem gaussian_primitive_divisor {t : ℤ} {p k : ℕ} (ht : ¬2 ∣ t)
+    (div : t ∣ (2:ℤ)^k*p) : t.natAbs ∣ p := by
+  obtain ⟨h,hh⟩ := div
+  have dn : t.natAbs ∣ 2^k*p := ⟨h.natAbs,by simpa [Int.natAbs_mul,Int.natAbs_pow] using congrArg Int.natAbs hh⟩
+  have odd : Odd t.natAbs := by rw [Nat.odd_iff]; omega
+  exact ((Nat.coprime_two_right.mpr odd).pow_right k).dvd_of_dvd_mul_left dn
+
+private theorem gaussian_im_dvd (v : GaussianInt) (n : ℕ) : v.im ∣ (v^n).im := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [pow_succ,Zsqrtd.im_mul]
+    exact dvd_add (dvd_mul_left _ _) (dvd_mul_of_dvd_left ih _)
+
+/-- A prime square plus one cannot be twice a nontrivial odd power of an odd number. -/
+theorem square_plus_one_odd_exclusion {p y d : ℕ} (pp : p.Prime) (hp : 2 < p)
+    (hy : 1 < y) (oy : Odd y) (hd : 1 < d) (od : Odd d) (eq : p^2+1=2*y^d) : False := by
+  obtain ⟨w,hw⟩ := pp.odd_of_ne_two (by omega)
+  obtain ⟨k,hk⟩ := od
+  let I : GaussianInt := ⟨0,1⟩
+  let A : GaussianInt := ⟨(w:ℤ)+1,-(w:ℤ)⟩
+  have I2 : I^2=-1 := by decide +kernel
+  have pair : A+I*star A=1+I := by ext <;> simp [I,A]
+  have pcast : (p:ℤ)=2*(w:ℤ)+1 := by exact_mod_cast hw
+  have eqZ : (p:ℤ)^2+1=2*(y:ℤ)^d := by exact_mod_cast eq
+  have An : A.norm=(y:ℤ)^d := by
+    rw [pcast] at eqZ
+    simp [A,Zsqrtd.norm_def]
+    nlinarith
+  have prod : A*star A=(y:GaussianInt)^d := by rw [←Zsqrtd.norm_eq_mul_conj,An]; push_cast; rfl
+  have Iprod : (1+I)*(1-I)=2 := by linear_combination -I2
+  have cop : IsCoprime A (star A) := by
+    obtain ⟨l,hl⟩ : Odd (y^d) := oy.pow
+    have oddZ : (y:GaussianInt)^d = 2*(l:GaussianInt)+1 := by exact_mod_cast hl
+    refine ⟨star A-(l:GaussianInt)*(1-I),-(l:GaussianInt)*(1-I)*I,?_⟩
+    calc
+      _ = A*star A-(l:GaussianInt)*((A+I*star A)*(1-I)) := by ring
+      _ = 1 := by rw [prod,oddZ,pair,Iprod]; ring
+  obtain ⟨z,u,hu⟩ := exists_associated_pow_of_mul_eq_pow' cop prod
+  have ii : (-I)^4=1 := by decide +kernel
+  have ui : ((u:GaussianInt)*(-I)^k)^4=1 := by
+    rw [mul_pow,gaussian_unit_four,one_mul,←pow_mul,Nat.mul_comm,pow_mul,ii,one_pow]
+  obtain ⟨v,hv⟩ := gaussian_odd_root ui (show Odd d from ⟨k,hk⟩)
+  let h := z*v
+  have hpow : h^d=(-I)^k*A := by dsimp [h]; rw [mul_pow,hv,←hu]; ring
+  let θ := (1+I)*h
+  have prodA : (1+I)*A=(p:GaussianInt)+I := by ext <;> simp [I,A] <;> omega
+  have scale : ((1+I)^2)*(-I)=2 := by decide +kernel
+  have θpow : θ^d=(((2:ℤ)^k : ℤ):GaussianInt)*((p:GaussianInt)+I) := by
+    dsimp [θ]
+    rw [mul_pow,hpow,hk,pow_succ,pow_mul]
+    push_cast
+    calc
+      _ = (((1+I)^2)*(-I))^k*((1+I)*A) := by rw [mul_pow]; ring
+      _ = _ := by rw [scale,prodA]
+  have hnorm : h.norm=(y:ℤ) := by
+    apply (show Odd d from ⟨k,hk⟩).pow_injective
+    change Zsqrtd.normMonoidHom h ^ d = _
+    rw [←map_pow,hpow,map_mul,map_pow]
+    change (-I).norm^k*A.norm=_
+    rw [show (-I).norm=1 by decide +kernel,one_pow,one_mul,An]
+  have θnorm : θ.norm=2*(y:ℤ) := by
+    dsimp [θ]
+    rw [Zsqrtd.norm_mul,hnorm,show (1+I).norm=2 by decide +kernel]
+  have sumsq : θ.re^2+θ.im^2=2*(y:ℤ) := by
+    rw [←θnorm,Zsqrtd.norm_def]; ring
+  have par : θ.re=h.re-h.im ∧ θ.im=h.re+h.im := by
+    constructor
+    · simp [θ,I,sub_eq_add_neg]
+    · simp [θ,I,add_comm]
+  have notboth : ¬(2 ∣ θ.re ∧ 2 ∣ θ.im) := by
+    rintro ⟨⟨a,ha⟩,b,hb⟩
+    have div : (4:ℤ) ∣ 2*(y:ℤ) := ⟨a^2+b^2,by rw [←sumsq,ha,hb]; ring⟩
+    obtain ⟨m,hm⟩ := oy
+    omega
+  have oi : ¬2 ∣ θ.im := by omega
+  have or' : ¬2 ∣ θ.re := by omega
+  have imag := gaussian_im_dvd θ d
+  have rpow : (θ^d).re=(2:ℤ)^k*p := by
+    rw [θpow,Zsqrtd.re_mul,Zsqrtd.re_intCast,Zsqrtd.im_intCast]
+    simp [I]
+  have ipow : (θ^d).im=(2:ℤ)^k := by
+    rw [θpow,Zsqrtd.im_mul,Zsqrtd.re_intCast,Zsqrtd.im_intCast]
+    simp [I]
+  rw [ipow] at imag
+  have imag' : θ.im ∣ (2:ℤ)^k*1 := by simpa using imag
+  have absI : θ.im.natAbs=1 := Nat.dvd_one.mp (gaussian_primitive_divisor (p:=1) oi imag')
+  have real : θ.re ∣ (2:ℤ)^k*p := by
+    have dv := (show Odd d from ⟨k,hk⟩).add_dvd_pow_add_pow θ (star θ)
+    obtain ⟨s,hs⟩ := dv
+    rw [←star_pow] at hs
+    refine ⟨s.re,?_⟩
+    have cc := congrArg Zsqrtd.re hs
+    simp only [Zsqrtd.re_mul,Zsqrtd.re_add,Zsqrtd.im_add,Zsqrtd.re_star,Zsqrtd.im_star,rpow] at cc
+    nlinarith only [cc]
+  have absR := gaussian_primitive_divisor or' real
+  have isq : θ.im^2=1 := by
+    have he := congrArg (fun t:ℕ => (t:ℤ)^2) absI
+    simpa [Int.natCast_natAbs,sq_abs] using he
+  have hs : (θ.re.natAbs:ℤ)^2=θ.re^2 := by rw [Int.natCast_natAbs,sq_abs]
+  rcases (Nat.dvd_prime pp).mp absR with one|same
+  · rw [one] at hs
+    norm_num at hs
+    omega
+  · rw [same] at hs
+    have gt : (y:ℤ) < (y:ℤ)^d := by simpa using pow_lt_pow_right₀ (show (1:ℤ)<y by exact_mod_cast hy) hd
+    nlinarith
+
+/-- In the surviving square branch the first prime cofactor has exponent one or two. -/
+theorem square_first_exponent {p q a : ℕ} (pp : p.Prime) (hp : 2 < p) (oq : Odd q)
+    (hq : 1 < q) (ap : 0 < a) (no4 : ¬4 ∣ a) (eq : p^2+1=2*q^a) : a=1 ∨ a=2 := by
+  have pure : a=2^a.primeFactorsList.length := Nat.eq_prime_pow_of_unique_prime_dvd ap.ne' (by
+    intro d pd dd
+    by_contra ne
+    obtain ⟨j,hj⟩ := dd
+    have jpos : j ≠ 0 := by rintro rfl; simp at hj; omega
+    apply square_plus_one_odd_exclusion pp hp (Nat.one_lt_pow jpos hq) oq.pow pd.one_lt (pd.odd_of_ne_two ne)
+    rw [←pow_mul,Nat.mul_comm j d,←hj,eq])
+  generalize a.primeFactorsList.length=e at pure
+  have low : e < 2 := by
+    by_contra! he
+    exact no4 (pure ▸ pow_dvd_pow (2:ℕ) he)
+  interval_cases e <;> simp_all
+
+
 /-- At every sufficiently large odd prime, find a later or equal integer
 with two distinct prime factors larger than the offset from its predecessor. -/
 def H1 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p →
+    (∀ x : ℕ, 1<x → p≠x^4+1) →
+    ((∀ e : ℕ, p ≠ 2^e+1) ∧ ∃ q r a b c d : ℕ, q.Prime ∧ r.Prime ∧ 2<q ∧ 3<r ∧
+      q≠r ∧ 0<a ∧ 0<b ∧ 0<c ∧ 0<d ∧ (a=1 ∨ c=1) ∧ p+1=2^a*q^b ∧ p+3=2^c*r^d) →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p+d ∧ s ∣ p+d
 
 /-- A prime square needs a witness only if three successive values have the prescribed factorizations
 with the specified residues and exponents. -/
 def H2 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
-    (∃ q r a b : ℕ, q.Prime ∧ r.Prime ∧ q≠r ∧ q%4=1 ∧ r%3=1 ∧
-      0<a ∧ ¬4 ∣ a ∧ 0<b ∧ Odd b ∧ p^2+1=2*q^a ∧ p^2+3=4*r^b) →
+    (∃ q r b : ℕ, q.Prime ∧ r.Prime ∧ q≠r ∧ q%4=1 ∧ r%3=1 ∧
+      (∃ k : ℕ, b=3^k) ∧ p^2+3=4*r^b ∧
+      (p^2+1=2*q ∨ (b=1 ∧ p^2+1=2*q^2))) →
     (∃ t c e : ℕ, t.Prime ∧ 3 < t ∧ (t%8=1 ∨ t%8=3) ∧
       0 < c ∧ 0 < e ∧ p^2+2=3^c*t^e) →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
@@ -1382,13 +2169,28 @@ theorem main : H1 → H2 → H3 → type_of% @Erdos889.erdos_889.variants.v1_eq_
       have lim := Nat.pow_le_pow_left small 2
       norm_num at lim
       omega
-    exact missing (narrowSquares p pp op (by omega) (square_survivor pp op (by omega) missing)
-      (square_middle pp op greater missing))
+    obtain ⟨q,r,a,b,pq,pr,ne,rq,rr,ap,no4,bp,ob,f1,f3⟩ :=
+      square_survivor pp op (by omega) missing
+    have cb := square_third_exponent pp (by omega) pr.one_lt ob f3
+    have qlarge : 3 < q := by have := pq.two_le; omega
+    have qo := pq.odd_of_ne_two (by omega)
+    have rOdd := pr.odd_of_ne_two (by omega)
+    have first : p^2+1=2*q ∨ (b=1 ∧ p^2+1=2*q^2) := by
+      rcases square_first_exponent pp (by omega) qo pq.one_lt ap no4 f1 with one|two
+      · left; simpa [one] using f1
+      · rw [two] at f1
+        have next : q^2+1=2*r^b := by omega
+        have b1 : b=1 := by
+          by_contra bad
+          exact square_plus_one_odd_exclusion pq (by omega) pr.one_lt rOdd (by omega) ob next
+        exact Or.inr ⟨b1,f1⟩
+    exact missing (narrowSquares p pp op (by omega)
+      ⟨q,r,b,pq,pr,ne,rq,rr,cb,f3,first⟩ (square_middle pp op greater missing))
   obtain ⟨B, dyadicCase⟩ := dyadic_of_prime_squares squares
-  refine (Set.finite_le_nat (A+B+C+26)).subset ?_
+  refine (Set.finite_le_nat (A+B+C+60)).subset ?_
   intro n hn
   change v_l 1 n = 1 at hn
-  change n ≤ A+B+C+26
+  change n ≤ A+B+C+60
   by_contra! big
   rcases Nat.even_or_odd n with ev|od
   · obtain ⟨p, a, pp, op, apos, no3, he⟩ := even_solution_shape (by omega) ev (by omega) hn
@@ -1399,7 +2201,12 @@ theorem main : H1 → H2 → H3 → type_of% @Erdos889.erdos_889.variants.v1_eq_
         cases t with
         | zero =>
           simp only [pow_zero, pow_one] at he ⊢
-          exact primeCase p pp op (by omega)
+          apply primeCase p pp op (by omega)
+          · intro x hx eq
+            have nx : n=x^4 := by omega
+            have sol : v_l 1 (x^4)=1 := nx ▸ hn
+            rcases (higher_perfect_power hx (by decide : 3≤4)).mp sol with h|h <;> omega
+          · exact prime_successor_survivor pp he (by omega) hn
         | succ t => exact dyadicCase p (t+1) pp op (by omega) (by omega)
       · have exc : ¬(a=5 ∨ a=7) := fun h => fifth_seventh_exclusion pp.one_lt h he hn
         have a11 : 11 ≤ a := by
