@@ -1311,15 +1311,672 @@ theorem mersenne_seventh_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) :
   exact missing ⟨128,q,s,pq,ps,ne,hq,hs,fac ▸ dvd_mul_of_dvd_left dl _,fac ▸ dvd_mul_of_dvd_right ds _⟩
 
 
-/-- A solution cannot immediately precede any nontrivial fifth or seventh power. -/
-theorem fifth_seventh_exclusion {n x r : ℕ} (hx : 1 < x) (hr : r=5 ∨ r=7)
+-- Each entry records (b,d,q,s). The modular tests use the small exponents
+-- b modulo q−1 and b modulo s−1. The second test covers the prime indices
+-- in one interval of length 64.
+private theorem eleventh_witness_prime {q : ℕ} (mem : q ∈ [5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,127,131,149,151,167]) : q.Prime := by
+  have table : ∀ t ∈ ([5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,127,131,149,151,167] : List ℕ), t.Prime := by decide +kernel
+  exact table q mem
+
+private theorem eleventh_small_block {b start : ℕ} (small : b≤2049) (pb : b.Prime)
+    (lower : start≤b) (upper : b<start+64) (certs : List (ℕ × ℕ × ℕ × ℕ))
+    (valid : certs.all (fun z => decide (
+      z.2.2.1 ∈ [5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,127,131,149,151,167] ∧ z.2.2.2 ∈ [5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,127,131,149,151,167] ∧
+      z.2.2.1≠z.2.2.2 ∧ z.2.1+1<z.2.2.1 ∧ z.2.1+1<z.2.2.2 ∧
+      (2^(z.2.2.1-1)%z.2.2.1=1 ∧ (((2^(z.1%(z.2.2.1-1))-1)%z.2.2.1)^11+z.2.1)%z.2.2.1=0) ∧
+      (2^(z.2.2.2-1)%z.2.2.2=1 ∧ (((2^(z.1%(z.2.2.2-1))-1)%z.2.2.2)^11+z.2.1)%z.2.2.2=0))) = true)
+    (covers : (List.range 64).all (fun i => decide (2049<start+i) ||
+      certs.any (fun z => z.1 == start+i) || decide (start+i<2) ||
+      ([2,3,5,7,11,13,17,19,23,29,31,37,41,43] : List ℕ).any (fun d => decide (1<d ∧ d<start+i ∧ (start+i)%d=0))) = true) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  let v := b-start
+  have index : start+v=b := by dsimp [v]; omega
+  have hit := List.all_eq_true.mp covers v (List.mem_range.mpr (show v<64 by dsimp [v]; omega))
+  simp only [index, Bool.or_eq_true, List.any_eq_true, decide_eq_true_eq, beq_iff_eq] at hit
+  have high : ¬2049<b := by omega
+  have low : ¬b<2 := by have := pb.two_le; omega
+  have noDiv : ¬∃ d ∈ ([2,3,5,7,11,13,17,19,23,29,31,37,41,43] : List ℕ), 1<d ∧ d<b ∧ b%d=0 := by
+    rintro ⟨d,_,hd,lt,div⟩
+    have bad := (Nat.dvd_prime pb).mp (Nat.dvd_iff_mod_eq_zero.mpr div)
+    omega
+  have good : ∃ z ∈ certs, z.1=b := ((hit.resolve_right noDiv).resolve_right low).resolve_left high
+  obtain ⟨⟨j,d,q,s⟩,mem,ej⟩ := good
+  change j=b at ej
+  subst j
+  have facts := of_decide_eq_true (List.all_eq_true.mp valid _ mem)
+  obtain ⟨qp,sp,ne,hq,hs,tq,ts⟩ := facts
+  have pq := eleventh_witness_prime qp
+  have ps := eleventh_witness_prime sp
+  have lift (t : ℕ) (pt : t.Prime) (per : 2^(t-1)%t=1)
+      (hit : (((2^(b%(t-1))-1)%t)^11+d)%t=0) : t ∣ (2^b-1)^11+d := by
+    have m : Nat.ModEq t (2^(t-1)) 1 := by
+      change 2^(t-1)%t=1%t
+      rwa [Nat.mod_eq_of_lt pt.one_lt]
+    have red : Nat.ModEq t (2^b) (2^(b%(t-1))) := by
+      calc
+        2^b = 2^(b%(t-1))*(2^(t-1))^(b/(t-1)) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+        _ ≡ 2^(b%(t-1))*1^(b/(t-1)) [MOD t] := (m.pow _).mul_left _
+        _ = _ := by simp
+    have pm : Nat.ModEq t (2^b-1) ((2^(b%(t-1))-1)%t) := by
+      apply Nat.ModEq.trans _ (Nat.mod_modEq _ _).symm
+      apply Nat.ModEq.add_right_cancel' 1
+      rw [Nat.sub_add_cancel (Nat.one_le_pow b 2 (by decide)),
+        Nat.sub_add_cancel (Nat.one_le_pow (b%(t-1)) 2 (by decide))]
+      exact red
+    exact Nat.dvd_iff_mod_eq_zero.mpr (((pm.pow 11).add_right d).trans (show Nat.ModEq t _ 0 from hit))
+  exact ⟨d,q,s,pq,ps,ne,hq,hs,lift q pq tq.1 tq.2,lift s ps ts.1 ts.2⟩
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_0 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=0) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=0) small pb (by omega) (by omega)
+    [(2,9,19,37),(3,11,13,31),(5,2,7,11),(7,77,89,131),(11,2,5,7),(13,4,11,19),(17,5,11,13),(19,20,41,47),(23,2,5,7),(29,6,11,19),(31,6,29,43),(37,5,11,53),(41,45,61,73),(43,3,17,37),(47,2,5,7),(53,5,13,37),(59,2,5,7),(61,17,19,37)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_1 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=1) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=64) small pb (by omega) (by omega)
+    [(67,37,41,53),(71,2,5,7),(73,11,31,59),(79,53,59,61),(83,2,5,7),(89,5,13,37),(97,17,19,37),(101,6,19,43),(103,4,11,19),(107,2,5,7),(109,7,17,41),(113,11,19,31),(127,15,17,29)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_2 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=2) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=128) small pb (by omega) (by omega)
+    [(131,2,5,7),(137,5,11,13),(139,8,43,127),(149,7,17,41),(151,17,19,29),(157,1,23,67),(163,43,47,59),(167,2,5,7),(173,11,29,31),(179,2,5,7),(181,8,43,127),(191,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_3 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=3) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=192) small pb (by omega) (by omega)
+    [(193,4,11,19),(197,5,11,13),(199,6,11,29),(211,3,17,61),(223,1,23,67),(227,2,5,7),(229,7,17,41),(233,5,13,37),(239,2,5,7),(241,17,19,37),(251,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_4 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=4) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=256) small pb (by omega) (by omega)
+    [(257,5,11,13),(263,2,5,7),(269,5,13,37),(271,3,61,79),(277,17,19,37),(281,90,101,167),(283,4,11,19),(293,11,19,31),(307,18,31,79),(311,2,5,7),(313,11,29,31),(317,5,11,13)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_5 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=5) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=320) small pb (by omega) (by omega)
+    [(331,3,17,37),(337,77,79,89),(347,2,5,7),(349,17,19,37),(353,6,19,43),(359,2,5,7),(367,6,29,43),(373,4,11,19),(379,3,17,47),(383,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_6 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=6) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=384) small pb (by omega) (by omega)
+    [(389,6,11,19),(397,7,17,59),(401,5,13,53),(409,6,11,43),(419,2,5,7),(421,17,19,37),(431,2,5,7),(433,20,47,71),(439,30,67,71),(443,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_7 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=7) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=448) small pb (by omega) (by omega)
+    [(449,5,13,37),(457,17,19,37),(461,8,37,43),(463,4,11,19),(467,2,5,7),(479,2,5,7),(487,1,23,67),(491,2,5,7),(499,34,37,43),(503,2,5,7),(509,11,19,29)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_8 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=8) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=512) small pb (by omega) (by omega)
+    [(521,5,13,37),(523,2,5,47),(541,18,79,127),(547,3,17,37),(557,5,11,13),(563,2,5,7),(569,6,11,19),(571,3,17,61)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_9 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=9) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=576) small pb (by omega) (by omega)
+    [(577,31,59,61),(587,2,5,7),(593,11,29,31),(599,2,5,7),(601,17,19,37),(607,5,11,29),(613,27,29,59),(617,5,11,13),(619,6,11,29),(631,15,17,29)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_10 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=10) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=640) small pb (by omega) (by omega)
+    [(641,24,43,59),(643,4,11,19),(647,2,5,7),(653,11,19,31),(659,2,5,7),(661,2,47,101),(673,17,19,37),(677,5,11,13),(683,2,5,7),(691,3,17,37),(701,5,13,37)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_11 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=11) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=704) small pb (by omega) (by omega)
+    [(709,17,19,37),(719,2,5,7),(727,39,53,101),(733,4,11,19),(739,3,17,79),(743,2,5,7),(751,34,37,43),(757,28,41,103),(761,11,19,29)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_12 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=12) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=768) small pb (by omega) (by omega)
+    [(769,1,23,89),(773,5,13,37),(787,6,29,43),(797,5,11,13),(809,5,13,37),(811,3,17,61),(821,5,13,107),(823,4,11,19),(827,2,5,7),(829,7,17,41)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_13 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=13) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=832) small pb (by omega) (by omega)
+    [(839,2,5,7),(853,17,19,37),(857,5,11,13),(859,20,41,83),(863,2,5,7),(877,37,67,89),(881,5,13,37),(883,14,47,59),(887,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_14 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=14) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=896) small pb (by omega) (by omega)
+    [(907,17,19,29),(911,2,5,7),(919,7,29,47),(929,6,11,19),(937,25,29,97),(941,45,61,73),(947,2,5,7),(953,5,13,37)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_15 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=15) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=960) small pb (by omega) (by omega)
+    [(967,15,17,29),(971,2,5,7),(977,5,11,13),(983,2,5,7),(991,29,71,103),(997,17,19,37),(1009,37,67,89),(1013,11,19,29),(1019,2,5,7),(1021,38,59,67)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_16 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=16) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1024) small pb (by omega) (by omega)
+    [(1031,2,5,7),(1033,17,19,37),(1039,6,11,29),(1049,25,29,101),(1051,3,17,37),(1061,5,13,37),(1063,4,11,59),(1069,17,19,37),(1087,35,47,73)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_17 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=17) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1088) small pb (by omega) (by omega)
+    [(1091,2,5,7),(1093,4,11,19),(1097,5,11,13),(1103,2,5,7),(1109,6,11,19),(1117,24,43,53),(1123,3,17,37),(1129,57,71,107),(1151,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_18 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=18) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1152) small pb (by omega) (by omega)
+    [(1153,11,29,31),(1163,2,5,7),(1171,3,17,61),(1181,5,13,53),(1187,2,5,7),(1193,11,19,31),(1201,29,37,71),(1213,17,19,37)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_19 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=19) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1216) small pb (by omega) (by omega)
+    [(1217,5,11,13),(1223,2,5,7),(1229,7,17,41),(1231,3,37,61),(1237,4,19,59),(1249,17,19,37),(1259,2,5,7),(1277,5,11,13),(1279,1,23,67)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_20 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=20) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1280) small pb (by omega) (by omega)
+    [(1283,2,5,7),(1289,6,11,19),(1291,6,29,43),(1297,1,23,89),(1301,45,59,61),(1303,15,17,29),(1307,2,5,7),(1319,2,5,7),(1321,17,19,37),(1327,57,61,83)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_21 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=21) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1344) small pb (by omega) (by omega)
+    [(1361,6,19,43),(1367,2,5,7),(1373,11,19,31),(1381,1,23,67),(1399,20,41,47)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_22 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=22) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1408) small pb (by omega) (by omega)
+    [(1409,57,71,83),(1423,34,43,47),(1427,2,5,7),(1429,17,19,37),(1433,11,29,31),(1439,2,5,7),(1447,5,11,29),(1451,2,5,7),(1453,4,11,19),(1459,6,11,29),(1471,15,17,29)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_23 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=23) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1472) small pb (by omega) (by omega)
+    [(1481,24,43,53),(1483,3,17,37),(1487,2,5,7),(1489,29,37,67),(1493,5,13,37),(1499,2,5,7),(1511,2,5,7),(1523,2,5,7),(1531,3,17,61)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_24 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=24) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1536) small pb (by omega) (by omega)
+    [(1543,4,11,19),(1549,7,17,41),(1553,11,19,31),(1559,2,5,7),(1567,8,43,53),(1571,2,5,7),(1579,1,23,67),(1583,2,5,7),(1597,5,11,53)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_25 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=25) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1600) small pb (by omega) (by omega)
+    [(1601,5,13,37),(1607,2,5,7),(1609,17,19,37),(1613,6,19,43),(1619,2,5,7),(1621,29,67,71),(1627,3,17,37),(1637,5,11,13),(1657,41,71,151),(1663,17,19,29)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_26 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=26) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1664) small pb (by omega) (by omega)
+    [(1667,2,5,7),(1669,7,17,41),(1693,30,47,67),(1697,5,11,13),(1699,3,17,37),(1709,5,13,37),(1721,8,37,43),(1723,4,11,19)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_27 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=27) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1728) small pb (by omega) (by omega)
+    [(1733,11,19,31),(1741,1,23,67),(1747,37,41,89),(1753,17,19,37),(1759,34,37,43),(1777,1,23,67),(1783,9,13,149),(1787,2,5,7),(1789,17,19,37)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_28 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=28) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1792) small pb (by omega) (by omega)
+    [(1801,37,67,89),(1811,2,5,7),(1823,2,5,7),(1831,27,41,59),(1847,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_29 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=29) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1856) small pb (by omega) (by omega)
+    [(1861,17,19,37),(1867,5,11,29),(1871,2,5,7),(1873,1,23,67),(1877,5,11,13),(1879,6,11,29),(1889,5,13,37),(1901,24,43,73),(1907,2,5,7),(1913,11,19,31)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_30 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=30) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1920) small pb (by omega) (by omega)
+    [(1931,2,5,7),(1933,17,19,37),(1949,7,17,41),(1951,3,37,61),(1973,8,37,43),(1979,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_31 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=31) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=1984) small pb (by omega) (by omega)
+    [(1987,3,17,37),(1993,4,11,19),(1997,5,11,13),(1999,36,59,79),(2003,2,5,7),(2011,34,37,43),(2017,41,47,151),(2027,2,5,7),(2029,7,17,41),(2039,2,5,7)]
+  · decide +kernel
+  · decide +kernel
+
+set_option maxRecDepth 8192 in
+private theorem eleventh_block_32 {b : ℕ} (small : b≤2049) (pb : b.Prime) (index : b/64=32) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  apply eleventh_small_block (start:=2048) small pb (by omega) (by omega)
+    []
+  · decide +kernel
+  · decide +kernel
+
+private theorem eleventh_small {b : ℕ} (small : b≤2049) (pb : b.Prime) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^11+d ∧ s ∣ (2^b-1)^11+d := by
+  have bound : b/64≤32 := by omega
+  interval_cases h : b/64
+  · exact eleventh_block_0 small pb h
+  · exact eleventh_block_1 small pb h
+  · exact eleventh_block_2 small pb h
+  · exact eleventh_block_3 small pb h
+  · exact eleventh_block_4 small pb h
+  · exact eleventh_block_5 small pb h
+  · exact eleventh_block_6 small pb h
+  · exact eleventh_block_7 small pb h
+  · exact eleventh_block_8 small pb h
+  · exact eleventh_block_9 small pb h
+  · exact eleventh_block_10 small pb h
+  · exact eleventh_block_11 small pb h
+  · exact eleventh_block_12 small pb h
+  · exact eleventh_block_13 small pb h
+  · exact eleventh_block_14 small pb h
+  · exact eleventh_block_15 small pb h
+  · exact eleventh_block_16 small pb h
+  · exact eleventh_block_17 small pb h
+  · exact eleventh_block_18 small pb h
+  · exact eleventh_block_19 small pb h
+  · exact eleventh_block_20 small pb h
+  · exact eleventh_block_21 small pb h
+  · exact eleventh_block_22 small pb h
+  · exact eleventh_block_23 small pb h
+  · exact eleventh_block_24 small pb h
+  · exact eleventh_block_25 small pb h
+  · exact eleventh_block_26 small pb h
+  · exact eleventh_block_27 small pb h
+  · exact eleventh_block_28 small pb h
+  · exact eleventh_block_29 small pb h
+  · exact eleventh_block_30 small pb h
+  · exact eleventh_block_31 small pb h
+  · exact eleventh_block_32 small pb h
+
+
+-- BEGIN ELEVEN
+private theorem eleven_period {b m o : ℕ} (hm : Nat.ModEq m (2^o) 1) :
+    Nat.ModEq m (2^b) (2^(b%o)) := by
+  calc
+    2^b = 2^(b%o)*(2^o)^(b/o) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+    _ ≡ 2^(b%o)*1^(b/o) [MOD m] := (hm.pow _).mul_left _
+    _ = _ := by simp
+
+private theorem eleven_order {q p : ℕ} (pq : q.Prime) (q2 : q≠2)
+    (d : q ∣ p^11+2048) (nd : ¬q ∣ p+2) : 11 ∣ q-1 := by
+  let _ : Fact q.Prime := ⟨pq⟩
+  have h2 : (2 : ZMod q) ≠ 0 := by
+    intro h
+    have eq := (Nat.prime_dvd_prime_iff_eq pq Nat.prime_two).mp ((ZMod.natCast_eq_zero_iff 2 q).mp h)
+    exact q2 eq
+  let t : ZMod q := -(p:ZMod q)/2
+  have zero := (ZMod.natCast_eq_zero_iff _ _).mpr d
+  push_cast at zero
+  have eq : t^11=1 := by
+    dsimp [t]
+    rw [div_pow,div_eq_iff (pow_ne_zero _ h2)]
+    linear_combination -zero
+  have t1 : t≠1 := by
+    intro h
+    dsimp [t] at h
+    rw [div_eq_iff h2] at h
+    apply nd
+    apply (ZMod.natCast_eq_zero_iff _ _).mp
+    push_cast
+    linear_combination -h
+  have t0 : t≠0 := by rintro h; rw [h] at eq; simp at eq
+  have ord : orderOf t = 11 := ((Nat.dvd_prime (by decide : Nat.Prime 11)).mp
+    (orderOf_dvd_of_pow_eq_one eq)).resolve_left (fun h => t1 (orderOf_eq_one_iff.mp h))
+  exact ord ▸ ZMod.orderOf_dvd_card_sub_one t0
+
+set_option maxRecDepth 32768 in
+set_option synthInstance.maxSize 512 in
+set_option maxHeartbeats 10000000 in
+/-- At a Mersenne-prime eleventh power, the shifts by one and 2048 force a witness
+when the Mersenne index exceeds 2049. -/
+theorem mersenne_eleven_large_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b)
+    (hb : 2049 < b) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+    q ∣ p^11+d ∧ s ∣ p^11+d := by
+  by_contra missing
+  have ep : p=2^b-1 := by omega
+  have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime (by omega) (ep ▸ pp)).2
+  let x := p-2
+  have xp : p=x+2 := by dsimp [x]; have := pp.two_le; omega
+  have bx : x+3=2^b := by omega
+  have d8 : 8 ∣ 2^b := pow_dvd_pow (2:ℕ) (show 3≤b by omega)
+  have xm : Nat.ModEq 8 x 5 := by change x%8=5; omega
+  let F (y : ℕ) := ((((((((((1*y+18)*y+148)*y+728)*y+2368)*y+5312)*y+8320)*y+8960)*y+6400)*y+2560)*y+1024)
+  let C (y : ℕ) := ((((((((((1*y+19)*y+163)*y+831)*y+2787)*y+6423)*y+10299)*y+11343)*y+8211)*y+3527)*y+683)
+  have fc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (F i) (F j) := (((((((((((((((((((((Nat.ModEq.refl 1).mul h).add_right 18).mul h).add_right 148).mul h).add_right 728).mul h).add_right 2368).mul h).add_right 5312).mul h).add_right 8320).mul h).add_right 8960).mul h).add_right 6400).mul h).add_right 2560).mul h).add_right 1024)
+  have cc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (C i) (C j) := (((((((((((((((((((((Nat.ModEq.refl 1).mul h).add_right 19).mul h).add_right 163).mul h).add_right 831).mul h).add_right 2787).mul h).add_right 6423).mul h).add_right 10299).mul h).add_right 11343).mul h).add_right 8211).mul h).add_right 3527).mul h).add_right 683)
+  have f8 : F x%8=7 := (fc xm).trans (by decide +kernel : Nat.ModEq 8 (F 5) 7)
+  have c8 : C x%8=3 := (cc xm).trans (by decide +kernel : Nat.ModEq 8 (C 5) 3)
+  have fac : p^11+2048=(p+2)*F x := by rw [xp]; dsimp [F]; ring
+  have first : p^11+1=(p+1)*C x := by rw [xp]; dsimp [C]; ring
+  have excl : b%11 ∉ [3,4,6,9,10] := by
+    intro mem
+    have red := eleven_period (b:=b) (by decide : Nat.ModEq 23 (2^11) 1)
+    have pmod : Nat.ModEq 23 p (2^(b%11)-1) := by
+      apply Nat.ModEq.add_right_cancel' 1
+      rw [base,Nat.sub_add_cancel (Nat.one_le_pow _ _ (by decide : 0<2))]
+      exact red
+    have tab : ∀ i : Fin 11, i.val ∈ [3,4,6,9,10] → ((2^i.val-1)^11+1)%23=0 := by decide +kernel
+    have rd := (pmod.pow 11).add_right 1
+    have div : 23 ∣ p^11+1 := by
+      rw [Nat.dvd_iff_mod_eq_zero]
+      exact Eq.trans rd (tab ⟨b%11,Nat.mod_lt _ (by decide)⟩ mem)
+    have eq : C x=23^(C x).primeFactorsList.length := Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+      intro q pq dq
+      by_contra ne
+      have qbig : 2 < q := by
+        by_contra! small
+        have := pq.two_le
+        have q2 : q=2 := by omega
+        rw [q2] at dq
+        omega
+      exact missing ⟨1,q,23,pq,by decide,ne,qbig,by decide,first ▸ dvd_mul_of_dvd_right dq _, div⟩)
+    have rem (j : ℕ) : 23^j%8=1 ∨ 23^j%8=7 := by
+      induction j with
+      | zero => decide
+      | succ j ih => rw [pow_succ,Nat.mul_mod]; rcases ih with h|h <;> rw [h] <;> decide
+    have zz := rem (C x).primeFactorsList.length
+    rw [←eq] at zz
+    omega
+  obtain ⟨q,pq,hq,dq⟩ := mersenne_left_factor pb (show 2049 < b by omega) (by omega)
+  have dl : q ∣ p+2 := by convert dq using 1; omega
+  have common {s : ℕ} (d1 : s ∣ p+2) (d2 : s ∣ F x) : s ∣ 11264 := by
+    have ident : F x+2560*(p+2)=11264+(p+2)*(x^9+14*x^8+92*x^7+360*x^6+928*x^5+1600*x^4+1920*x^3+1280*x^2+1280*x) := by
+      rw [xp]; dsimp [F]; ring
+    have both := dvd_add d2 (dvd_mul_of_dvd_right d1 2560)
+    rw [ident] at both
+    exact (Nat.dvd_add_iff_left (dvd_mul_of_dvd_left d1 _)).mpr both
+  have only (s : ℕ) (ps : s.Prime) (ds : s ∣ F x) : s ≤ 2049 := by
+    by_contra! high
+    have diff : q≠s := by
+      rintro rfl
+      have mem := pq.mem_primeFactors (common dl ds) (by decide)
+      have tab : (11264:ℕ).primeFactors={2,11} := by decide +kernel
+      rw [tab] at mem; simp only [Finset.mem_insert,Finset.mem_singleton] at mem; omega
+    exact missing ⟨2048,q,s,pq,ps,diff,hq,high,fac ▸ dvd_mul_of_dvd_left dl _,fac ▸ dvd_mul_of_dvd_right ds _⟩
+  -- A triple gives a possible small prime, the order of two, and the
+  -- compatible exponent residues modulo the gcd of that order with 132.
+  let catalog : List (ℕ × ℕ × List ℕ) := [(23,11,[3,4,6,9,10]),
+    (67,66,[13,17,23,31,59]),
+    (89,11,[10]),
+    (199,99,[31,20]),
+    (331,30,[]),
+    (353,88,[]),
+    (397,44,[]),
+    (419,418,[5,19,1,9,17,13]),
+    (463,231,[16]),
+    (617,154,[17]),
+    (661,660,[89]),
+    (683,22,[1,21]),
+    (727,121,[2]),
+    (859,858,[5,31]),
+    (881,55,[]),
+    (947,946,[1,21,13,5,3]),
+    (991,495,[28,32,4]),
+    (1013,92,[]),
+    (1123,1122,[13]),
+    (1277,1276,[3,35,31,25,9]),
+    (1321,60,[]),
+    (1409,704,[13,23,7]),
+    (1453,1452,[85,119,79,25]),
+    (1607,803,[4,6]),
+    (1783,891,[1,4,20,31,26]),
+    (1871,935,[4,8,6]),
+    (2003,286,[21])]
+  let rows : List (ℕ × List ℕ) := [(1,[419,683,947,1783]),
+    (5,[419,859,947]),
+    (7,[1409]),
+    (13,[67,419,727,947,1123,1409]),
+    (19,[419,1871]),
+    (23,[67,419,683,947,1409]),
+    (29,[]),
+    (35,[419,727,947,1277]),
+    (41,[419,1871]),
+    (49,[419,463,947]),
+    (67,[419,683,947,1409,1783]),
+    (71,[419,859,947]),
+    (73,[]),
+    (79,[67,419,727,947,1123,1277,1453]),
+    (85,[419,1453,1871]),
+    (89,[67,419,661,683,947]),
+    (95,[1409]),
+    (101,[419,727,947,1409]),
+    (107,[419,1871]),
+    (115,[419,463,947])]
+  have idx : ∀ k : Fin 132, k.val.Coprime 132 → k.val%11 ∉ [3,4,6,9,10] →
+      ∃ row ∈ rows, row.1=k.val := by decide +kernel
+  have co (o : ℕ) (ho : 0 < o) (ob : o < b) : (b%o).Coprime o := by
+    have h := pb.coprime_iff_not_dvd.mpr (show ¬b ∣ o by intro d; have := Nat.le_of_dvd ho d; omega)
+    change Nat.gcd (b%o) o=1
+    rw [←Nat.gcd_rec o b,Nat.gcd_comm]
+    exact h
+  obtain ⟨row,hr,rb⟩ := idx ⟨_,Nat.mod_lt b (by decide)⟩ (co 132 (by decide) (by omega)) (by
+    change (b%132)%11 ∉ [3,4,6,9,10]
+    rwa [Nat.mod_mod_of_dvd _ (by decide : 11 ∣ 132)])
+  change row.1=b%132 at rb
+  have sup (s : ℕ) (ps : s.Prime) (ds : s ∣ F x) : s ∈ row.2 := by
+    have le := only s ps ds
+    have nd : ¬s ∣ p+2 := by
+      intro dd
+      have dL : s ∣ 2^b+1 := by convert dd using 1; omega
+      have three := fifth_order pb (pb.odd_of_ne_two (by omega)) ps dL (by omega)
+      subst s
+      have mem := (by decide : Nat.Prime 3).mem_primeFactors (common dd ds) (by decide)
+      have tab : (11264:ℕ).primeFactors={2,11} := by decide +kernel
+      rw [tab] at mem; simp at mem
+    have s2 : s≠2 := by rintro rfl; omega
+    have mult : s ∣ p^11+2048 := fac ▸ dvd_mul_of_dvd_right ds _
+    have ord := eleven_order ps s2 mult nd
+    obtain ⟨j,hj⟩ := ord
+    have sj : s=11*j+1 := by have := ps.two_le; omega
+    have lst : ∀ i : Fin 187, (11*i.val+1).Prime → ∃ e ∈ catalog, e.1=11*i.val+1 := by decide +kernel
+    obtain ⟨⟨s',o,R⟩,hm,es⟩ : ∃ e ∈ catalog,e.1=s := by
+      rw [sj]; exact lst ⟨j,by omega⟩ (sj ▸ ps)
+    change s'=s at es
+    subst s'
+    have periods : ∀ e ∈ catalog, 0 < e.2.1 ∧ e.2.1 ≤ 2049 ∧
+        2^e.2.1%e.1=1 ∧ ∀ i : Fin e.2.1, i.val.Coprime e.2.1 →
+          (((2^i.val-1)%e.1)^11+2048)%e.1=0 → i.val%(Nat.gcd e.2.1 132) ∈ e.2.2 := by decide +kernel
+    obtain ⟨op,ou,per,hit⟩ := periods _ hm
+    change 0<o at op
+    change o≤2049 at ou
+    change 2^o%s=1 at per
+    have mo : Nat.ModEq s (2^o) 1 := by change 2^o%s=1%s; rw [Nat.mod_eq_of_lt ps.one_lt]; exact per
+    have red := eleven_period (b:=b) mo
+    have pm : Nat.ModEq s p ((2^(b%o)-1)%s) := by
+      apply Nat.ModEq.trans _ (Nat.mod_modEq _ _).symm
+      apply Nat.ModEq.add_right_cancel' 1
+      rw [base,Nat.sub_add_cancel (Nat.one_le_pow _ _ (by decide : 0<2))]
+      exact red
+    have rr := (pm.pow 11).add_right 2048
+    have z := Nat.mod_eq_zero_of_dvd mult
+    have com := hit ⟨b%o,Nat.mod_lt b op⟩ (co o op (by omega)) (rr ▸ z)
+    change (b%o)%(Nat.gcd o 132) ∈ R at com
+    have rowsOk : ∀ r ∈ rows, ∀ t ∈ catalog, r.1%(Nat.gcd t.2.1 132) ∈ t.2.2 → t.1 ∈ r.2 := by decide +kernel
+    apply rowsOk _ hr _ hm
+    change row.1%(Nat.gcd o 132) ∈ R
+    rw [rb,Nat.mod_mod_of_dvd _ (Nat.gcd_dvd_right _ _)]
+    rwa [Nat.mod_mod_of_dvd _ (Nat.gcd_dvd_left _ _)] at com
+  obtain ⟨D,t,dt,sf⟩ := Nat.sq_mul_squarefree (F x)
+  let T := D.primeFactors
+  have sub : T ∈ row.2.toFinset.powerset := Finset.mem_powerset.mpr (by
+    intro s hs
+    obtain ⟨ps,ds,_⟩ := Nat.mem_primeFactors.mp hs
+    exact List.mem_toFinset.mpr (sup s ps (dt ▸ dvd_mul_of_dvd_right ds _)))
+  have prod : (∏ a ∈ T, a)=D := Nat.prod_primeFactors_of_squarefree sf
+  have dmod : D%8=7 := by
+    have mm := (Nat.mod_modEq t 8).symm.pow 2
+    have dd := mm.mul (Nat.mod_modEq D 8).symm
+    change (t^2*D)%8=((t%8)^2*(D%8))%8 at dd
+    rw [dt,f8] at dd
+    have check : ∀ u v : Fin 8, (u.val^2*v.val)%8=7 → v.val=7 := by decide
+    exact check ⟨_,Nat.mod_lt t (by decide)⟩ ⟨_,Nat.mod_lt D (by decide)⟩ dd.symm
+  -- For each possible squarefree part D of F, one of these moduli shows
+  -- that D times a square cannot be F in the prescribed exponent class.
+  let mods : List ℕ := [3,5,7,13,23,89,397]
+  have cover : ∀ r ∈ rows, ∀ U ∈ r.2.toFinset.powerset,
+      (∏ a ∈ U,a)%8=7 → ∃ m ∈ mods,
+        (((F ((2^(r.1+132)-3)%m)*(∏ a ∈ U,a))%m)^((m-1)/2))%m=m-1 := by decide +kernel
+  obtain ⟨m,hm,test⟩ := cover row hr T sub (prod ▸ dmod)
+  have squares : ∀ m ∈ mods, ∀ w : Fin m, ((w.val^2%m)^((m-1)/2))%m ≠ m-1 := by decide +kernel
+  have tab : ∀ m ∈ mods, 1 < m ∧ 2^132%m=1 := by decide +kernel
+  obtain ⟨mb,per⟩ := tab _ hm
+  have mo : Nat.ModEq m (2^132) 1 := by change 2^132%m=1%m; rwa [Nat.mod_eq_of_lt mb]
+  have red := eleven_period (b:=b) mo
+  have large : 3≤2^(row.1+132) := by
+    have zz := Nat.pow_le_pow_right (by decide : 0<2) (show 2≤row.1+132 by omega)
+    norm_num at zz; omega
+  have xa : Nat.ModEq m x ((2^(row.1+132)-3)%m) := by
+    apply Nat.ModEq.trans _ (Nat.mod_modEq _ _).symm
+    apply Nat.ModEq.add_right_cancel' 3
+    rw [bx,Nat.sub_add_cancel large,pow_add,rb]
+    have lift := mo.mul_left (2^(b%132))
+    rw [mul_one] at lift
+    exact red.trans lift.symm
+  have left := (Nat.mod_modEq (t*D) m).pow 2
+  have right := (fc xa).mul_right D
+  have ident : (t*D)^2=F x*D := by rw [←dt]; ring
+  have both := (ident ▸ left).trans right
+  change (((t*D)%m)^2)%m=(F ((2^(row.1+132)-3)%m)*D)%m at both
+  apply squares m hm ⟨(t*D)%m,Nat.mod_lt _ (by omega)⟩
+  dsimp only
+  rw [both]
+  rwa [prod] at test
+
+/-- Two-prime witnesses cover both the bounded and unbounded Mersenne indices. -/
+theorem mersenne_eleventh_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ p^11+d ∧ s ∣ p^11+d := by
+  by_cases small : b≤2049
+  · have ep : p=2^b-1 := by omega
+    have b1 : b≠1 := by rintro rfl; norm_num at base; have := pp.two_le; omega
+    have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime b1 (ep ▸ pp)).2
+    exact ep ▸ eleventh_small small pb
+  · exact mersenne_eleven_large_witness pp base (by omega)
+
+/-- A solution cannot immediately precede any nontrivial fifth, seventh or eleventh power. -/
+theorem fifth_seventh_eleventh_exclusion {n x r : ℕ} (hx : 1 < x) (hr : r=5 ∨ r=7 ∨ r=11)
     (eq : n+1=x^r) : v_l 1 n ≠ 1 := by
   intro sol
   have rp : 1 < r := by omega
-  have ro : Odd r := by rcases hr with rfl|rfl <;> decide
+  have ro : Odd r := by rcases hr with rfl|rfl|rfl <;> decide
   have bound : 32 ≤ x^r := by
     have a := Nat.pow_le_pow_left (show 2 ≤ x by omega) r
-    rcases hr with rfl|rfl <;> norm_num at a <;> omega
+    rcases hr with rfl|rfl|rfl <;> norm_num at a <;> omega
   have ox : Odd x := by
     apply Nat.not_even_iff_odd.mp
     intro ex
@@ -1340,12 +1997,17 @@ theorem fifth_seventh_exclusion {n x r : ℕ} (hx : 1 < x) (hr : r=5 ∨ r=7)
   subst x
   have hit : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
       q ∣ p^r+d ∧ s ∣ p^r+d := by
-    rcases hr with rfl|rfl
+    rcases hr with rfl|rfl|rfl
     · exact mersenne_fifth_witness pp base
     · exact mersenne_seventh_witness pp base
+    · exact mersenne_eleventh_witness pp base
   obtain ⟨d,q,s,pq,ps,ne,hq,hs,dq,ds⟩ := hit
   have rearr : n+(d+1)=p^r+d := by omega
   exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (rearr ▸ dq) (rearr ▸ ds) sol
+
+theorem fifth_seventh_exclusion {n x r : ℕ} (hx : 1 < x) (hr : r=5 ∨ r=7)
+    (eq : n+1=x^r) : v_l 1 n ≠ 1 :=
+  fifth_seventh_eleventh_exclusion hx (hr.elim Or.inl (fun h => Or.inr (Or.inl h))) eq
 
 private theorem odd_power_cannot_precede_prime_power {x r : ℕ} (hx : 3 ≤ x)
     (ex : Even x) (ro : Odd r) (hr : 3 ≤ r) : ¬IsPrimePow (x^r+1) := by
@@ -2050,7 +2712,9 @@ theorem square_plus_one_odd_exclusion {p y d : ℕ} (pp : p.Prime) (hp : 2 < p)
   let h := z*v
   have hpow : h^d=(-I)^k*A := by dsimp [h]; rw [mul_pow,hv,←hu]; ring
   let θ := (1+I)*h
-  have prodA : (1+I)*A=(p:GaussianInt)+I := by ext <;> simp [I,A] <;> omega
+  have prodA : (1+I)*A=(p:GaussianInt)+I := by
+    ext <;> simp [I,A]
+    all_goals omega
   have scale : ((1+I)^2)*(-I)=2 := by decide +kernel
   have θpow : θ^d=(((2:ℤ)^k : ℤ):GaussianInt)*((p:GaussianInt)+I) := by
     dsimp [θ]
@@ -2149,10 +2813,10 @@ def H2 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p^2+d ∧ s ∣ p^2+d
 
-/-- The remaining odd exponents are primes at least eleven, and the only
+/-- The remaining odd exponents are primes at least thirteen, and the only
 bases that need be considered are Mersenne primes. -/
 def H3 : Prop := ∃ B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → (∃ b : ℕ, p+1=2^b) →
-    r.Prime → 11 ≤ r → B < p^r →
+    r.Prime → 13 ≤ r → B < p^r →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p^r+d ∧ s ∣ p^r+d
 
@@ -2208,12 +2872,12 @@ theorem main : H1 → H2 → H3 → type_of% @Erdos889.erdos_889.variants.v1_eq_
             rcases (higher_perfect_power hx (by decide : 3≤4)).mp sol with h|h <;> omega
           · exact prime_successor_survivor pp he (by omega) hn
         | succ t => exact dyadicCase p (t+1) pp op (by omega) (by omega)
-      · have exc : ¬(a=5 ∨ a=7) := fun h => fifth_seventh_exclusion pp.one_lt h he hn
-        have a11 : 11 ≤ a := by
+      · have exc : ¬(a=5 ∨ a=7 ∨ a=11) := fun h => fifth_seventh_eleventh_exclusion pp.one_lt h he hn
+        have a13 : 13 ≤ a := by
           obtain ⟨w, hw⟩ := oa
           have := pr.two_le
           omega
-        exact mersenneCase p a pp op base pr a11 (by omega)
+        exact mersenneCase p a pp op base pr a13 (by omega)
     obtain ⟨d,q,s,pq,ps,ne,hq,hs,dq,ds⟩ := witness
     have equal : n+(d+1)=p^a+d := by omega
     exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (equal ▸ dq) (equal ▸ ds) hn
