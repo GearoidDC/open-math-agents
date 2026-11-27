@@ -4,7 +4,9 @@ import FormalConjectures.ErdosProblems.«889»
 A reduction of the lowercase Erdős 889 finiteness problem. The odd case has
 also been settled in the earlier R1 reduction. Here the new restriction on
 even solutions comes from factoring an odd power plus one at offset two
-and applying the lifting-the-exponent lemma to its odd cofactor.
+and applying the lifting-the-exponent lemma to its odd cofactor. Fourth powers
+and prime squares admit additional restrictions by elementary Pell descents
+and quadratic reciprocity.
 -/
 
 namespace OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
@@ -694,14 +696,313 @@ theorem dyadic_of_prime_squares
       obtain ⟨q,s,pq,ps,ne,hq,hs,dq,ds⟩ := fourth_power_witness (x:=x) op.pow xbig
       exact ⟨4,q,s,pq,ps,ne,hq,hs,dq,ds⟩
 
+private theorem cofactor_power {N d m : ℕ} (hm : 2 ≤ m) (dm : m ∣ N+d)
+    (eligible : ∀ q : ℕ, q.Prime → q ∣ m → d+1<q)
+    (nohit : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ N+d ∧ s ∣ N+d) : IsPrimePow m := by
+  by_contra bad
+  obtain ⟨q, hq, s, hs, ne⟩ := (Nat.not_isPrimePow_iff_nontrivial_of_two_le hm).mp bad
+  obtain ⟨pq,dq,_⟩ := Nat.mem_primeFactors.mp hq
+  obtain ⟨ps,ds,_⟩ := Nat.mem_primeFactors.mp hs
+  exact nohit ⟨d,q,s,pq,ps,ne,eligible q pq dq,eligible s ps ds,dq.trans dm,ds.trans dm⟩
+
+private theorem square_mod_three {x : ℕ} (h : ¬3 ∣ x) : x^2%3=1 := by
+  have b := Nat.mod_lt x (by decide : 0<3)
+  rw [pow_two, Nat.mul_mod]
+  interval_cases e : x%3 <;> first | decide | omega
+
+private theorem odd_power_mod_three {x b : ℕ} (ob : Odd b) (h : ¬3 ∣ x) :
+    x^b%3 = x%3 := by
+  obtain ⟨j,hj⟩ := ob
+  have one : Nat.ModEq 3 (x^2) 1 := square_mod_three h
+  have m := (one.pow j).mul_right x
+  change Nat.ModEq 3 (x^b) x
+  rw [hj, pow_succ, pow_mul]
+  simpa only [one_pow, one_mul] using m
+
+/-- Offsets 2 and 4 force simultaneous prime powers. Offset 10 removes
+every multiple of four from the exponent of the first cofactor. -/
+theorem square_survivor {p : ℕ} (pp : p.Prime) (op : Odd p) (hp : 3<p)
+    (nohit : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ p^2+d ∧ s ∣ p^2+d) :
+    ∃ q r a b : ℕ, q.Prime ∧ r.Prime ∧ q≠r ∧ q%4=1 ∧ r%3=1 ∧
+      0<a ∧ ¬4 ∣ a ∧ 0<b ∧ Odd b ∧ p^2+1=2*q^a ∧ p^2+3=4*r^b := by
+  obtain ⟨w,hw⟩ := op
+  let A := 2*w*(w+1)+1
+  let B := w*(w+1)+1
+  have hA : p^2+1=2*A := by dsimp [A]; rw [hw]; ring
+  have hB : p^2+3=4*B := by dsimp [B]; rw [hw]; ring
+  have abig : 2≤A := by nlinarith [Nat.mul_self_le_mul_self hp.le]
+  have bbig : 2≤B := by nlinarith [Nat.mul_self_le_mul_self hp.le]
+  have aodd : ¬2 ∣ A := by
+    have e : A=2*(w*(w+1))+1 := by dsimp [A]; ring
+    omega
+  have bodd : ¬2 ∣ B := by
+    rcases Nat.even_or_odd w with ⟨i,hi⟩|⟨i,hi⟩
+    · have e : B=2*(i*(w+1))+1 := by dsimp [B]; rw [hi]; ring
+      omega
+    · have e : B=2*(w*(i+1))+1 := by dsimp [B]; rw [hi]; ring
+      omega
+  have p3 : ¬3 ∣ p := by
+    intro d
+    have e := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pp).mp d
+    omega
+  have pmod := square_mod_three p3
+  have modB : B%3=1 := by omega
+  have pureA : IsPrimePow A := cofactor_power (d:=1) abig (hA ▸ dvd_mul_left A 2) (by
+    intro q pq dq
+    have := pq.two_le
+    by_contra! bad
+    have eq : q=2 := by omega
+    exact aodd (eq ▸ dq)) nohit
+  have pureB : IsPrimePow B := cofactor_power (d:=3) bbig (hB ▸ dvd_mul_left B 4) (by
+    intro q pq dq
+    by_contra! bad
+    have e : q=2 ∨ q=3 := by interval_cases q <;> norm_num at *
+    rcases e with rfl|rfl
+    · exact bodd dq
+    · omega) nohit
+  obtain ⟨q,a,pq,apos,eqA⟩ := (isPrimePow_nat_iff _).mp pureA
+  obtain ⟨r,b,pr,bpos,eqB⟩ := (isPrimePow_nat_iff _).mp pureB
+  have dq : q ∣ A := eqA ▸ dvd_pow_self q apos.ne'
+  have dr : r ∣ B := eqB ▸ dvd_pow_self r bpos.ne'
+  have q2 : q ≠ 2 := by rintro rfl; exact aodd dq
+  have qs : q ∣ p^2+1 := hA ▸ dvd_mul_of_dvd_right dq 2
+  obtain ⟨j,hj⟩ := Nat.pow_pow_add_primeFactors_one_lt (a:=p) (n:=1) pq q2 (by simpa using qs)
+  norm_num at hj
+  have q4 : q%4=1 := by omega
+  have qbig : 3<q := by have := pq.two_le; omega
+  have ne : q ≠ r := by
+    rintro rfl
+    have d := hB ▸ (dvd_mul_of_dvd_right dr 4 : q ∣ 4*B)
+    have dd := Nat.dvd_sub d qs
+    have e : p^2+3-(p^2+1)=2 := by omega
+    rw [e] at dd
+    have := Nat.le_of_dvd (by decide) dd
+    omega
+  have ob : Odd b := by
+    apply Nat.not_even_iff_odd.mp
+    rintro ⟨i,hi⟩
+    have sq : p^2+3=(2*r^i)^2 := by rw [hB, ← eqB, hi, pow_add]; ring
+    by_cases le : 2*r^i ≤ p
+    · nlinarith [Nat.mul_self_le_mul_self le]
+    · nlinarith [Nat.mul_self_le_mul_self (show p+1 ≤ 2*r^i by omega)]
+  have r3 : ¬3 ∣ r := by intro d; have dB := d.trans dr; omega
+  have rmod := odd_power_mod_three ob r3
+  have no4 : ¬4 ∣ a := by
+    rintro ⟨i,hi⟩
+    have ip : 0 < i := by omega
+    let x := q^i
+    have xb : 3<x := (lt_of_lt_of_le qbig (Nat.le_self_pow ip.ne' q))
+    have ox : Odd x := (pq.odd_of_ne_two q2).pow
+    have f : p^2+9=2*(x^4+4) := by
+      have aa : A=x^4 := by dsimp [x]; rw [←eqA, hi, ←pow_mul, Nat.mul_comm]
+      omega
+    obtain ⟨l,s,pl,ps,nls,hl,hs,dl,ds⟩ := fourth_power_witness ox xb
+    have no7 : ¬7 ∣ x^4+4 := by
+      have mx := (Nat.mod_modEq x 7).symm
+      have red := (mx.pow 4).add_right 4
+      change (x^4+4)%7=((x%7)^4+4)%7 at red
+      rw [Nat.dvd_iff_mod_eq_zero, red]
+      have bound := Nat.mod_lt x (by decide : 0<7)
+      interval_cases e : x%7 <;> decide
+    have big (t : ℕ) (pt : t.Prime) (dt : t ∣ x^4+4) (ht : 5<t) : 10<t := by
+      by_contra! small
+      have et : t=7 := by interval_cases t <;> norm_num at *
+      exact no7 (et ▸ dt)
+    exact nohit ⟨9,l,s,pl,ps,nls,big l pl dl hl,big s ps ds hs,
+      f ▸ dvd_mul_of_dvd_right dl 2,f ▸ dvd_mul_of_dvd_right ds 2⟩
+  exact ⟨q,r,a,b,pq,pr,ne,q4,by omega,apos,no4,bpos,ob,by omega,by omega⟩
+
+private theorem pell_three_divisibility {x y : ℕ} (he : x^2+2=3*y^2) (hd : 9 ∣ y) :
+    17 ∣ y := by
+  let states : List (ℕ × ℕ) := [(1,1),(5,3),(19,11),(71,41),(112,0),(71,112),
+    (19,142),(5,150),(1,152),(152,152),(148,150),(134,142),(82,112),(41,0),
+    (82,41),(134,11),(148,3),(152,1)]
+  have closed : ∀ z ∈ states, ((2*z.1+3*z.2)%153,(z.1+2*z.2)%153) ∈ states := by
+    decide +kernel
+  have sieve : ∀ z ∈ states, 9 ∣ z.2 → 17 ∣ z.2 := by decide +kernel
+  have orbit (b a : ℕ) (eqn : a^2+2=3*b^2) : (a%153,b%153) ∈ states := by
+    induction b using Nat.strong_induction_on generalizing a with
+    | h b ih =>
+      by_cases small : b < 2
+      · have ab : a ≤ 1 := by nlinarith [Nat.mul_self_le_mul_self (show b ≤ 1 by omega)]
+        interval_cases b <;> interval_cases a <;> norm_num at eqn
+        all_goals decide +kernel
+      · have lb : 2 ≤ b := by omega
+        have low : 3*b ≤ 2*a := by
+          by_contra! bad
+          nlinarith only [eqn, Nat.mul_self_le_mul_self bad.le, Nat.mul_self_le_mul_self lb]
+        have high : a ≤ 2*b := by
+          by_contra! bad
+          nlinarith only [eqn, Nat.mul_self_le_mul_self bad.le, Nat.zero_le (b*b)]
+        have strict : b < a := by
+          by_contra! bad
+          nlinarith only [eqn, Nat.mul_self_le_mul_self bad, Nat.mul_self_le_mul_self lb]
+        let u := 2*a-3*b
+        let v := 2*b-a
+        have eu : u+3*b=2*a := Nat.sub_add_cancel low
+        have ev : v+a=2*b := Nat.sub_add_cancel high
+        have evsmall : v<b := by omega
+        have norm : u^2+2=3*v^2 := by
+          have az : (a:ℤ)^2+2=3*(b:ℤ)^2 := by exact_mod_cast eqn
+          have uz : (u:ℤ)=2*(a:ℤ)-3*(b:ℤ) := by dsimp [u]; push_cast [Nat.cast_sub low]; ring
+          have vz : (v:ℤ)=2*(b:ℤ)-(a:ℤ) := by dsimp [v]; push_cast [Nat.cast_sub high]; ring
+          have nz : (u:ℤ)^2+2=3*(v:ℤ)^2 := by rw [uz,vz]; linear_combination az
+          exact_mod_cast nz
+        have prev := closed _ (ih v evsmall u norm)
+        have m := (Nat.mod_modEq u 153).symm
+        have n := (Nat.mod_modEq v 153).symm
+        have ax := (m.mul_left 2).add (n.mul_left 3)
+        have by' := m.add (n.mul_left 2)
+        change (2*u+3*v)%153=_ at ax
+        change (u+2*v)%153=_ at by'
+        rwa [show a=2*u+3*v by omega, show b=u+2*v by omega, ax, by']
+  have d9 : 9 ∣ y%153 := by omega
+  have d17 := sieve (x%153,y%153) (orbit y x he) d9
+  change 17 ∣ y%153 at d17
+  omega
+
+/-- The only possible natural roots of a power of three minus two are at most five. -/
+theorem square_plus_two_three {z e : ℕ} (h : z^2+2=3^e) : z ≤ 5 := by
+  rcases Nat.even_or_odd e with ⟨b, rfl⟩|⟨b, rfl⟩
+  · have eq : z^2+2=(3^b)^2 := by simpa [pow_add,pow_two] using h
+    by_contra! big
+    by_cases le : 3^b ≤ z
+    · nlinarith [Nat.mul_self_le_mul_self le]
+    · nlinarith [Nat.mul_self_le_mul_self (show z+1 ≤ 3^b by omega)]
+  · have eq : z^2+2=3*(3^b)^2 := by
+      rw [h, pow_succ, mul_comm 2 b, pow_mul, mul_comm]
+    by_cases lb : 2 ≤ b
+    · have d9 : 9 ∣ 3^b := pow_dvd_pow (3 : ℕ) lb
+      have d17 := pell_three_divisibility eq d9
+      have pr : Nat.Prime 17 := by decide
+      have bad := pr.dvd_of_dvd_pow d17
+      omega
+    · have ub : b ≤ 1 := by omega
+      interval_cases b <;> norm_num at eq <;> nlinarith
+
+/-- Offset three forces exactly one prime other than three to divide the middle term. -/
+theorem square_middle {p : ℕ} (pp : p.Prime) (op : Odd p) (hp : 5 < p)
+    (nohit : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ p^2+d ∧ s ∣ p^2+d) :
+    ∃ t c e : ℕ, t.Prime ∧ 3 < t ∧ (t%8=1 ∨ t%8=3) ∧
+      0 < c ∧ 0 < e ∧ p^2+2=3^c*t^e := by
+  let n := p^2+2
+  let c := n.factorization 3
+  let m := n / 3^c
+  have nz : n ≠ 0 := by dsimp [n]; omega
+  have form : 3^c*m=n := Nat.ordProj_mul_ordCompl_eq_self n 3
+  have dm : m ∣ n := Nat.ordCompl_dvd n 3
+  have pos : 0 < m := Nat.ordCompl_pos 3 nz
+  have no3 : ¬3 ∣ m := Nat.not_dvd_ordCompl Nat.prime_three nz
+  have oddn : Odd n := (op.pow (n:=2)).add_even (by decide : Even 2)
+  have no2 : ¬2 ∣ m := by intro div; exact (Nat.not_even_iff_odd.mpr oddn) (even_iff_two_dvd.mpr (div.trans dm))
+  have div3 : 3 ∣ n := by
+    have p3 : ¬3 ∣ p := by
+      intro h
+      have eq := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pp).mp h
+      omega
+    have residue := square_mod_three p3
+    dsimp [n]; omega
+  have cp : 0 < c := (Nat.Prime.dvd_iff_one_le_factorization Nat.prime_three nz).mp div3
+  have big : 2 ≤ m := by
+    by_contra! small
+    have m1 : m=1 := by omega
+    have eq : p^2+2=3^c := by simpa [m1,n] using form.symm
+    have bound := square_plus_two_three eq
+    omega
+  have pure : IsPrimePow m := cofactor_power (d:=2) big dm (by
+    intro t pt dt
+    have lb := pt.two_le
+    by_contra! small
+    rcases (show t=2 ∨ t=3 by omega) with rfl|rfl
+    · exact no2 dt
+    · exact no3 dt) nohit
+  obtain ⟨t,e,pt,ep,eq⟩ := (isPrimePow_nat_iff _).mp pure
+  have dt : t ∣ m := eq ▸ dvd_pow_self t ep.ne'
+  have tb : 3 < t := by
+    have lb := pt.two_le
+    by_contra! small
+    rcases (show t=2 ∨ t=3 by omega) with rfl|rfl
+    · exact no2 dt
+    · exact no3 dt
+  have residue : t%8=1 ∨ t%8=3 := by
+    let _ : Fact t.Prime := ⟨pt⟩
+    apply (ZMod.exists_sq_eq_neg_two_iff (p:=t) (by omega)).mp
+    refine ⟨(p : ZMod t), ?_⟩
+    have zero := (ZMod.natCast_eq_zero_iff (p^2+2) t).mpr (dt.trans dm)
+    push_cast at zero
+    linear_combination -zero
+  exact ⟨t,c,e,pt,tb,residue,cp,ep,by rw [eq]; exact form.symm⟩
+
+/-- Each of the four surviving prime-square examples attains supremum one. -/
+theorem square_examples {n : ℕ} (cases : n=8 ∨ n=24 ∨ n=48 ∨ n=120) : v_l 1 n = 1 := by
+  have size : n ≤ 120 := by omega
+  have lo : 1 ≤ v n 1 := by rcases cases with rfl|rfl|rfl|rfl <;> decide +kernel
+  have vals : ∀ k : Fin 12, 0 < k.val → v n k.val ≤ 1 := by
+    rcases cases with rfl|rfl|rfl|rfl <;> decide +kernel
+  apply le_antisymm
+  · apply iSup_le; intro k; apply iSup_le; intro hk
+    have hv : v n k ≤ 1 := by
+      by_cases small : k < 12
+      · exact vals ⟨k, small⟩ hk
+      · by_contra! hh
+        have bound := square_bound hk hh
+        have large : 12 ≤ k := by omega
+        nlinarith [Nat.mul_le_mul_right k large]
+    exact_mod_cast hv
+  · exact (by exact_mod_cast lo : (1 : ℕ∞) ≤ (v n 1 : ℕ∞)).trans (offset_le (by decide))
+
+set_option maxHeartbeats 4000000 in
+set_option maxRecDepth 16384 in
+/-- Exact classification of positive solutions through the largest survivor in the finite search. -/
+theorem solutions_through_330 {n : ℕ} (hn : 0 < n) (size : n ≤ 330) :
+    v_l 1 n = 1 ↔ n ∈ [1,2,3,4,6,7,8,10,12,15,16,18,22,24,26,30,36,42,46,
+      48,60,70,78,80,96,120,190,222,330] := by
+  let xs : List ℕ := [1,2,3,4,6,7,8,10,12,15,16,18,22,24,26,30,36,42,46,
+      48,60,70,78,80,96,120,190,222,330]
+  change v_l 1 n = 1 ↔ n ∈ xs
+  constructor
+  · intro sol
+    by_contra missing
+    have excluded : ∀ m : Fin 331, 0 < m.val → m.val ∉ xs → ∃ k : Fin 12,
+        0 < k.val ∧ 1 < ((m.val+k.val).primeFactors.filter (k.val < ·)).card := by
+      decide +kernel
+    obtain ⟨k,hk,hh⟩ := excluded ⟨n, by omega⟩ hn missing
+    have bound := offset_le_one (k:=k.val) sol hk
+    rw [v_as_card] at bound
+    exact (Nat.not_lt_of_ge bound) hh
+  · intro member
+    have vals : ∀ m ∈ xs, ∀ k : Fin 20, 0 < k.val →
+        ((m+k.val).primeFactors.filter (k.val < ·)).card ≤ 1 := by decide +kernel
+    have first : ∀ m ∈ xs, 1 ≤ ((m+1).primeFactors.filter (1 < ·)).card := by decide +kernel
+    have lo : 1 ≤ v n 1 := by rw [v_as_card]; exact first n member
+    apply le_antisymm
+    · apply iSup_le; intro k; apply iSup_le; intro hk
+      have hv : v n k ≤ 1 := by
+        by_cases small : k < 20
+        · rw [v_as_card]; exact vals n member ⟨k,small⟩ hk
+        · by_contra! hh
+          have b := square_bound hk hh
+          have large : 20 ≤ k := by omega
+          nlinarith [Nat.mul_le_mul_right k large]
+      exact_mod_cast hv
+    · exact (by exact_mod_cast lo : (1 : ℕ∞) ≤ (v n 1 : ℕ∞)).trans (offset_le (by decide))
+
 /-- At every sufficiently large odd prime, find a later or equal integer
 with two distinct prime factors larger than the offset from its predecessor. -/
 def H1 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p+d ∧ s ∣ p+d
 
-/-- Only prime squares remain from the proper powers with dyadic exponent. -/
+/-- A prime square needs a witness only if three successive values have the prescribed factorizations
+with the specified residues and exponents. -/
 def H2 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
+    (∃ q r a b : ℕ, q.Prime ∧ r.Prime ∧ q≠r ∧ q%4=1 ∧ r%3=1 ∧
+      0<a ∧ ¬4 ∣ a ∧ 0<b ∧ Odd b ∧ p^2+1=2*q^a ∧ p^2+3=4*r^b) →
+    (∃ t c e : ℕ, t.Prime ∧ 3 < t ∧ (t%8=1 ∨ t%8=3) ∧
+      0 < c ∧ 0 < e ∧ p^2+2=3^c*t^e) →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p^2+d ∧ s ∣ p^2+d
 
@@ -713,7 +1014,20 @@ def H3 : Prop := ∃ B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → (∃ b : ℕ,
       q ∣ p^r+d ∧ s ∣ p^r+d
 
 theorem main : H1 → H2 → H3 → type_of% @Erdos889.erdos_889.variants.v1_eq_1_finite := by
-  rintro ⟨A, primeCase⟩ squares ⟨C, mersenneCase⟩
+  rintro ⟨A, primeCase⟩ ⟨B0, narrowSquares⟩ ⟨C, mersenneCase⟩
+  have squares : ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
+      ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+        q ∣ p^2+d ∧ s ∣ p^2+d := by
+    refine ⟨B0+25, ?_⟩
+    intro p pp op large
+    by_contra missing
+    have greater : 5 < p := by
+      by_contra! small
+      have lim := Nat.pow_le_pow_left small 2
+      norm_num at lim
+      omega
+    exact missing (narrowSquares p pp op (by omega) (square_survivor pp op (by omega) missing)
+      (square_middle pp op greater missing))
   obtain ⟨B, dyadicCase⟩ := dyadic_of_prime_squares squares
   refine (Set.finite_le_nat (A+B+C+26)).subset ?_
   intro n hn
