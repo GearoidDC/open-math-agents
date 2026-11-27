@@ -1,0 +1,144 @@
+Prime-power size restrictions for a value in five rows
+
+Let a occur in at least five rows of the admissible half of Pascal's
+triangle. For every prime p dividing a, write U=p^e where e=v_p(a).
+Then U^12<a. At a>=10^477 we obtain U^13<a by a direct estimate.
+At a>=10^200000000000000000 we obtain U^839<a without any assumption
+on the total number of prime divisors. The first result excludes, at
+all heights, numbers with even one full prime-power divisor as large
+as their twelfth root.
+
+1. Two rows and their first-order congruence
+
+The earlier exhaustive bound gives a>10^128. Four distinct proper
+columns are needed, since each column supplies at most one row and
+column 1 is the edge. Among the four, at most one is in {2,3,4,6},
+by the nine published pair classifications. The two largest columns
+j<d thus satisfy j>=7 and d>=8. Write a=C(n,d)=C(m,j).
+
+Fix a lower endpoint X and let y=a/X>=1. For k=j,d set
+R_k=floor((k!X)^(1/k)). A term in a representing row u satisfies
+
+  (R_k-i)y^(1/k) <= u-i <= (R_k+k-i)y^(1/k)     (0<=i<k).
+
+This follows from the extreme factors in (u)_k=k!a. Kummer's carry
+formula gives U<=u and s=n mod U<d, r=m mod U<j. Indeed a carry
+at some level h>=e gives n mod p^h < d mod p^h, and similarly in
+the other row. If the largest column is at least t=h+1, then
+C(n,t)<=a by monotonicity in the half row, so
+U<=n<=(R_t+t)y^(1/t). Thus (R_t+t)^h<X suffices to prove U^h<a.
+When this test succeeds, the rest of the computation needs only d<=h.
+
+When considering a putative U^h>=a we have U>d in all remaining
+cases. Put x=n-s, z=m-r, D=d*C(d-1,s), J=j*C(j-1,r), g=gcd(D,J),
+and signs sigma_d=(-1)^(d-1-s), sigma_j=(-1)^(j-1-r). Exactly
+
+  a = sigma_d (x/D) product_{i!=s}(1+x/(s-i)).
+
+Every factor in parentheses is a p-adic unit because U>d. Thus
+v_p(x)=e+v_p(D). Write v_d=v_p(D) and c_d=max_{i!=s}v_p(s-i),
+with v_j,c_j defined using J,r. Subtracting 1 from the product
+gives a rational number with valuation at least e+v_d-c_d.
+Consequently v_p(a-sigma_d*x/D)>=2e+v_d-c_d. Use the corresponding
+statement for the other row and clear denominators to get
+
+  Z=(sigma_d J x-sigma_j D z)/g in Z,
+  v_p(Z)>=2e+B,     B=max(v_d,v_j)+min(v_d-c_d,v_j-c_j).
+
+When p>d, all four valuations in B are zero.
+
+For signs differing, bound |Z| by T y^(1/j), using
+T=(J(R_d+d-s)+D(R_j+j-r))/g. For signs agreeing, replace the sum
+with the maximum. If Z!=0, these inequalities imply
+U^2<=T p^(-B) y^(1/j). Hence (T p^(-B))^h<X^2 and h<=2j imply U^h<a.
+
+The exact-zero case also has a finite test. Only agreeing signs need
+attention, and D(R_j-r)>J(R_d+d-s) already excludes equality. If
+Z=0, write n=s+(D/g)u, m=r+(J/g)u with u a positive integer.
+Since U divides n-s and m-r, it divides u. Substitute these two rows
+in j!(n)_d-d!(m)_j. The resulting polynomial in u is nonzero since
+d>j. Remove its content and its initial power of u. Now U divides
+the remaining nonzero constant coefficient by the rational root
+theorem. Checking its h-th power against X rules out all zero cases
+needed below.
+
+Erdos849LargestPower.py verifies the bounds for every offset, every
+prime base <=d, and the shared p>d case. The direct estimates suffice
+for h=11 at X=10^128, h=12 at X=10^174, and h=13 at X=10^477.
+
+2. Closing the twelfth-power estimate between 10^128 and 10^174
+
+Set X=10^128 and Y=10^174. If U^12>=a, then U>=floor(X^(1/12))+1.
+The lower bound is strict because 128 is not divisible by 12.
+The direct largest-column test covers d>=13, and the zero test above
+covers all 25 offset cases needing it. Only the nonzero differences
+which passed the size bound T p^(-B)>=X^(1/6) remain.
+
+For p<=d enumerate p^e between the indicated minimum and R_d(Y)+d,
+where R_d(Y)=floor((d!Y)^(1/d)). Enumerate n=s+vU with v positive
+and divisible by p^v_d. Its upper bound follows from C(n,d)<=U^12
+and a<=Y. The lower bound follows from n>=(d!X)^(1/d). Check the
+actual integer a and the j-column by modular image exclusion and
+exact inversion. When a j-row exists its index is between
+floor((j!a)^(1/j)) and that integer plus j. This covers every
+remaining small-base case even when several r offsets coincide.
+
+For p>d, v=numerator_host/U=(n-s)/U satisfies
+
+ v <= (d!)^(1/d) Y^(1/d-1/12) + (d-1)/X^(1/12).
+
+This uses d<=12, so the first term is maximized at Y and the last
+at X. The program rounds upwards. Set sign=sigma_d*sigma_j.
+The congruence U^2|Z and size bound give an integer l!=0 such that
+
+  m=r+(g l U^2 + sign J v U)/D,   |l|<=floor(T/floor(X^(1/6))).
+
+The formula for the l bound uses 1/j<1/6. A negative l is impossible
+because U>100(Jv+Dd+d) in every retained case, while m-r>0.
+We now allow every integer U in the interval, regardless of primality.
+For fixed v,l,r,s the ratio C(m,j)/C(n,d), interpreted by falling
+products on the real interval, is strictly increasing with U. For
+each quadratic factor multiplied by D, write A=g l U^2, B=sign JvU,
+and C=D(r-i). Its logarithmic derivative times U is (2A+B)/(A+B+C)
+and exceeds 19/10 since |B|+|C|<A/100. For each linear denominator
+factor it is vU/(vU+s-i)<11/10. All factors are positive there and
+19j>11d, giving strict increase of the full ratio. Binary search
+therefore needs to test only the first integer at which it reaches 1.
+The comparisons use integer products after multiplying by D^j.
+
+Erdos849TwelfthPower.py completes these tests. There are 60 small-base
+jobs and 34 large-base offset branches. It includes exact positive
+controls from the known coincidences at 120 and 3003. No equality
+survived. Together with the earlier finite search this proves U^12<a.
+
+3. A high-value bound independent of the number of prime bases
+
+If d>=840, use C(n,840)>=(n/840)^840, so U<=840a^(1/840).
+At the stated height a>840^(839*840), so this gives U^839<a.
+It remains to consider four columns all <=839. Take the largest first until their product P
+is at least 840; the product and size ranges of Erdos849GridHeight.txt
+apply with no bound on omega(a). Use its algebra, notation, coefficient
+norms and irreducibility proof.
+
+Fix one offset tuple s and form V, the product of the full prime powers
+whose canonical offsets are exactly s. We show V^839<a at the stated
+height. Retain the same b,M,N and monomial weights as in the earlier
+interpolation proof. Impose conditions only at s, now to order
+L=839M, by requiring B_s^L F=0 modulo t^L. This gives rank at most
+L<N because only one of the P truncated branches survives. The
+integer constraint entries are bounded by S^((L+1)rd), S=3d!.
+Using the previous pigeonhole estimate gives nonzero F with coefficient
+bound C=(2NE+1)^ceil(L/(N-L)), E=S^((L+1)rd).
+
+For every p^e assigned to s the same valuation argument gives
+p^(eL) | (d!)^(rL) F(a,n). The assigned prime powers are coprime,
+so V^L divides this integer. Its absolute value is bounded by
+(d!)^(rL) N C (2d)^(rd) a^(M-1). If V^839>=a, it is a multiple of
+a quantity >=a^M, forcing it to vanish past the evaluated cutoff.
+As before the nonzero multiplication norm polynomial has coefficient
+sum <=P!(N C S^(rd))^P and bounds any nonzero integer root.
+The checker exhausts the same P and d envelopes; the three maxima
+for log10 of the cutoff are all below 200,000,000,000,000,000.
+Thus every tuple product, and every individual U, obeys the bound.
+This proof restricts the size of a prime power even for a with
+arbitrarily many distinct prime divisors.

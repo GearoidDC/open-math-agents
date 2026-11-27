@@ -1,0 +1,82 @@
+Full prime powers in a common value of columns 7 and 8
+
+Suppose a=C(n,8)=C(m,7)>=X=10^128, with n>=16 and m>=14.
+For every full prime power p^e||a,
+
+  p^e < p^v_p(420) * 46862860 * (a/X)^(1/16).
+
+In particular a has at least 17 distinct prime divisors. The assertion
+applies to any such two rows, irrespective of the other representations.
+
+1. Local branches
+
+For each row N, column k, and P=p^e||a there is an offset s in [0,k-1]
+with P dividing N-s. In the factorial floor formula for v_p(C(N,k)),
+exactly e levels contribute 1. At some level j>=e this gives
+N mod p^j < k mod p^j <=k, hence N mod P < k. We use these offsets s,r
+for columns 8,7 respectively. If e<=max(v_p(v):1<=v<=7), then P<=7
+and the displayed inequality holds immediately. Otherwise all these
+valuations, including v_p(420), are smaller than e. Write f=v_p(420).
+
+For a row at offset s put x=N-s and c=k!/product_{v!=s}(s-v), a signed
+nonzero integer, with the product over v=0,...,k-1. The exact equation is
+  a = (x/c) product_{v!=s}(1+x/(s-v)).
+Each factor in the product has p-adic valuation zero, because P divides x
+and e>v_p(s-v). Thus v_p(x)=e+v_p(c). With z=a/420 and u=x/(420c),
+both variables have valuation e-f>0 and satisfy
+  E(u) = u product_{v!=s}(1+D_v u) = z,   D_v=420c/(s-v) in Z.
+
+There is a unique series U in z Z[[z]] satisfying E(U)=z, by successive
+comparison of coefficients, since E begins with u. Take its truncation
+U_h of degree <h. At the given z, E(U_h(z))-z is divisible by
+p^(h(e-f)) in the p-adic integers. For any two p-divisible elements u,v,
+the quotient (E(u)-E(v))/(u-v) is a polynomial in u,v congruent to 1
+mod p. Hence u=U_h(z) modulo p^(h(e-f)) for the actual solution. This
+also proves x=420c U_h(z) modulo the same power. Working with the
+localization of Z at p suffices throughout.
+
+2. The local polynomial certificates
+
+Erdos849LocalInterpolation.json lists one integer polynomial F(x,y) per
+offset pair (s,r), in the two shifted rows x=n-s and y=m-r. Each entry
+lists a maximum weight, a vanishing order h, and the coefficients for
+monomials x^i y^j in increasing weight w=7i+8j, with 0<=i<8, 0<=j<7,
+and 0<w<=the listed maximum. The weights here are distinct. The
+certificate discovery used weighted lattice reduction. Its coefficients
+can be verified directly using only integer arithmetic.
+
+The checker substitutes both truncated shifted-row series from section 1
+and verifies F=0 modulo z^h. Thus for the integer F evaluated at the
+actual shifted rows, p^(h(e-f)) divides F(x,y). The orders are 14 or 15.
+
+3. Archimedean bound and nonvanishing
+
+Put T=(a/X)^(1/56)>=1. If R_k=floor((k!X)^(1/k)), then
+  (R_k-s) T^(56/k) <= N-s <= (R_k+k-s) T^(56/k).
+Indeed N-k+1 <= (k!a)^(1/k) <= N. Write L_x,U_x,L_y,U_y for these
+positive constant endpoints in the two rows. Each monomial x^i y^j is
+between L_x^i L_y^j T^w and U_x^i U_y^j T^w.
+
+Choose the sign epsilon of the term of largest weight of F. For
+epsilon F use the lower endpoints on terms of positive coefficient and
+the upper endpoints on terms of negative coefficient. This gives a
+polynomial lower bound G(T). The checker expands G(1+V) and verifies
+that its constant is positive and all its coefficients are nonnegative.
+Consequently F(x,y) is nonzero at every candidate throughout a>=X.
+
+For an absolute upper bound, let H be the larger of the positive and
+negative coefficient sums of F, taken in absolute value and weighted by
+U_x^i U_y^j. Then |F(x,y)| <= H*T^W, with W its largest occupied weight.
+All 56 entries pass W/(56h)<=1/16 and H^(1/h)<Q=46862860.
+Divisibility and nonvanishing now give
+  p^e < p^f Q (a/X)^(1/16).
+If a has at most sixteen distinct prime factors, multiplying the bounds
+gives a < 420 Q^16 (a/X), since the product of the p^f divides 420.
+The verified strict inequality 420 Q^16<X contradicts this.
+
+In fact W/(56h)<=11/196 for every polynomial. This gives at least
+eighteen distinct primes when a>=10^238, since 17*11<196 and
+  (420 Q^17)^196 * 10^((238-128)*17*11) < 10^(238*196).
+
+Run python Erdos849LocalInterpolation.py beside the JSON data to verify
+all 56 expansions, signs, weights, absolute bounds, and the final cutoff.

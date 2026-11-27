@@ -1,0 +1,59 @@
+Eighteen distinct primes in a value shared by columns seven and eight
+
+Let a=C(n,8)=C(m,7)>=X=10^128 be in the left half of both rows.
+Then a has at least eighteen distinct prime divisors.
+
+For k=7,8, write L_k and U_k for the lower and upper factor bounds
+at X, as in Erdos849EighteenPrimes.txt. Put y=a/X. Each numerator term
+of column k lies in [L_k y^(1/k), U_k y^(1/k)]. Each full prime
+power of a is assigned to one term of each row and divides that term.
+Dividing each term by its assigned powers leaves an integer cofactor.
+The product of the cofactors on the k side is k!.
+
+The certificates in Erdos849LocalInterpolation.txt give each power
+the bound p^v_p(420) Q y^(1/16), Q=46862860, and already give at least
+seventeen primes. Suppose there are exactly seventeen. Every term
+on the 8 side needs at least two assigned powers, since L_8>8! 7Q.
+Thus seven terms receive two powers each, and one term receives three.
+Call the fourteen powers in pairs ordinary.
+
+No term on the 7 side receives three ordinary powers. If they come
+from three different pairs, their product is at least the product
+of the three 8-side terms divided by the three cofactors and the
+three partner powers. It exceeds the upper 7-side bound because
+
+  L_8^3 > 8! 420 Q^3 U_7,     3/8-3/16 >= 1/7.
+
+If two of them form a complete pair, the two originating terms give
+the same contradiction using L_8^2 > 8! 7 Q U_7 and 2/8-1/16 >= 1/7.
+Exactly two ordinary powers therefore go to each of the seven
+receiving terms. At least four of these terms receive no further power.
+The eight ordinary powers in any four such terms come from only seven
+pairs, so include a complete pair.
+
+If this pair occupies two different receiving terms, multiply those
+terms and divide by their cofactors and the two remaining powers.
+Their losses p^v_p(420) have product at most 35, since the bases are
+distinct. The resulting pair product exceeds a whole 8-side term by
+
+  L_7^2 > 7! 35 Q^2 U_8,      2/7-2/16 >= 1/8,
+
+contradicting the assignment of the pair to one 8-side term.
+
+Otherwise an entire pair is shared between one term of each row.
+Their ratio (m-r)/(n-s) is b/c in lowest terms, where b divides 7!,
+c divides 8!, 0<=r<7 and 0<=s<8. It satisfies b U_8 >= c L_7 since
+1/7>1/8. Write n=s+ct, m=r+bt with t a positive integer. It solves
+
+  7! (s+ct)_8 - 8! (r+bt)_7 = 0.
+
+This polynomial is nonzero, of degree eight. Remove the coefficient
+gcd and its initial power of t. By the rational root theorem, t
+divides the resulting constant. Of the possible ratios 21 survive the
+size test. Across all 1,176 equations c times the absolute constant
+is at most 29,156,400, whereas n-s>=L_8=37,643,505,995,031,279.
+This excludes the last case.
+
+Run python Erdos849LocalInterpolation.py to check the interpolation
+input and python Erdos849PairSevenEight.py for the comparisons and
+all primitive polynomials.

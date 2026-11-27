@@ -14,7 +14,9 @@ from Erdos849FourteenBound import floor_root, prime_free_part
 def factorial_divisors(d):
     values = [1]
     q = factorial(d)
-    for p in (2, 3, 5, 7, 11, 13, 17):
+    for p in range(2, d+1):
+        if q%p:
+            continue
         old = values[:]
         power = 1
         while q % p == 0:

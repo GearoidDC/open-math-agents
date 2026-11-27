@@ -1,0 +1,113 @@
+Prime powers in five-row binomial values
+
+Let a>=10^128 occur in five admissible rows of Pascal's triangle, with
+the convention 1<=k<=n/2. Write P=p^e for any full prime power in a.
+Then a has at least 17 distinct prime factors and P^15<a. Combining
+this with the separate five-row interval exclusion through 10^128 gives
+both conclusions at all heights. At a>=10^404 the same local polynomials
+force at least 18 distinct prime factors.
+
+1. Column reduction
+
+For fixed k>=1, C(n,k) increases strictly with n>=2k. Five rows
+therefore require at least four distinct proper columns k>=2. For
+a>=10^128 at most one of 2,3,4,6 is available by the classified
+fixed-column pairs in Theorem 2.2 of Blokhuis, Brouwer and de Weger:
+https://arxiv.org/abs/1707.06893 . Thus two available columns satisfy
+7<=j<d. We can take d to be the largest column of the five chosen rows.
+
+Put X=10^128. For a row of length n at column d, every p^e||a satisfies
+p^e<=n by the usual factorial floor formula (there are e contributing
+p-power levels, all with p^i<=n). If d>=k, the half-row monotonicity
+gives C(n,k)<=C(n,d)=a, so n<=(k!a)^(1/k)+k-1. Hence
+  P <= (floor((k!X)^(1/k))+k) (a/X)^(1/k).
+For k=18 the coefficient to the power 16 is less than X. Thus P^16<a
+in this case. If there were at most 16 primes then multiplication would
+give a<a. The remaining pairs have 7<=j<d<=17.
+
+2. Local equations and offsets
+
+This uses the argument of Erdos849LocalInterpolation.txt for arbitrary
+small j,d. On a branch write x=n-s and y=m-r, with 0<=s<d, 0<=r<j
+and p^e dividing x,y. The factorial floor formula gives such offsets:
+at some level h>=e one has n mod p^h < d mod p^h <=d, so n mod p^e<d.
+For a generic column k at offset s define
+  c = k! / product_{0<=v<k,v!=s}(s-v).
+This is an integer, with sign. Let L be the least positive integer such
+that cL/(s-v) is integral for all v!=s in both rows. Consequently
+L | D, where D=lcm(1,...,d-1).
+
+If e<=v_p(D), then P<=d and the claimed bounds hold directly. Otherwise
+write f=v_p(L) and z=a/L, of valuation e-f>0. The actual x satisfies
+  a=(x/c) product(1+x/(s-v)),
+where all factors in the product are p-adic units. Thus
+u=x/(cL) has valuation e-f, and
+  E(u)=u product(1+(cL/(s-v))*u)=z.
+The series solution U(z) with constant zero has integral coefficients,
+determined recursively since the linear coefficient of E is 1. Its
+truncation at order h gives the actual u modulo p^(h(e-f)): E applied
+to the truncation equals z mod z^h, and the divided difference of E
+at any two p-divisible arguments is a p-adic unit.
+
+3. Exact polynomial verification
+
+For each (j,d,r,s), the data supply a nonzero F in Z[x,y] and a chosen
+order h. For branches omitted from the data use h=2 and the normalized
+tangent c_j x-c_d y. Substitution of the two integral shifted-row series
+cL U(z) verifies F=0 mod z^h. Thus p^(h(e-f)) divides F(x,y).
+
+For the archimedean estimates set T=(a/X)^(1/(jd)). Each shifted row in
+column k at offset b lies between (R_k-b)T^(jd/k) and (R_k+k-b)T^(jd/k),
+where R_k=floor((k!X)^(1/k)). These inequalities follow from
+n-k+1 <= (k!a)^(1/k) <= n. A monomial x^i y^v therefore has weight
+w=ji+dv. Set W to the greatest weight occurring. To certify F!=0 on
+the entire half-line, orient the sign and replace positive monomials
+by their lower bounds and negative ones by their upper bounds. The
+resulting polynomial G(T) has positive constant after T=1+V, and all
+coefficients of G(1+V) are nonnegative. The verifier checks these signs.
+It also checks |F|<=H*T^W, where H is the larger absolute sum of
+positive or negative terms at the two upper endpoint coefficients.
+
+4. Aggregate and individual estimates
+
+The verifier checks 16W<=jdh and H^16 D^h<X^h. Hence, when e>v_p(D),
+  P^16 <= (p^(hf) H T^W)^(16/h) < p^(16 v_p(D)) a/D.
+When e<=v_p(D), the same strict upper bound holds because a>D.
+If a has at most 16 distinct prime factors, multiplication yields
+  a < D*(a/D)^(omega(a)/16) <= a.
+This contradiction proves the 17-prime lower bound.
+
+For the individual bound with m=15, it suffices for each p to verify
+  (p^(hf) H)^m < X^h.
+On branches where this estimate fails, use more Taylor coefficients.
+Let e0 be the least positive e0 with p^(m e0)>=X. Powers with e<e0
+already satisfy P^m<a. In the remaining cases the checker verifies
+e0>f. Write E_t for the integral coefficient of z^t in the series F,
+and take N=ceil(h e0/(e0-f)). Then p-adic evaluation of the terms of
+order >=N contributes zero modulo p^(h e), since N(e-f)>=h e for
+e>=e0. For h<=t<N put
+  delta=max(0, max_{E_t!=0} (h e0 - t(e0-f) - v_p(E_t))).
+The coefficient of order t contributes valuation at least h e-delta,
+since h e-t(e-f) is nonincreasing in e for t>=h. All earlier
+coefficients vanish. Hence p^(he) divides p^delta F, and the checker
+verifies (p^delta H)^m<X^h. It suffices to run this refinement for
+p dividing D; other primes already satisfy the first estimate.
+
+For m=17, all stored polynomials have 17W<jdh. By recomputing upper
+endpoint constants at 10^K, the checker determines the first K>=128
+at which H_K^17 D^h < (10^K)^h for each branch. Nonvanishing follows
+from the already verified sign on the entire range a>=10^128. The
+largest required K is 404 and the direct k=18 estimate to exponent
+17 also holds there. Multiplication as above proves the 18-prime
+result. Use the --frontier flag to reproduce all pair cutoffs.
+
+5. Files
+
+The data are a gzip-compressed JSON dictionary. Its key j,d,r,s selects
+the pair and offsets. Each value contains h and a list of triples
+[i,v,c], representing the integer coefficient c of x^i y^v.
+There are 7,865 checked branches in 55 pairs. The archive supplies
+3,731 nonlinear polynomials, and the verifier reconstructs the other
+4,134 tangent polynomials directly. Run:
+
+  python Erdos849InterpolatedPowers.py --frontier

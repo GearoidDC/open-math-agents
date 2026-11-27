@@ -1,0 +1,72 @@
+Singleton slots in the two-column interpolation argument
+
+Assume a=C(n,d)=C(m,j)>=X=10^128, with 7<=j<d<=17, and assume a has
+at most 17 distinct prime factors. No other rows are needed here. Then
+the following pairs are impossible.
+
+  d=15, j=7 through 14.
+  d=16, j=7 through 15.
+  d=17, j=12 through 16.
+
+For d=17 and 7<=j<=11, every one of the seventeen numerator terms
+must host precisely one full prime power of a.
+
+1. Prime-power bounds at each numerator slot
+
+The polynomial certificates and proofs are in Erdos849InterpolatedPowers.
+Put Y=a/X>=1. For each offset s of the d-row, the verifier computes Q_s
+and Q_{s,p} with the following property: whenever p^e||a is assigned
+to n-s as in section 2, then
+
+  p^e <= Q_s Y^(1/17)        for p outside {2,3,5,7,11,13},
+  p^e <= Q_{s,p} Y^(1/17)    for p in that set.
+
+All 7,865 preexisting polynomials have 17W<=jdh. For each possible
+offset r of the other row, the universal large-base constant is
+floor(H^(1/h))+1, using the notation of Erdos849InterpolatedPowers.txt.
+For primes p dividing the local denominator L use the same additional
+Taylor coefficients as in its individual estimate. Take e0 minimal
+with p^e0>10^7. The bound for that offset and base is the larger of
+p^(e0-1) and floor((H*p^delta)^(1/h))+1. Here delta is computed
+exactly as in the individual estimate with this new e0. The former
+quantity covers small exponents; the latter follows from p^(he)
+dividing p^delta F and |F|<=H Y^(W/(jd)). For the trivial cases P<=d
+the ordinary Q exceeds d. Maximize each bound over r to obtain its
+slot constant. Define the common exceptional factor
+
+  E = product over p=2,3,5,7,11,13 of max(1,max_s Q_{s,p}/Q_s).
+
+The same prime base is charged at most once when bounding a product
+over singleton slots.
+
+2. Cofactors and the elementary count
+
+For each prime p dividing a, assign P=p^v_p(a) to one numerator term
+n-s which it divides. Such a term exists by the factorial floor formula
+as in the interpolation proof. The complementary row gives some offset
+r. The interpolating argument applies to the chosen s and r: when P>d
+the multiple is unique in the d terms; when P<=d the bound is trivial.
+
+Write b_s=(n-s)/product(P assigned to slot s). Every b_s is a positive
+integer and their product is d!, by (n)_d=d!a. Put L_s=R_d-s,
+R_d=floor((d!X)^(1/d)). We have n-s>=L_s Y^(1/d).
+At an empty slot b_s>=L_s. At a singleton slot of prime base p we have
+b_s>=(L_s/Q_s)Y^(1/d-1/17), divided if necessary by the factor
+max(1,Q_{s,p}/Q_s). Since d<=17 and Y>=1, the power of Y can be
+dropped. The verifier checks all slot ratios L_s/Q_s>1.
+
+Suppose there are e empty slots and t singletons. The number of distinct
+prime factors is at least t+2(d-e-t). Thus t>=max(0,2d-17-2e).
+Let U be the sorted list of the L_s, and V the sorted list of L_s/Q_s.
+Using the smallest entries separately gives the unconditional bound
+
+  product b_s >= (product of the e smallest U)
+                 * (product of the max(0,2d-17-2e) smallest V) / E.
+
+All comparisons use exact fractions. For the excluded pairs the lower
+bound exceeds d! for every e. In the stated remaining d=17 pairs it
+exceeds 17! for all e>=1. With e=0 and at most seventeen prime factors,
+every one of the seventeen occupied slots must be a singleton.
+
+Run python Erdos849SingletonInterpolation.py beside the earlier
+interpolation archive and verifier to reproduce all comparisons.

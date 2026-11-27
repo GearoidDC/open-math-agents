@@ -17,7 +17,8 @@ MODULES = (
     "Erdos849BoundedOmega", "Erdos849SparseCollision", "Erdos849TwoColumns",
     "Erdos849EffectiveMultiplicity", "Erdos849Threshold", "Erdos849FiveSeven",
     "Erdos849FourteenGraph", "Erdos849SixteenGraph", "Erdos849Interval105",
-    "Erdos849LindDiagonal", "Erdos849Interval128",
+    "Erdos849LindDiagonal", "Erdos849Interval128", "Erdos849PrimeWindow",
+    "Erdos849EighteenGraph",
 )
 
 THEOREMS = (
@@ -31,6 +32,11 @@ THEOREMS = (
     ("Erdos849Interval128","five_rows_above_cutoff"),
     ("Erdos849LindDiagonal","unique_on_diagonal"),
     ("Erdos849LindDiagonal","earlier_column_bound"),
+    ("Erdos849PrimeWindow","contains_iff"),
+    ("Erdos849PrimeWindow","gap_size"),
+    ("Erdos849PrimeWindow","slope_power"),
+    ("Erdos849EighteenGraph","column_bound"),
+    ("Erdos849EighteenGraph","eighteen_distinct_prime_factors"),
 )
 
 
