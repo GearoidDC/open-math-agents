@@ -1,0 +1,152 @@
+The binomial columns 3 and 5
+
+Let C be the smooth projective curve over Q obtained by normalizing
+C(n,3)=C(m,5). Its Jacobian is isogenous over Q to a product of two
+nonisogenous Q-simple abelian surfaces. Their rational Mordell-Weil
+ranks are at least 4 and 6 respectively, hence the full rank is at
+least 10. Each surface has geometric Néron-Severi rank at most 2.
+In particular the genus-four curve fails the usual sufficient rank
+tests for both classical and quadratic Chabauty. Its positive-dimensional
+Q-isogeny quotients fail the corresponding numerical tests as well.
+
+1. Hyperelliptic factors
+
+In centered coordinates X=n-1, Y=m-2 the equation is
+
+  20(X^3-X)=Y(Y^2-1)(Y^2-4).
+
+Write r=X/Y, A=5+20r^3, B=4+20r. Substitution gives Y^4-AY^2+B=0.
+The involution (X,Y) -> (-X,-Y) fixes r, and its quotient C0 has equation
+
+  v^2=F0(r)=400r^6+200r^3-80r+9,       v=2Y^2-A.
+
+The two points at infinity of C0 are rational, with v/A approaching
++1 and -1. The binomial curve arises by taking a square root of
+s=(A+v)/2. At the positive point at infinity s has a pole of order 3.
+At the negative point it has a zero of order 2, since s(A-s)=B.
+Its only finite zero lies at r=-1/5, v=-A, and has order 1 since
+B has a simple zero and A(-1/5)=121/25 is nonzero. These are the
+only branches of odd valuation. The sextic F0 is separable by good
+reduction at 7. Riemann-Hurwitz now gives genus 4 for C. The point
+at infinity of C maps to the positive infinity on C0, which is not
+a Weierstrass point since the hyperelliptic coordinate r is unramified
+there. In an admissible binomial representation Y=m-2 is positive,
+so the quotient coordinate r=X/Y is defined.
+
+On the further cover z^2=B, form u=20(Y+z/Y). Direct substitution
+gives a second genus-two curve C1,
+
+  u^2=F1(z)=(z^2-4)^3+800z+2000.
+
+The field extension adjoining z to Q(C) has degree two: if B were
+a square in Q(C0)(sqrt(s)), either B or B/s=A-s would be a square
+in Q(C0). Each has a simple zero at r=-1/5, v=+A. The map to C1
+and the two-to-one map to C define a correspondence. Pullback followed
+by trace on differentials sends dz/u and z dz/u to
+
+  -Y dr/(Y^4-B)    and    Y^3 dr/(Y^4-B).
+
+Indeed dz/dr=10/z and tracing sums the values for z and -z. These
+forms are independent and odd under simultaneous sign. The two
+forms pulled back from C0 are independent and even. They give all
+four regular differentials of C. Thus the morphism of Jacobians
+to J(C0) x J(C1) obtained from the quotient and the correspondence
+is an isogeny over Q.
+
+2. Mordell-Weil lower bounds
+
+Run python Erdos849ThreeFiveCurve.py to reproduce the arithmetic.
+Both sextics are irreducible modulo 7. The checker tests their gcd
+with x^(7^m)-x for m=1,2,3, exhausting all possible proper factors
+of a reducible sextic. Over Q, the rational 2-torsion on each
+Jacobian is therefore zero: a nonzero 2-torsion divisor on a genus-two
+hyperelliptic curve corresponds to a two-element subset of the six
+Weierstrass points, and transitivity forbids an invariant such subset.
+
+For two distinct roots i,j of a sextic modulo an odd good prime p,
+the divisor of (x-i)/(x-j) is twice the difference of the two
+Weierstrass points. Evaluation on a degree-zero divisor gives a
+homomorphism from the reduced Jacobian modulo twice itself to
+F_p^*/(F_p^*)^2. This follows from Weil reciprocity, using disjoint
+divisor representatives. Compose with good reduction of the rational
+Jacobian. For points with x=a/b and base point x=a0/b0 the evaluation
+is the square class of
+
+  (a-i b)(a0-j b0) / ((a-j b)(a0-i b0)).
+
+The checker verifies all stated rational point equations and displays
+four independent binary rows on C0 and six on C1. On C0, for example,
+the base point has coordinates (0,3). The four x-coordinates are
+-1,1,-1/2,2/3. The square-class vectors read
+
+  p=11,  i=2,  j=3       1000
+  p=61,  i=15, j=53      0101
+  p=73,  i=9,  j=69      1111
+  p=83,  i=6,  j=7       0110.
+
+On C1 the assigned base point has x=-8. On the nine other points,
+in the order printed in the script's POINTS1 table, the six rows are
+
+  p=17,  i=8,  j=16      011111001
+  p=97,  i=14, j=60      110111011
+  p=109, i=76, j=78      100101111
+  p=139, i=75, j=130     011100010
+  p=173, i=31, j=137     000011111
+  p=191, i=67, j=178     100101100.
+
+Linear independence bounds the dimensions of J(Q)/2J(Q) below by 4
+and 6, respectively. With rational 2-torsion zero, the Mordell-Weil
+ranks have the same lower bounds; the full rank is at least 10.
+
+3. Geometric Néron-Severi upper bounds
+
+Point counts over F_7 and F_49 are (14,56) for C0 and (12,60) for C1.
+The degree-four Frobenius polynomials are respectively
+
+  x^4+6x^3+21x^2+42x+49,      x^4+4x^3+13x^2+28x+49.
+
+For a product of elliptic factors over Q at good reduction these
+would factor into reciprocal quadratics x^2-t_1 x+7 and
+x^2-t_2 x+7 with t_i integers. The discriminants for t_1,t_2 are
+8 and 20, respectively, so neither factorization occurs. Thus both
+surfaces are Q-simple. Their different Frobenius polynomials preclude
+a Q-isogeny between them.
+
+The geometric Néron-Severi group tensored with Q_l (l different
+from 7) injects by the cycle-class map into H^2(1). Each geometric
+divisor class is defined over a finite extension. It therefore
+contributes only a root-of-unity eigenvalue for Frobenius on H^2(1).
+The H^1 eigenvalues of J(C) are given by the two polynomials above;
+on H^2 take their pairwise products. The checker calculates the
+degree-28 characteristic polynomial by Newton sums, removes four
+factors x-7, and certifies that the remaining 24 roots divided by 7
+include no root of unity. It compares against all cyclotomic orders
+m with phi(m)<=24 via exact polynomial gcd at an auxiliary prime
+where the leading coefficients survive. The finite search covers
+m<=2*24^2 by phi(m)>=sqrt(m/2).
+
+An independent check uses the prime 20479. The two Frobenius
+polynomials split with roots (623,8873,13278,18178) and
+(3528,9830,10327,17269). Of the 28 pairwise products divided by
+7 modulo 20479, four equal 1. The remaining multiplicative orders
+are 3413, 6826, 10239, and 20478, all greater than 2*24^2. Reduction
+cannot increase the order of a root of unity.
+
+The four factors x-7 consist of the two complementary Frobenius
+pairs from each surface. Thus each geometric Picard number is at
+most 2; the product has geometric Picard number at most 4. The full
+rational rank is >=10, while g+rho-1<=7, for the usual quadratic
+Chabauty sufficient inequality rank<g+rho-1. For either simple
+factor the right side is at most 3 and rank is at least 4.
+Higher-depth methods, special p-adic dependencies, and the larger
+fiber products with further columns are separate questions. This
+calculation does not classify the (3,5) solutions or rule out a
+five-row value.
+
+For explicit hyperelliptic descent, see B. Poonen and E. Schaefer,
+Explicit descent for Jacobians of cyclic covers of the projective line.
+https://math.mit.edu/~poonen/papers/descent.pdf
+
+For the sufficient rank criterion, see J. Balakrishnan and N. Dogra,
+Quadratic Chabauty and rational points I, Lemma 3.2.
+https://kclpure.kcl.ac.uk/ws/portalfiles/portal/149873874/rationalpoints_heights_with_biblio.pdf

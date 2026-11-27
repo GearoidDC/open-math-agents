@@ -1,0 +1,170 @@
+Effective finiteness for some unrestricted fixed column patterns
+
+Put f_k(x)=(x)_k/k!, where (x)_k=x(x-1)...(x-k+1). A fixed pattern
+means distinct specified columns with f_k(n_k)=a and n_k>=2k.
+Sections 1 and 2 give effective finiteness independently of the
+prime factors of a or any of its translates. Section 3 records what
+additional finite fibers give when the prime support varies.
+
+1. Columns 2 and 4
+
+The identities
+
+  8 f_2(n)+1=(2n-1)^2,
+  24 f_4(n)+1=(n(n-3)+1)^2
+
+turn a simultaneous representation into an integral hyperelliptic
+equation. If the other column is a fixed d>2 or d>4, respectively,
+then 1+c f_d(x) is squarefree, with c=8 or c=24. To verify this, let
+b_k be the largest absolute critical value of f_k. The critical
+points are simple and interlace the consecutive roots; the ratio
+|f_k(x+1)/f_k(x)|=(x+1)/(k-1-x) places the largest absolute
+critical value in the outermost gaps. On (0,1),
+|f_{k+1}(x)/f_k(x)|=(k-x)/(k+1)<1, so b_k decreases strictly.
+For k=2 its value is 1/8. For k=4 the minimum is -1/24 by the
+square identity, attained where n(n-3)+1=0 in the outermost gaps.
+Hence b_d<1/c, excluding a multiple root at the level -1/c.
+The remaining (3,4) case also has squarefree 1+24 f_3, since the
+only critical values of f_3 are +/-1/(9 sqrt(3)).
+
+In particular, take the polynomial F(X)=d!+c(X)_d and multiplier
+b=d!. The equation F(x)=b y^2 has squarefree integral F of degree
+d>=3. The hyperelliptic bound of Bérczes, Evertse and Győry,
+Theorem 2.2, supplies an explicit bound for log max(1,|x|,|y|).
+Their parameters are Q, S consisting only of the real place, and
+coefficient height at most log(24 d!). For example the deliberately
+enlarged upper bound
+
+  (4d)^(10000 d^4) * (24 d!)^(10000 d^4)
+
+suffices. Enumerating x up to the resulting bound would recover
+every admissible intersection, with no assumption on the value's
+factorization. The bound applies to each fixed d. A four-column
+pattern containing 2 or 4 always includes a partner in the indicated
+range. The quadratic-column case is also a classical result of
+Brindza, extending Kiss's odd-prime-column case.
+
+For clarity, the simple identity used here has a restricted scope.
+If A f_k(x)+B is a nonconstant perfect m-th power in C[x], with
+A nonzero and m>=2, every root must be a critical point. All critical
+points are simple, so m=2 and every root is double. Each finite
+critical value occurs at at most two points by the central reflection
+and the strict gap-height comparison. Thus k<=4 and k is even:
+the two columns above exhaust such affine power identities.
+
+2. Rational signs at infinity from several even columns
+
+Suppose that four distinct even column indices k1,...,k4 have square
+factorial product Q^2=product(k_i!). On the normalized binomial
+fiber product, the rational function
+
+  G = x_1^(k1/2) x_2^(k2/2) x_3^(k3/2) x_4^(k4/2) / t^2
+
+has finite nonzero residue at every place above t=infinity. Its
+square has residue Q^2, since x_i^k_i/(k_i! t) has residue 1.
+Both residues +Q and -Q occur. In the inverse Puiseux branches
+x_i=(k_i! t)^(1/k_i) times a k_i-th root of unity to leading order,
+independent choices of the sheets allow switching the sign at one
+coordinate. The simultaneous inertia changes every half-power sign,
+so the product of the four signs is fixed along a branch orbit.
+The whole product cover is geometrically irreducible by the
+monodromy proof in Erdos849ReciprocalRunge.txt. The two residues
+are distinct rational numbers, so the corresponding poles of t
+belong to different arithmetic Galois orbits. Applying ordinary
+Runge at the single real place of Q effectively bounds ALL shared
+integer values. This argument works for any nonempty even-sized
+subset of even column indices whose factorial product is square.
+
+For example (6,10,34,36) satisfies the criterion:
+
+  (10!/6!)(36!/34!)=(7*8*9*10)(35*36)=2520^2.
+
+There are infinitely many such patterns. For odd j>=3 write
+A_j+2u_j sqrt(2)=(3+2 sqrt(2))^j. The coefficient A_j is
+3 modulo 4 and A_j^2-8u_j^2=1. Thus k=(A_j-3)/2 is even and
+(k+1)(k+2)=2u_j^2. Choose two distinct such indices k,l and use
+the four columns (k,k+2,l,l+2). Their factorial product is square
+because (k+2)!/k! and (l+2)!/l! have the same square class.
+
+In contrast, each individual pair j<d has just one Galois orbit
+of geometric points over infinity. Indeed their number is g=gcd(j,d)
+by the joint inertia cycle. The ratio x_j^(j/g)/x_d^(d/g) has
+g-th power residue j!/d!. If g>1 then d-j>=2. The reciprocal
+d!/j! is a product of at least two consecutive positive integers
+and is no perfect power by Erdős and Selfridge. Its positive g-th
+root has degree g: if the minimal polynomial had degree e<g,
+the absolute value of its nonzero rational constant coefficient
+would be (d!/j!)^(e/g), since all conjugates have the same modulus.
+This would make d!/j! a rational, hence integral, power of degree
+g/gcd(e,g)>1. The positive real branch thus has residue degree g,
+exhausting the whole infinity fiber in one orbit. This explains
+why the square-product obstruction can first appear across several
+columns. A tuple of distinct odd primes can still have only one
+geometric point over infinity, for any tuple size.
+
+3. The translates a-1 and a
+
+The rational roots of f_k(x)=1 are exactly k and, for even k, -1.
+Indeed the equation is monic integral after clearing k!, the
+integer arguments in [0,k-1] are roots of f_k, and outside that
+interval monotonicity and reflection settle the possibilities.
+All k geometric roots are simple since the absolute critical values
+are strictly less than 1. Put c_k=2 for k=2 or k odd, and c_k=3
+for k even and >=4. The geometric roots of f_k(x)=1 partition into
+at least c_k Galois-invariant nonempty sets, taking each rational
+point separately and then the remaining roots if present. Thus
+for any r fixed proper columns the fiber above t=1 has at least
+product c_k rational Galois orbits. The generalized Runge theorem
+applied to 1/(t-1) effectively bounds the common values a>=2 if
+omega(a-1)<product c_k. This is independent of omega(a), but
+still needs a condition on a-1. Using 1/[t(t-1)] yields at least
+product k + product c_k pole orbits; since gcd(a,a-1)=1, the prime
+support counts add as well.
+
+For a concrete limitation on a local strategy, any finite set of
+congruence tests admits arbitrarily large integers a for which
+both a and a-1 have arbitrarily many additional prime factors and
+every tested binomial column is soluble locally at the prescribed
+primes. Near t=0 the root x=0 of each f_k is simple over Q_p;
+near t=1 the same holds at x=k. Choose a close enough to 0 at the
+tested primes, close to 0 at any prescribed number of new large
+primes, and close to 1 at disjoint new large primes. Hensel lifting
+and the Chinese remainder theorem give the stated local solvability.
+This constructs local data, not a simultaneous integer representation.
+
+There is also an obstruction to obtaining connected étale cyclic
+covers by adjoining radicals of the individual linear factors at
+these split fibers. Over the algebraic closure, at any unramified
+fiber t=b, the divisor of x_i-s for a root s of f_i(s)=b has
+valuation one along the tuples with coordinate x_i=s and zero at
+the other tuples. For the product with exponents u_(i,s) to have
+all valuations multiples of m, the sum over i of u_(i,s_i) must
+vanish modulo m for every tuple (s_i). Varying one coordinate
+shows u_(i,s) is constant modulo m in each coordinate i, and the
+sum of those constants is zero modulo m. But product_s(x_i-s)
+equals k_i! (t-b), so the original product is a constant times
+an m-th power in the function field. The same argument applies
+separately to any finite collection of unramified fibers. More
+general functions or noncyclic covers require separate analysis.
+
+Sources
+
+A. Baker, Bounds for the solutions of the hyperelliptic equation,
+Proc. Cambridge Philos. Soc. 65 (1969), 439-444.
+https://www.cambridge.org/core/journals/mathematical-proceedings-of-the-cambridge-philosophical-society/article/abs/bounds-for-the-solutions-of-the-hyperelliptic-equation/11DFBD7521F4AE6888016B955C73089D
+
+A. Bérczes, J.-H. Evertse and K. Győry, Effective results for hyper-
+and superelliptic equations over number fields, Theorem 2.2.
+https://publi.math.unideb.hu/paper/1797/download/10_5486_PMD_2013_5748.pdf
+
+Cs. Rakaczki, Acta Arithmetica 110 (2003), pp. 339-360; the
+introduction records the prior effective result for column 2.
+https://www.impan.pl/shop/en/publication/transaction/download/product/83210
+
+P. Erdős and J. L. Selfridge, The product of consecutive integers is
+never a power, Theorem 1.
+https://www.renyi.hu/~p_erdos/1975-46.pdf
+
+F. Beukers and Sz. Tengely, An implementation of Runge's method for
+Diophantine equations, Theorems 1.2 and 1.3.
+https://shrek.unideb.hu/~tengely/BTRunge.pdf
