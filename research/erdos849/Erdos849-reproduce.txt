@@ -1,0 +1,57 @@
+Erdős 849 research packet
+
+For the left half of Pascal's triangle, a value in at least five admissible
+rows must exceed 10^100 and have at least ten distinct prime factors.
+Erdos849-ten-primes.txt gives the ordinary mathematical argument.
+Erdos849-googol-note.txt describes the finite search. The question for
+arbitrary multiplicities remains open.
+
+Replaying the finite search
+
+Use Python 3.12 and Node.js. None of the scripts require a third-party
+package. From the directory containing the extracted files, run
+
+  python Erdos849Interval.py
+  python -u Erdos849Wheel.py --upper 100
+  python -u Erdos849High.py
+
+The first command checks all relevant pairs in (10^60,10^64].
+The second checks all ten possible four-column patterns with largest
+column 8 or 9 in (10^64,10^100]. The third completes the same interval
+for column pairs 7<=k<l with l>=10. Expected results are zero collisions,
+zero surviving rows for all ten patterns, and zero high-column collisions.
+The high-column run reports 168,460,605,319 initial triples, 904,628 exact
+comparisons and 168 as the last column. The modular tests exclude every
+integer row in the relevant ranges, including rows much larger than the
+primes used for the tests.
+
+Two separate Node implementations cross-check the first interval and the
+low-column patterns in the second interval:
+
+  node Erdos849Interval.cjs
+  node Erdos849FourColumns.cjs
+
+The Python implementations also compare small cases with direct enumeration.
+The Node pattern verifier cross-checks its combination of residue classes
+over a complete period and exercises a known positive collision.
+
+Checking the deductions in Lean
+
+The proof uses Lean 4.33.1 and mathlib v4.33.1, commit
+0df444a360eaa60ab8c11dca51a86af692955474. With an existing built Lake
+project that has this mathlib as a dependency, an example invocation is
+
+  python VerifyErdos849.py --lean PATH_TO_LEAN --project PATH_TO_LAKE_PROJECT
+
+The script checks the included Lean modules from source in a temporary
+directory, prints the final theorem and audits its axioms. It also checks
+the self-contained finite Lean result through 10^12. The final theorem
+takes two explicit inputs: the finite five-row exclusion through 10^100
+and the nine fixed-column pair classifications above that cutoff.
+
+The large finite search runs outside the Lean kernel. The published
+base range and fixed-column classifications are from A. Blokhuis,
+A. E. Brouwer and B. M. M. de Weger, "Binomial collisions and near
+collisions", Theorem 2.2 and section 2.2, https://arxiv.org/abs/1707.06893 .
+The local computations cover the range above 10^60 for the five-row
+question specifically.

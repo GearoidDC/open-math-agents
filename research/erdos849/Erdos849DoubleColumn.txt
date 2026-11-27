@@ -1,0 +1,111 @@
+The (7,14) boundary under a fourteen-prime cap
+
+Let a = C(n,14) = C(m,7), with 28 <= n and 14 <= m, and suppose a has at
+most fourteen distinct prime factors. We prove analytically that
+
+    n <= 14! + 13,       a <= C(14!+13,14) < 10^143.
+
+In fact every possible n >= 10^6 has an empty numerator position in the
+fourteenth column. The accompanying elementary finite check eliminates all
+remaining n, giving an all-size exclusion for this pair of columns.
+
+1. Prime powers in the two rows
+
+For each prime p dividing a, take its complete power P=p^v_p(a). In a
+representation a=C(u,k), assign P to offset h=u mod P. Then h<k and
+P divides u-h. One proof of h<k uses Kummer's count of carries in adding
+k and u-k. At least v_p(a) numbered levels carry, so there is a carrying
+level i >= v_p(a). At such a level u mod p^i < k mod p^i <= k; hence
+u mod P <= u mod p^i < k as well. This statement is formalized as
+Erdos849PrimeHosts.residue_lt_column.
+
+The powers at any one offset have coprime bases, so their product divides
+that numerator term. Write the term as this product times an integral
+cofactor. The products of the terms and of the assigned prime powers are
+k!a and a, respectively. Consequently the k cofactors multiply to k!.
+These statements are formalized in Erdos849HostCofactors. An empty offset
+has no assigned prime power, so u-h itself divides k!.
+
+2. Two factors per position in the seventh column
+
+Assume n >= 10^6 and that no fourteenth-column position is empty. The cap
+forces exactly fourteen primes, each assigned to a different position.
+Write n-s=b_s P_s, s=0,...,13, with P_s the complete power at s. Then
+the b_s are positive integers and their product is 14!. Assign the same
+fourteen powers to the seven positions m-r in the other row. This gives
+a partition of the fourteen offsets into seven groups G_r, with
+
+    m-r = c_r * product_{s in G_r} P_s,       product_r c_r = 7!.
+
+Put D=14!/7!=17297280 and theta=D^(-1/7). Comparing the two falling
+factorials gives
+
+    theta*(n-13)^2 <= m <= theta*n^2 + 6.
+
+Indeed, (m)_7=(n)_14/D, with subscripts denoting falling factorials.
+The bounds follow by bounding each of the seven or fourteen factors
+between the smallest and the largest individual term. Integer seventh
+powers give 92/1000 < theta < 93/1000; in particular theta>1/16.
+
+If any group G_r had at most one member, P_s<=n and c_r<=7! would yield
+m<=7!n+6, also in the empty case. But n-13>n/2, so the displayed lower
+bound gives m>n^2/64>7!n+6 for n>=10^6. Each of the seven groups must
+therefore have precisely two members.
+
+3. A forbidden small denominator
+
+For a pair G_r={s,t}, let B=b_s b_t and R=c_r/B. Its row equation gives
+
+    m-r = R*(n-s)*(n-t).
+
+The seven positive denominators B multiply to 14!. One of them satisfies
+B<=36, since 37^7=94931877133 > 14!=87178291200. Use that pair.
+
+For clarity, we give an explicit uniform error bound. Since s,t<=13 and
+0<=r<=6, the preceding upper bound on m, theta<93/1000, and n>=10^6
+imply 0<R<1: the numerator is at most theta*n^2+6<n^2/4 and the
+denominator is at least (n-13)^2>n^2/4. Also
+
+    theta - m/n^2 <= theta*(26/n - 169/n^2) < 3/n,
+    m/n^2 - theta <= 6/n^2 < 3/n.
+
+From m/n^2 = R*(1-s/n)*(1-t/n) + r/n^2 it follows that
+
+    |R - m/n^2| <= max(R*(s+t)/n, 6/n^2) <= 26/n.
+
+Thus |R-theta|<29/n. In particular,
+
+    1/11 < 92/1000 - 29/10^6 < R < 93/1000 + 29/10^6 < 3/32.
+
+No fraction of denominator at most 36 lies in this interval. Indeed, if
+1/11 < u/v < 3/32, both 11u-v and 3v-32u are positive integers, and
+
+    v = 32*(11u-v) + 11*(3v-32u) >= 43.
+
+Taking u=c_r and v=B contradicts B<=36, even if the fraction has common
+factors. This proves the claimed empty position for n>=10^6. The proof
+uses a rational gap and does not need an irrationality-measure estimate.
+
+4. Height and finite exclusion
+
+An empty term n-s divides 14!, whence n<=14!+13. The conclusion also
+holds for n<10^6. Monotonicity in the row gives the stated bound on a.
+For a>=10^100 we necessarily have n>=10^6 (since C(n,14)<=n^14).
+Therefore every candidate in this range already belongs to the empty
+fourteenth-column list, at the exact edge j=7.
+
+The standalone check is run with
+
+    python -B Erdos849DoubleColumn.py
+
+It verifies the numerical inequalities with integers and rational numbers.
+For 28<=n<10^6 it tests C(n,14) against the seventh-column residues modulo
+primes between 71 and 499. Each modulus exceeds 14, so the coefficients
+are polynomials of their row residues in the prime field. All 999972 rows
+are excluded; the script contains an exact inverse fallback for survivors.
+For n>=10^6 the script forms the full set of n=b+s with b a positive
+divisor of 14! and 0<=s<14. The 2592 divisors give 14028 distinct larger
+rows. Direct exact inversion of column seven excludes all 14028. Of these
+larger rows, 3094 have coefficient at least 10^100, agreeing with the
+separate Erdos849FourteenAudit.py run. No fixed-column literature result
+or large-interval sieve is needed for this standalone boundary argument.

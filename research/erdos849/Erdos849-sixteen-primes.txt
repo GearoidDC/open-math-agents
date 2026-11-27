@@ -1,0 +1,171 @@
+Five rows in Pascal's triangle require at least sixteen distinct primes
+
+Write M(a) for the number of rows n with C(n,k)=a for some k≥1, 2k≤n.
+Every five-row value must satisfy both
+
+    a > 10^100,      ω(a) ≥ 16,
+
+where ω(a) counts distinct prime divisors. This is a necessary condition.
+The existence of a value with M(a)≥5 remains open.
+
+Proof
+
+The base range through 10^100 is covered by Theorem 2.2 of Blokhuis,
+Brouwer and de Weger up to 10^60 and the exact finite searches described
+in Erdos849-reproduce.txt up to 10^100. The published theorem also excludes
+nine fixed pairs of columns at larger values. Its classification and the
+Lind–Singmaster family appear at https://arxiv.org/pdf/1707.06893 .
+
+1. Reducing an infinite search to four columns.
+
+Suppose M(a)≥5 and ω(a)≤15. A fixed positive column increases strictly
+down its admissible rows. Aside from the edge k=1 there must be at least
+four different proper columns. Choose any four, written in increasing order.
+
+In any row a=C(n,d) each full prime power P=p^v_p(a) divides at least one
+term n-s, 0≤s<d. One proof selects a term with maximum p-adic valuation.
+For every other term n-i, its p-part divides |s-i|. The product of those
+differences is s!(d-1-s)!, a divisor of d!. This proves the assertion.
+In particular a≤n^15. The integer checks C(N,t)>N^15 with
+N=floor(X^(1/15)) give t=18 at X=10^100 and t=16 at X=10^500.
+The ratio C(n,t)/n^15 increases on n≥N since t>15. Monotonicity across
+the half-row excludes all columns ≥t. Thus there are only 1,820 four-column
+subsets to consider above a googol and 1,001 above 10^500.
+
+2. Lower bounds on the product of cofactors.
+
+Assign each P to one term n-s that it divides. Divide each term by all
+its assigned powers and call the resulting integer b_s. Then
+
+    product_s b_s = d!.
+
+If e terms have no assigned powers, at least S=max(0,2(d-e)-15) terms
+have exactly one. This follows by counting powers across the d-e nonempty
+terms. Each empty term has b_s=n-s. Each singly occupied term has n-s=b_s P.
+
+For another representation a=C(m,j), let a=Xy, y≥1, and put
+R_k=floor((k!X)^(1/k)). A row u in column k satisfies
+
+    (R_k-h)y^(1/k) ≤ u-h ≤ (R_k+k-h)y^(1/k),   0≤h<k.
+
+This follows by bounding the k-term falling product by its extreme terms.
+In particular each empty term contributes at least L=R_d-d+1 to d!.
+
+There are two complementary bounds on the product of the S single-slot
+cofactors. For the first, assign their pairwise-coprime prime powers
+to divisible terms in the other row. If h powers are assigned to a single
+m-r, their product divides m-r. Hence the product of their cofactors
+is at least L^h/(R_j+j) times y^(h/d-1/j). For hj≥d, round L^h/(R_j+j)
+up to an integer and use at least one. For hj<d use one. The program
+minimizes the product over all ways of distributing S powers into j groups.
+This yields a uniform lower bound for every a≥X.
+
+For the second bound, given n-s=b_s P and P|(m-r), the falling-product
+identity implies P² divides the signed difference
+
+    (-1)^(d-1-s) A(n-s) - (-1)^(j-1-r) B(m-r),
+    A=j!s!(d-1-s)!,       B=d!r!(j-1-r)!.
+
+This follows by reducing the other factors modulo P. When the difference
+is nonzero, divide by the p-free part of gcd(A,B). The resulting absolute
+value remains at least P². For j<d<2j the row estimates above yield a
+lower bound on b_s depending only on X, j,d,s and the base-prime class.
+The test uses the trivial bound one whenever it cannot rule out a zero
+difference. It rounds bounds up to divisors of d!, tries every possible r
+and assigns each small prime base at most once. The full inequalities
+and the cofactor-product computation are in Erdos849-prime-bounds.txt
+and Erdos849GroupedHosts.txt.
+
+For each feasible e, multiply the stronger of these two product bounds
+by L^e. If it exceeds d!, the pair is impossible. The program can also
+repeat the test assuming all singly occupied terms have base p>d. If only
+this last test succeeds, any surviving row must contain a singleton term
+of small prime base or an empty term. An empty term has n=b+s, b dividing
+d!. A singleton of small prime base has n=b p^h+s, p≤d prime, h≥1 and
+b dividing d!. In a bounded value interval, all these rows are explicitly
+enumerable.
+
+3. The upper range and the bounded remainder.
+
+At X=10^500 the column-pair obstructions meet all 1,001 four-column
+subsets in columns 2 through 15. They apply at all larger values.
+These checks with ω(a)≤15 use no special theorem about (7,14).
+
+For 10^100≤a≤10^500, apply the same tests to all subsets of four proper
+columns through 17. For most subsets they either exclude a pair or reduce
+it to the finite small-prime and empty-term rows above. For each of the
+18 other subsets choose a larger X=10^K where at least one of its pairs
+passes such a test. The following table lists their finite gaps. Each
+comma-separated group of four numbers denotes a set of columns.
+
+    K      Four proper columns
+    101    (2,7,14,15), (3,5,14,15), (3,7,14,15), (5,7,14,15)
+    104    (3,5,7,11), (4,5,7,11), (5,6,7,11)
+    111    (3,5,8,9)
+    121    (3,5,7,14), (4,5,7,14), (5,6,7,14)
+    134    (3,5,7,13), (4,5,7,13), (5,6,7,13)
+    144    (3,5,7,12), (4,5,7,12), (5,6,7,12)
+    179    (3,5,7,15)
+
+For every listed set, sieve all rows in its largest column d whose value
+is in (10^100,10^K]. For any prime l>d, C(n,d) mod l depends only on
+n mod l and must belong to the residue images of all three other columns.
+The Python program intersects periodic bitmaps along residue progressions.
+The Node program independently joins residue classes using the Chinese
+remainder theorem. Both derive closed integer row endpoints and use exact
+integer comparisons. No modular survivor occurs in any of the 18 intervals.
+
+The separate exceptional-row checks enumerate n=b+s or n=b p^h+s at the
+possible larger columns d=8,9,11,12,13,14,15,16,17. The modular test for
+the corresponding smaller column excludes every row. Removing all these
+cases rules out the assumed four proper columns. This proves the bound.
+
+Verification boundary
+
+Erdos849SixteenGraph.lean proves the two column cutoffs and the final row
+count deduction conditional on the published pair results, the finite
+base and the computed four-column certificate. The numerical certificates
+run outside Lean. The generic prime-power congruence and an explicit
+height bound for collisions with ω(a)<2j are separately proved in Lean.
+The scripts and full rebuild commands are in Erdos849-verification.txt.
+
+Further restriction above 10^524
+
+Repeating the column tests at X=10^500 with ω(a)≤16 leaves only three
+potential four-column sets: (3,5,7,8), (5,6,7,8) and (3,5,7,15).
+For the first two sets consider just columns 7 and 8, now at X=10^524.
+The signed-square inequality in step 2 gives P≤Q_p y^(1/14) for each
+full prime power P. The constants Q_p are computed by maximizing over
+the finitely many offset pairs, checking that the signed difference
+cannot vanish, and removing the p-free common divisor as above.
+
+Write Q=max Q_p and L=R_8-7. The test L>8!Q makes a slot with zero or
+one assigned power impossible. Since ω(a)≤16, every one of the eight
+slots has exactly two powers. At least three of these sixteen powers
+must divide one of the seven numerator terms in the other row. If they
+come from three distinct original slots, the product of their three
+cofactors divides 8!, and their three partner powers have distinct
+prime bases. Their product therefore has lower bound
+
+    L³ y^(9/56) / (8! times the product of the three partner constants).
+
+If two of the three came from the same slot, use their exact product
+(n-s)/b_s, giving a lower bound L² y^(10/56)/(8!Q). Both exceed the
+upper bound (R_7+7)y^(1/7) for the receiving term, by the explicit
+integer comparisons in Erdos849SeventeenLarge.py.
+
+For the third set, columns 7 and 15 already conflict at X=10^188.
+Make a bipartite graph with a vertex for every numerator term in the
+two rows, and one edge for each prime, joining its assigned terms in
+the two representations. Every vertex is occupied at this height.
+With 22 vertices and at most 16 edges, there are at least six connected
+components. At least five each have only one vertex on the seven-term
+side. Within each component the prime-power products are identical on
+both sides. Comparing the term products is therefore equivalent to
+comparing their cofactor products. Write L_k=R_k-k+1 and U_k=R_k+k.
+The inequalities L_15³>15! U_7 and 3/15>1/7 forbid three or more
+15-side vertices in any of the five components. With at most two such
+vertices, L_7>5 U_15² and 1/7>2/15 force the lone seven-side cofactor
+to exceed five. Five integer cofactors ≥6 would give 7!≥6^5, impossible.
+Erdos849ComponentBound.py checks these constants. The resulting bound
+is ω(a)≥17 for all a≥10^524 with five admissible rows.

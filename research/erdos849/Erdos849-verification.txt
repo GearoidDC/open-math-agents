@@ -1,0 +1,76 @@
+Erdős 849 verification packet
+
+Read Erdos849-sixteen-primes.txt first. It proves that a five-row value
+must exceed 10^100 and have at least 16 distinct prime divisors. Above
+10^524 it must have at least 17. The original problem remains open.
+
+The numerical programs use standard Python 3.12 and Node.js. Run Python
+normally, with assertions enabled. The counts refer to admissible rows in
+the left half of Pascal's triangle, including the single edge occurrence.
+
+1. Check the finite range through 10^100.
+
+   Follow Erdos849-reproduce.txt, sections on the finite search. These
+   programs build on the published Theorem 2.2 for the base through 10^60.
+   The older reproduction note also documents the earlier ten-prime result.
+
+2. Check the sixteen-prime argument and its independent cross-checks.
+
+     python Erdos849SixteenPrimes.py
+     python Erdos849SixteenAudit.py
+     python -u Erdos849SixteenSieve.py --all
+     node Erdos849SixteenCrosscheck.cjs
+
+   The first two commands verify the column graph, cofactor inequalities
+   and exceptional numerator rows. The third and fourth cover the same
+   18 bounded four-column searches by separate methods. The Python search
+   prints the inclusive row endpoints and checks that its interval list
+   matches the graph verifier's obligations. Expected results are zero
+   survivors across 30,147,631,261,435 row-pattern pairs. The independent
+   exceptional-row audit checks 9,330,898 rows counted by search job.
+
+     python Erdos849SeventeenLarge.py
+
+   This checks the three remaining four-column patterns for a>=10^500
+   under omega<=16, and the two pair obstructions for a>=10^524.
+
+3. Check the Lean deductions.
+
+     python VerifyErdos849.py --lean PATH_TO_LEAN --project PATH_TO_LAKE_PROJECT
+
+   This requires an existing Lean 4.33.1 executable and a built Lake
+   project with mathlib v4.33.1, commit
+   0df444a360eaa60ab8c11dca51a86af692955474. The runner recompiles all
+   included Lean source dependencies in a fresh temporary directory and
+   prints theorem statements and axiom dependencies. The sixteen-prime
+   theorem takes the finite base, published pair classifications and the
+   computed four-column exclusions as arguments. The Python/Node searches
+   are outside the Lean kernel. The separate effective multiplicity
+   theorem and sparse-collision bound have no external mathematical inputs.
+
+4. Verify the sixth, seventh and eighth Lind–Singmaster multiplicities.
+
+     node Erdos849LindSearch.cjs 6
+     node Erdos849LindSearch.cjs 7
+     node Erdos849LindSearch.cjs 8
+     node Erdos849LindIndependent.cjs 8
+
+   The first program excludes small columns using Lucas's theorem, bounds
+   larger-column rows using a verified sequence of primes, and locates
+   equality inside each remaining row by integer recurrences. The other
+   verifier implements the modular and row checks independently. The
+   eighth term has 3,120,256 digits. Its only proper occurrences are
+   C(10803704,4126647) and C(10803703,4126648).
+
+5. Shorter intermediate results.
+
+     python Erdos849GroupedHosts.py --verify-fifteen
+     python Erdos849FourteenPrimes.py
+     python Erdos849FourteenAudit.py
+     python Erdos849DoubleColumn.py
+
+   The first command verifies a separate fifteen-prime proof. The next
+   two check the fourteen-prime bound. The last establishes the isolated
+   (7,14) pair exclusion for values with at most fourteen primes.
+   Erdos849BoundedOmega.txt documents the separate qualitative finiteness
+   consequence of the published fixed-column theorem and Siegel's theorem.

@@ -1,0 +1,138 @@
+Fourteen distinct prime factors are necessary for five rows of Pascal's triangle
+
+Let M(a) count the integers n for which C(n,k)=a with 1≤k and 2k≤n.
+Let ω(a) be the number of distinct prime divisors of a. We obtain
+
+    M(a) ≥ 5  implies  a > 10^100 and ω(a) ≥ 14.
+
+The result leaves open the existence of even one such integer. It combines
+published classifications, ordinary number theory, Lean proofs and two
+independent integer computations. This note specifies the inputs and gives
+enough detail to reproduce the deductions. We make no claim of priority.
+
+1. Finite base and column bounds
+
+The published Theorem 2.2 of Blokhuis, Brouwer and de Weger classifies
+collisions up to 10^60 and in nine fixed pairs of columns. The enclosed
+finite-search programs extend the five-row exclusion through 10^100.
+The details and commands are in Erdos849-googol-note.txt and
+Erdos849-reproduce.txt. See https://arxiv.org/pdf/1707.06893 .
+
+Suppose a>10^100 and ω(a)≤13. In any admissible representation C(n,d)=a
+the largest power of each prime dividing a is at most n. Indeed, for each
+p choose a numerator term n-s of largest p-adic valuation. The valuation
+of every other n-i is at most that of |s-i|, since p^v_p(n-i) divides
+both n-i and n-s. Their sum of valuations is at most v_p(s!(d-1-s)!),
+which is at most v_p(d!). Thus P=p^v_p(a) divides n-s and a≤n^13.
+In any second representation there is likewise an r<j with P dividing m-r.
+One may take the least nonnegative residues s=n mod P and r=m mod P.
+
+For X=10^100, put N=floor(X^(1/13)). The integer comparison
+C(N,15)>N^13 and the increasing ratio C(n,15)/n^13 for n≥N rule out
+all columns d≥15 by monotonicity along the left half of the row. The
+same test at X=10^390 rules out all d≥14. Each fixed positive column
+can supply at most one row, since C(n,d) strictly increases with n.
+
+2. A local obstruction at every prime
+
+Assign each maximal prime power P to one divisible numerator term of
+C(n,d). Divide each n-s by its assigned powers and call the resulting
+positive integer b_s. Coprimality of the assigned powers guarantees
+integrality. The exact identity is
+
+    product over s of b_s = d!.
+
+Each b_s divides d!. If e slots are empty, at least 2(d-e)-13 slots
+contain a single prime power, since each other occupied slot contains
+at least two. At a single slot write n-s=bP, so b=b_s. This description
+does not require that the base prime be larger than either column.
+
+Suppose C(n,d)=C(m,j)=a, j<d. Expand j! times the falling product at n,
+and d! times the falling product at m. In each product one selected term
+is divisible by P. The other factors can therefore be reduced modulo P
+when computing modulo P². This gives divisibility by P² of
+
+    Δ = (-1)^(d-1-s) A(n-s) - (-1)^(j-1-r) B(m-r),
+    A = j! s! (d-1-s)!,         B = d! r! (j-1-r)!.
+
+The two signs matter. If they agree and the two terms might be equal,
+the verifier permits b=1. Otherwise Δ is nonzero after the indicated
+size comparison. Divide Δ by the p-free part g of gcd(A,B). The quotient
+is still an integer multiple of P².
+
+3. Computing cofactor bounds for infinitely many values
+
+For a≥X set y=a/X and R_k=floor((k!X)^(1/k)). Comparing a falling
+product with its largest and smallest term shows, for C(u,k)=a, h<k,
+
+    (R_k-h)y^(1/k) ≤ u-h ≤ (R_k+k-h)y^(1/k).
+
+For a pair j<d<2j and any s,r, put L=A(R_d+d-s), U=B(R_j+j-r).
+For equal signs, B(R_j-r)>L guarantees nonvanishing at every y≥1,
+since 1/j>1/d. Use H=max(L,U)/g in that case. For opposite signs use
+H=(L+U)/g. Then P²≤H y^(1/j). The identity n-s=bP gives
+
+    b² H ≥ (R_d-s)² y^(2/d-1/j) ≥ (R_d-s)².
+
+All constants are integers. For each s and base-prime class the program
+finds the smallest possible divisor b of d! consistent with these
+inequalities for at least one r. All primes p>d have the same bound
+because none divides A or B. Each small prime may occur at only one
+singleton slot. A dynamic program finds the least product allowed for
+the required number of singleton slots, trying every assignment of these
+prime classes. Each empty slot additionally contributes at least R_d-d+1.
+Any resulting product greater than d! contradicts the exact identity.
+
+For X=10^390 the procedure excludes every 7≤j<d≤13. At most one column
+in {2,3,4,6} can occur by the published results. Adding the edge and
+column 5 still leaves any five-row value needing two distinct columns ≥7.
+This excludes the whole unbounded range a≥10^390 for ω(a)≤13.
+
+4. The remaining interval
+
+For 10^100≤a≤10^390, columns 2 through 14 split into three groups,
+
+    {2,3,4,6},       {5,7,8},       {9,10,11,12,13,14}.
+
+All pairs within the first group have published classifications. For
+the other two groups the preceding cofactor test either excludes a pair
+outright or shows that its larger-column row has an empty slot or a
+singleton slot of small prime base p≤d. Column 14 must have an empty
+slot because there are at most 13 distinct prime factors.
+
+An empty slot has n=b+s with b dividing d!. A small-prime singleton
+has n=b*p^h+s with b dividing d!, 1≤h, p≤d prime, 0≤s<d. In this
+bounded interval every possible row of either type can be enumerated
+directly. There is no search over all integers a in the interval.
+For a prime l>d, Lucas's congruence implies C(n,d) mod l depends only
+on n mod l. If this residue is absent from {C(u,j) mod l: 0≤u<l},
+there is no equality with any row of the smaller column.
+
+    Larger column    Smaller columns checked       Candidate rows
+            7        5                                    46,459
+            8        5                                    67,368
+           13        12                                1,215,500
+           14        7 through 13                          3,094
+                                                       ---------
+                                                       1,332,421
+
+All these candidates were excluded by modular arithmetic. The second
+verifier generated rows using p-free divisors, computed the exact
+binomial coefficients, and used a disjoint set of modular primes.
+Both implementations independently checked the column graph. Each
+of the three groups contributes at most one row. Adding the edge
+gives at most four, proving the claim.
+
+5. Scope of verification
+
+Erdos849FourteenGraph.lean verifies the column cutoff, the coloring
+argument and the deduction of the fourteen-prime conclusion from the
+published pairs, finite base and the specified middle- and upper-range
+pair exclusions. The numerical pair exclusions are verified by Python.
+The files on hosts and sparse collisions check the underlying assignment
+and congruence in Lean. A separate Lean theorem deduces eleven distinct
+prime factors directly from the finite base and the classifications,
+without the two additional numerical pair certificates.
+
+The finite collision search, both fourteen-prime verifiers, the Lean
+modules and their rebuild instructions are included in this packet.

@@ -1,0 +1,98 @@
+Ten distinct prime factors are necessary for five admissible rows
+
+Let M(a) count the rows n for which C(n,k)=a with 1<=k and 2k<=n.
+If M(a)>=5, then a>10^100 and a has at least ten distinct prime factors.
+The argument below combines an ordinary mathematical proof with the finite
+and published inputs identified explicitly. It does not establish whether a
+five-row value exists.
+
+Inputs. The finite exclusion through 10^100 is described in
+Erdos849-googol-note.txt. We also use the nine fixed-column pair
+classifications in Theorem 2.2 of Blokhuis, Brouwer and de Weger
+(https://arxiv.org/pdf/1707.06893). For a>10^60 no two columns in {2,3,4,6}
+can occur together. Columns 2 and 8 and columns 4 and 8 are incompatible
+as well. The earlier classifications and the computing programs are
+separate inputs to the proof.
+
+1. Selecting the two columns.
+
+Suppose M(a)>=5 and a has at most nine distinct prime factors. We have
+a>10^100. In any row n realizing a, each maximal prime power dividing a
+is at most n, as proved in step 2, so a<=n^9. If k>=10, monotonicity
+in the admissible half-row gives C(n,10)<=C(n,k)=a. Since n>=20,
+(n/2)^10 <= (n-9)^10 <= 10! C(n,10) <= 10! n^9. This gives
+n <= 2^10*10! and hence a <= (2^10*10!)^9 < 10^100, a contradiction.
+
+Each column contributes at most one row. At least four proper columns
+(index >=2) therefore occur. At most two are in 2,...,6: column 5 and
+at most one element of {2,3,4,6}. Consequently, there are distinct
+occupied columns j<d with d in {8,9} and 7<=j<d. Fix the representations
+a=C(n,d)=C(m,j). In both cases n>10^11 by a<=n^d and a>10^100. If d=8
+we also have n>10^12.
+
+2. Assigning a prime power to a numerator term.
+
+For each prime p dividing a let P=p^v_p(a). Among n,n-1,...,n-d+1,
+choose n-s with largest p-adic valuation. For every i!=s in this window,
+p^v_p(n-i) divides both n-i and n-s, hence divides |i-s|. Summing over
+i!=s gives
+
+  sum v_p(n-i) <= v_p(s!(d-1-s)!) <= v_p(d!).
+
+After dividing the numerator product by d!, this proves P divides n-s.
+It also proves the bound P<=n used in step 1. Assign each maximal prime
+power to one such term. Distinct assigned powers are relatively prime.
+Their product at each offset divides n-s. Let b_s be the positive quotient.
+Taking the product over all offsets yields the exact identity
+
+  product b_s = d!.
+
+Every offset receives at least one prime power because an empty offset
+would have b_s=n-s>d!. Call an offset single if it receives just one.
+
+If d=8, distributing at most nine powers across eight nonempty offsets
+leaves at least seven single offsets. At most four can have prime base
+2,3,5,7. At least three have prime base >=11, and their quotients have
+product at most 8!. Since 35^3>8!, some such offset has b_s<=34.
+
+If d=9, all nine offsets are single and at least five have prime base
+>=11. Removing the two endpoints leaves at least three such offsets
+among s=1,...,7. Their quotients have product at most 9!. Since
+72^3>9!, one of these interior offsets has b_s<=71.
+
+In either case fix that offset and write n=bP+s. Here P=p^e, p>=11,
+1<=b<=71, and 0<=s<d. The same power P divides a=C(m,j). The argument
+above applied to this representation yields m=qP+r, 0<=r<j, q>=1.
+
+3. A congruence that must be an equality.
+
+Equate j! times the d-term falling product at n to d! times the j-term
+falling product at m. Cancel P in the integers using n-s=bP and m-r=qP,
+then reduce modulo P. The remaining products at the two rows become
+signed s!(d-1-s)! and r!(j-1-r)!. All factorials here are units modulo
+P because p>=11. Rearranging gives
+
+  L = d C(d-1,s) q  congruent to  +R or -R modulo P,
+  R = j C(j-1,r) b.
+
+We have P >= (n-8)/71 >= n/72. Also
+(m-j+1)^j <= j!a <= n^d, so m<=8+n^(9/7)<=2n^(9/7) and
+q<=144n^(2/7). The small binomial weights are at most 630 and 280,
+respectively. Thus L<=90720n^(2/7) and R<=19880. For n>10^11,
+n^(5/7)>144*90720 and n>144*19880. It follows that 0<L+R<n/72<=P.
+The negative sign is impossible, and the positive congruence forces L=R.
+
+4. Contradictions for the two largest-column choices.
+
+If d=8, then j=7. Equality of the binomial coefficients gives
+(n-7)^8 <= 8 m^7. In fact m>18n+7: for n>10^12 one has n-7>=0.9n,
+18n+7<=19n, and 0.9^8*10^12 > 8*19^7. Substituting n=bP+s and
+m=qP+r gives q>18b. Hence L>=8q>144b, while R<=7*C(6,3)*b=140b.
+
+If d=9, then j is 7 or 8. Since m is large, C(m,j)<=C(m,8), so
+(n-8)^9<=9m^8. For n>10^11, n-8>=n/2, 4n+8<=5n, and
+9*2^9*5^8<10^11. It follows that m>4n+8, so q>4b.
+The interior offset gives 9*C(8,s)>=72. Thus L>288b but R<=280b.
+
+Both possibilities contradict L=R. This excludes every a with at most
+nine distinct prime factors, including arbitrarily large a.

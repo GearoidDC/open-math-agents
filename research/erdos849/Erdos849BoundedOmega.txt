@@ -1,0 +1,67 @@
+Finiteness for repeated binomial coefficients with few distinct prime factors
+
+Let H(a) count the pairs (n,k) of natural numbers with 1 ≤ k ≤ n/2 and
+C(n,k) = a. Let ω(a) count the distinct prime factors of a.
+
+Theorem. For each fixed integer r ≥ 0, only finitely many integers a ≥ 2
+satisfy both ω(a) ≤ r and H(a) ≥ 3. Consequently, if a_j tends to infinity
+and H(a_j) ≥ 3 for all j, then ω(a_j) tends to infinity.
+
+Proof. The case r = 0 is empty. Fix r ≥ 1 and put t = r+1. Suppose
+a = C(n,k) with ω(a) ≤ r. For a prime p dividing a, Legendre's formula
+expresses its exponent in a as the sum over j ≥ 1 of
+
+    floor(n/p^j) - floor(k/p^j) - floor((n-k)/p^j).
+
+Each term is 0 or 1, and all terms with p^j > n vanish. Thus the largest
+power of p dividing a is at most n. Multiplying over the primes gives
+a ≤ n^r. Abbott, Erdős and Hanson use the same estimate in the proof of
+their Theorem 2. https://www.renyi.hu/~p_erdos/1974-23.pdf
+
+If t ≤ k ≤ n/2, monotonicity along the left half of a row gives
+
+    n^r ≥ a ≥ C(n,t) = ∏_{i=0}^{t-1} (n-i)/(t-i) ≥ (n/t)^t.
+
+The last inequality holds factor by factor. Since t = r+1, we obtain
+n ≤ t^t and a ≤ t^(tr). Every representation of any larger value with
+ω(a) ≤ r must therefore have column in {1,...,r}.
+
+The edge k = 1 contributes exactly once. For each k ≥ 2, the function
+n ↦ C(n,k) is strictly increasing on n ≥ k. Thus H(a) ≥ 3 supplies two
+distinct columns i,j with 2 ≤ i < j ≤ r whenever a > t^(tr).
+
+For each fixed pair 2 ≤ i < j, the equation C(n,i) = C(m,j) has finitely
+many integral solutions with n ≥ 2i and m ≥ 2j. To check the hypotheses,
+translate X = n-i+1 and Y = m-j+1. The equation becomes
+
+    X(X+1)...(X+i-1) = (i!/j!) Y(Y+1)...(Y+j-1).
+
+Theorems 2.1 and 2.2 of Beukers, Shorey and Tijdeman give an absolutely
+irreducible curve of positive genus at this factorial ratio. For unequal
+degrees their sole reducible case is (2,4) at ratio 1/4, whereas 2!/4!
+is 1/12. Their unequal-degree genus-zero exceptions have irrational or
+negative ratios. Siegel's theorem on integral points now gives the stated
+finiteness. The union over the finitely many column pairs is finite, and
+so is the remaining interval a ≤ t^(tr). This proves the theorem.
+https://doi.org/10.1515/9783110285581.11
+
+Effectivity. The explicit threshold t^(tr) eliminates every column above
+r. The general fixed-column argument by Siegel gives no explicit maximum
+value for the remaining collisions. Matomäki, Radziwiłł, Shao, Tao and
+Teräväinen make this distinction in Remark 1.5. Effective classifications
+are available for particular pairs, including the nine pairs in Theorem 2.2
+of Blokhuis, Brouwer and de Weger.
+https://arxiv.org/pdf/2106.03335
+https://arxiv.org/pdf/1707.06893
+
+There is also an effective upper bound on the number of exceptions. Let
+D = max(4,r), and let J(i,j) count common entries in the two left-half
+columns. The proof above bounds the total number by
+
+    t^(tr) + Σ_{2 ≤ i < j ≤ D} J(i,j).
+
+Leshem and Sayag's November 2026 preprint gives an explicit bound for the
+sum in equation (32), using Rémond's rational-point count in genus at least
+two and the solved pairs (2,3) and (2,4). Locating the final exceptional
+value would require information on the heights of these points.
+https://arxiv.org/pdf/2611.34736

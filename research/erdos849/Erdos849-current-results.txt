@@ -1,0 +1,76 @@
+Erdős 849 — results and verification
+
+Every value a occurring in at least five rows of the left half of Pascal's
+triangle satisfies a>10^105 and has at least sixteen distinct prime factors.
+If a≥10^524, it has at least seventeen. A separate ordinary mathematical
+argument gives at least 840 prime factors when a≥10^(10^115).
+The existence of a single five-row value remains open.
+
+The extension through 10^105
+
+The finite base through 10^100 is described in Erdos849-reproduce.txt and
+Erdos849-googol-note.txt. The nine fixed-pair classifications and the
+published base through 10^60 are from Theorem 2.2 of Blokhuis, Brouwer
+and de Weger (https://arxiv.org/pdf/1707.06893).
+
+Five rows require four distinct proper columns. For a in (10^100,10^105],
+at most one column in {2,3,4,6} can occur. Thus at least two proper columns
+are ≥7. If the largest column is ≥10, it must collide with another column
+≥7. A Python prime-residue sieve and exact inversions covered every such
+pair. The largest possible column is 176. There were 14,362 column pairs,
+351,330,164,203 initial row/column triples and 571,552 exact comparisons.
+The search found zero collisions.
+
+If the largest column is ≤9, the published classifications leave ten
+possible four-column sets. A separate Node CRT sieve covered all ten,
+spanning 87,703,536,006,922 row-pattern pairs. It tested 417,901,661 joined
+residue candidates and found zero survivors. Its binomial row endpoints
+were checked by independent division-free falling-product comparisons.
+These tests cover every possible factorization of a.
+
+To reproduce the added interval:
+
+  node Erdos849GoogolLow.cjs
+  python -u Erdos849GoogolHigh.py
+
+The programs need only Node.js and standard Python. The Lean theorem
+Erdos849Interval105.five_rows_above_cutoff combines the classified pairs,
+the previous base and the two external numerical certificates.
+
+Prime-factor restrictions
+
+Erdos849-sixteen-primes.txt gives the sixteen-prime proof and the stronger
+seventeen-prime result beyond 10^524. Erdos849-verification.txt gives the
+rebuild and replay commands. The sixteen-prime proof includes independent
+Python and Node searches over eighteen bounded four-column intervals.
+
+Erdos849ReciprocalRunge.txt gives a different argument for high values.
+For any fixed prime-count cap W, sufficiently large values with ≤W prime
+factors must have at least as many prime factors as the product of all
+their proper column indices. The height threshold can be computed from W.
+The proof uses monodromy of the binomial polynomials and Pierre Dèbes,
+"Hilbert subsets and s-integral points", Theorem 1.4 and its explicit
+height estimate. Four distinct proper columns avoiding the published
+forbidden pairs have product ≥840. Selecting two, three or four of
+them according to their size gives the stated threshold 10^(10^115).
+Erdos849RungeConstants.py checks the specialization using integer
+arithmetic. This geometric argument is written in ordinary mathematics.
+https://pro.univ-lille.fr/fileadmin/user_upload/pages_pros/pierre_debes/A18-HITBounds.pdf
+
+Additional constructive tests
+
+The sixth through eighth Lind–Singmaster values have exactly three rows.
+The 3,120,256-digit eighth member was independently checked by a second
+program from the archive. An explicit local argument and finite rational
+tests also classify the entire infinite family within 10,000 rows of its
+known consecutive pair. The only extra proper occurrence anywhere in that
+band is C(78,2)=3003 for the first member. See Erdos849LindBand.md.
+
+  python Erdos849RungeConstants.py
+  python Erdos849LindBand.py --radius 10000
+  node Erdos849LindIndependent.cjs 8
+
+Lean checks the indicated deductions with the numerical claims passed as
+explicit hypotheses. The residue searches run outside the Lean kernel.
+None of these results rules out all candidates with arbitrarily many prime
+factors or constructs all of the multiplicities asked for in Erdős 849.

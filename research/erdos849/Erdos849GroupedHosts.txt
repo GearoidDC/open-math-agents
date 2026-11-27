@@ -1,0 +1,104 @@
+A necessary condition on the prime factors of a five-row value
+
+Let H(a) count the rows n with C(n,k)=a for some 1<=k<=n/2. If
+a>=10^100 and H(a)>=5, then a has at least fifteen distinct prime divisors.
+This also holds globally using the separate finite exclusion through
+10^100 in Erdos849-googol-note.txt. Here is the argument above the cutoff.
+
+Write W for an assumed upper bound on the number of prime divisors, X=10^K,
+and y=a/X>=1. For each p|a put Q_p=p^v_p(a). In Legendre's formula for
+v_p(C(n,k)) each power p^i contributes either zero or one, and those above
+n contribute zero. Consequently Q_p<=n and a<=n^W. Put N=floor(X^(1/W)).
+Choose t>W such that C(N,t)>N^W and 2t<=N. The ratio C(n,t)/n^W is
+increasing for n>=N, by its product formula with t-W powers of n and t
+nondecreasing factors 1-i/n. Hence every admissible column is below t.
+
+The admissible columns contributing different rows are distinct by strict
+monotonicity in the row index for each fixed column. At most one row comes
+from column 1. Thus H(a)>=5 requires four distinct columns from 2 to t-1.
+Theorem 2.2 of Blokhuis, Brouwer and de Weger excludes the nine pairs
+(2,3),(2,4),(2,5),(2,6),(2,8),(3,4),(3,6),(4,6),(4,8) in this range.
+https://arxiv.org/pdf/1707.06893
+
+For any two other columns j<d, suppose C(n,d)=C(m,j)=a. Assign each Q_p
+to a factor n-s, 0<=s<d, where the p-adic valuation is largest. For each
+p^i dividing this factor, at most floor((d-1)/p^i) other numerator factors
+are divisible by p^i: the total count in the interval is at most
+floor((d-1)/p^i)+1. For larger i no other factor is divisible by p^i.
+The valuation of the product of the other factors is at most v_p((d-1)!).
+Since a is obtained by dividing the numerator by d!, Q_p divides the
+selected factor. Apply the same observation to the j-column.
+
+Define b_s=(n-s)/(product of the powers assigned there). Then all b_s
+are positive integers and their product equals d!. If e factors are empty
+and S' contain exactly one prime power, W>=S'+2(d-e-S'), so at least
+S=max(0,2(d-e)-W) of the factors are singletons. Each empty factor costs
+at least L=floor((d!X)^(1/d))-d+1 in the product of b_s.
+
+Choose any S singleton factors. Each assigned Q_p divides some m-r in
+the j-column, and these powers are pairwise coprime. If h of them divide
+one such factor, their product is at most m, and the corresponding product
+of their b_s is at least max(1,(n-d+1)^h/m). The logarithm of this
+quantity is convex in h, so among all splits of S into j bins the product
+of these lower bounds is minimized when occupancies differ by at most one.
+Indeed moving one item from a bin of size h to a bin of size <=h-2
+cannot increase the product. Take q,r with S=qj+r; use j-r bins of size
+q and r of size q+1.
+
+Put R_k=floor((k!X)^(1/k)). If C(u,k)=a and 0<=h<k, the falling product
+gives (R_k-h)y^(1/k)<=u-h<=(R_k+k-h)y^(1/k). Thus for a balanced bin of
+size h with hj>=d the lower bound is at least max(1,L^h/(R_j+j)),
+uniformly for y>=1. A bin with hj<d contributes at least one. Multiply
+over the balanced distribution; call the resulting rational bound G.
+The pair is impossible at this e if L^e G>d!.
+
+A second bound uses a singleton n-s=b_s Q_p. Choose r with Q_p|(m-r).
+In each falling product reduce all factors except that host modulo Q_p.
+Cross multiplication now shows that Q_p^2 divides
+
+  (-1)^(d-1-s) A(n-s) - (-1)^(j-1-r) B(m-r),
+  A=j!s!(d-1-s)!,   B=d!r!(j-1-r)!.
+
+Set D=A(R_d+d-s), E=B(R_j+j-r). When the signs agree and B(R_j-r)<=D,
+assign this r the trivial bound b_s>=1. Otherwise the expression is
+nonzero, by the row estimates with 1/j>1/d. Divide by the p-free part
+g of gcd(A,B). The resulting positive absolute value is a multiple of
+Q_p^2 and at most T y^(1/j), with T=max(D,E)/g for agreeing signs or
+T=(D+E)/g for opposite signs. For d<2j this gives
+
+  b_s^2 T >= (R_d-s)^2 y^(2/d-1/j) >= (R_d-s)^2.
+
+Since b_s divides d!, one may round up to the next divisor meeting this
+bound (or use d!+1 when none meets it). Minimize over r for each offset
+s and each possible base p. All p>d have the same g=gcd(A,B). Dynamic
+programming minimizes the product of these bounds over any S distinct
+offsets. Each small base p<=d can be used at most once, with no restriction
+on the number of distinct larger bases in their common class. Write V for
+the minimum, using V=1 if d>=2j. Necessarily L^e V<=d!.
+
+Erdos849GroupedHosts.py checks both inequalities for every feasible e.
+For W=13,K=100 it gives t=15 and excludes 45 pairs, meeting all four-column
+subsets. This proves the fourteen-prime lower bound directly in that range.
+For W=14,K=123 it excludes all four-column subsets unconditionally. For
+W=14,K=100 ten subsets survive. Each contains at least one of (7,11),
+(10,11),(12,13),(14,15); repeating the product calculation with all
+singleton bases larger than d excludes each of those four pairs.
+
+It remains to test n=s+b p^v with 0<=s<d, p<=d prime, v>=1, b|d!, and
+10^100<=C(n,d)<=10^123 for those pairs. The program enumerates a superset
+of these rows, screens them by 19 primes greater than d, then tests exact
+membership in column j. For a surviving value let R=floor((j!a)^(1/j)).
+Any solution has R<=m<=R+j, so testing all j+1 rows suffices. The result:
+
+  j   d     candidate rows    exact inversions    collisions
+  7  11              29029                  57             0
+ 10  11              29029                   0             0
+ 12  13              95212                   3             0
+ 14  15             151320                   2             0
+
+Reproduce both graphs and the finite search with standard Python 3.
+
+  python Erdos849GroupedHosts.py --verify-fifteen
+
+The imported Erdos849ThirteenGraph.py supplies only the nine published
+pairs, integer floor-root arithmetic, and divisors of small factorials.
