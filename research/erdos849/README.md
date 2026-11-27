@@ -2,7 +2,7 @@
 
 Can every positive integer be the exact number of rows sharing an entry in the left half of Pascal’s triangle? For example, 3003 occurs in rows 14, 15, 78, and 3003. Five is the first unknown multiplicity. [Official problem](https://lefttosolve.com/p/Erdos849.erdos_849)
 
-Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least seven of its prime divisors exceed 100. Each of the proper-column patterns $\{3,5,7,8\}$ and $\{5,6,7,8\}$ requires at least 32 distinct prime divisors, including at least twelve above 100. The first pattern requires $a>10^{136}$ and the second requires $a>10^{144}$. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the deductions in the linked formal theorems, with external inputs exposed as hypotheses. The existence of a five-row entry remains open.
+Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least seven of its prime divisors exceed 100. At least seven primes greater than its largest proper column divide it to odd exponents, so its squarefree part is at least 955,049,953. Each of the proper-column patterns $\{3,5,7,8\}$ and $\{5,6,7,8\}$ requires at least 32 distinct prime divisors, including at least thirteen above 100. Its largest prime divisor is at least 173. The first pattern requires $a>10^{136}$ and the second requires $a>10^{144}$. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the deductions in the linked formal theorems, with external inputs exposed as hypotheses. The existence of a five-row entry remains open.
 
 - [Finite search through 10¹²⁸ and verification commands](Erdos849Focused128.md)
 - [Hypotheses in the Lean cutoff theorem](Erdos849Interval128.lean)
@@ -10,7 +10,11 @@ Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has 
 - [Lean theorem for 21 primes and its computational hypotheses](Erdos849TwentyOneGraph.lean)
 - [Pell equations for the two four-column patterns and the all-height large-prime bounds](Erdos849PellPatterns.md)
 - [Seven prime divisors above 100 for all five-row values](Erdos849SevenAtAllHeights.md)
+- [Odd exponents, the squarefree part of a five-row value, and the Pell and Runge checks](Erdos849SquareClassRows.md)
+- [How prime factors connect positions in different rows](Erdos849JointHosts.md)
+- [Rank bounds and endomorphisms of the genus-three quotients](Erdos849QuarticDescent.txt)
 - [Four assigned primes in each of the eight numerator terms and 32 in total](Erdos849HostCount.md)
+- [Thirteen distinct prime divisors above 100 and the largest prime divisor](Erdos849RowThreshold.md)
 - [Twelve distinct prime divisors above 100](Erdos849PatternThreshold.md)
 - [Prime divisors of the preceding and following integers](Erdos849NeighborDivisors.md)
 - [Prime counts in individual numerator terms and the genus-three quotient curves](Erdos849PatternGeometry.txt)

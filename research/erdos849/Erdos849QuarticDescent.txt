@@ -1,0 +1,151 @@
+Bitangent descent and geometric endomorphisms of the two quartic quotients
+
+Take the smooth projective plane quartics K3,K6 of Erdos849PatternGeometry.txt,
+with affine equations G(y)=cH(x). In both cases G(y)=(y-1)(y-9)(y-25)(y-49).
+For K3, H(x)=x(x-1)(x-2) and c=1720320. For K6, H(x)=(x-1)(x-9)(x-25)
+and c=224. Their Jacobians have rational Mordell-Weil ranks at least 8 and
+7, respectively. Both geometric endomorphism rings equal Z. In particular
+their geometric Picard numbers are exactly one. These results concern the
+genus-three quotients and do not classify points lifting to admissible rows.
+
+1. Bitangents and rank
+
+Each curve has a rational hyperflex I=[1:0:0]; its tangent Z=0 intersects
+the quartic in 4I. If L:Y-mX-bZ=0 is a bitangent in good odd characteristic,
+div(L/Z)=2D-4I, with both terms defined over the residue field. Evaluation
+on a degree-zero divisor avoiding the support induces a homomorphism from
+J(F_p)/2J(F_p) to F_p^*/F_p^{*2}. Indeed principal divisors map to squares
+by Weil reciprocity, since the divisor of L/Z is even. Rational degree-zero
+classes may be moved away from the support, and the rational point I identifies
+the degree-zero Picard group with the rational Jacobian. Compose with good
+reduction to get a homomorphism on J(Q)/2J(Q). This use of bitangents as a
+descent pairing is described in Bruin, Poonen and Stoll, section 12.
+https://math.mit.edu/~poonen/papers/genus3.pdf
+
+The explicit points are the twelve points with x a root of H and y a root
+of G (x first and y second, both in increasing order), then these three
+additional points [X:Y:Z]:
+
+   K3  [3:81:1],  [11:225:1],  [-1:1203:27]
+   K6  [49:81:1], [529:441:1], [273:273:1].
+
+All satisfy the equations over Q. Subtract the first split point P0 from
+each of the other fourteen points. At each chosen local bitangent the
+evaluation of P-P0 is the square class of (L(P)/Z(P))/(L(P0)/Z(P0)).
+All denominators and evaluations are nonzero at the selected primes.
+
+Each line below records (p,m,b,mask). The fourteen bits of mask, from the
+least significant upward, are the nonsquareness indicators in the stated
+order of point differences.
+
+ K3 (31,22,20,13667) (47,3,13,11054) (47,16,14,6998)
+    (67,5,56,15190) (71,44,2,11872) (71,56,7,12235)
+    (73,71,52,15998) (73,72,13,680) (127,36,40,13059).
+
+ K6 (59,27,7,8243) (59,35,45,4790) (67,54,19,13901)
+    (71,50,43,9552) (83,36,75,11645) (89,18,12,10187)
+    (97,16,80,7035).
+
+To verify a line, substitute y=mx+b and check that the resulting quartic
+is m^4(x^2+ux+v)^2. The two middle unknowns u,v follow successively from
+the cubic and quadratic terms. The projective restriction has no zeros
+at infinity because m is nonzero. Each prime has good reduction by the
+finite branch resultant test of Erdos849PatternGeometryQuartics.py and
+smoothness at I. Binary row reduction gives ranks nine and seven. Since
+#J_K3(F11)=2846 has 2-adic valuation one, its rational 2-torsion has
+dimension at most one by injectivity of prime-to-p torsion reduction.
+#J_K6(F17)=5647 is odd. Subtracting these upper bounds on 2-torsion gives
+the claimed Mordell-Weil rank bounds.
+
+There is no second rational bitangent on either curve. Modulo 13 for K3
+and 17 for K6, exhaustive testing finds no affine bitangent of slope
+m!=0; the script checks all m,b. A horizontal line contains I simply.
+On a vertical line, the identity
+
+      G(y)=(y^2-42y+105)^2-4096y
+
+prevents G(y)-constant from being a square up to scale in those two
+characteristics: its leading three coefficients force the displayed
+quadratic, but its linear coefficient then disagrees. Thus Z=0 is the
+only residue-field rational bitangent. Distinct rational bitangents
+specialize distinctly at either good odd prime. Indeed their half-contact
+divisors represent distinct theta characteristics (an effective degree-two
+divisor on a nonhyperelliptic curve cannot move in a pencil). A coincidence
+on specialization would kill their nonzero 2-torsion difference, which is
+impossible by good reduction. The rank evaluation above deliberately uses
+bitangents available only over the respective finite fields.
+
+2. Geometric endomorphism rings
+
+For each curve use the following good primes p. In the table q is a prime
+modulo which its degree-six monic Frobenius polynomial F is irreducible.
+If the coefficients following T^6 in F are A,B,C,pB,p^2 A,p^3, then
+F(T)=T^3 g(T+p/T), with g=U^3+A U^2+(B-3p)U+C-2pA. Its discriminant
+is shown in the last column.
+
+        p      #K(F_p), #K(F_p^2), #K(F_p^3)    A   B    C     q     disc(g)
+  K3   11       20,128,1358                      8  35   118    5       11476
+       13       21,189,2205                      7  34   126   31       29165
+  K6   17       19,337,4876                      1  24    11   31       76448
+       19       32,408,6626                     12  95   486    7        3028
+
+As in Erdos849PatternGeometry.txt, for each p the checker proves that no
+ratio of two distinct Frobenius roots is a root of unity. It tests the
+separability of the polynomial on the b-th powers of the roots modulo
+1000003 for every b with phi(b)<=30. A ratio's degree cannot exceed 30
+because a sextic has only thirty ordered pairs of distinct roots.
+Injectivity of endomorphism action on the prime-to-p rational Tate module
+therefore bounds the dimension of the geometric endomorphism algebra in
+characteristic p by six. More precisely, its endomorphisms are collectively
+defined over a finite extension; they commute with the corresponding power
+of Frobenius, whose six distinct eigenvalues give a six-dimensional
+centralizer. Since Q[Frobenius] already has degree six, the geometric
+endomorphism algebra in characteristic p equals E_p=Q[T]/(F).
+
+For each curve take the first listed prime. The splitting group of F
+permutes the three pairs {z,p/z} of complex-conjugate roots. The field
+Q(z+p/z) has degree three because Q(z) has degree six and z is quadratic
+over it. The cubic discriminant is nonsquare, so the projected splitting
+group is S3. At auxiliary primes 79 (K3) and 61 (K6), the squarefree
+sextic has exactly four linear roots, respectively {12,47,50,65} and
+{8,24,25,49}. The factor degrees 1,1,1,1,2 give a transposition in the
+characteristic-zero Galois group. A transposition preserving the partition
+into pairs must flip exactly one pair. Its conjugates under the action
+on the three blocks independently flip each pair. Thus the group is the
+full signed permutation group (C2)^3 semidirect S3.
+
+In this action the point stabilizer fixes its marked sheet and its pair,
+and permits all flips and permutations of the two other pairs. An
+overgroup either induces S3 on pairs or lies in the marked pair
+stabilizer. In the former case conjugation provides every single flip,
+and the overgroup is the entire group. In the latter case the pair
+stabilizer has index two over the point stabilizer. By Galois
+correspondence the only proper nontrivial subfield of this first sextic
+E_p is its real cubic R_p=Q(z+p/z).
+
+Good reduction injects the rational geometric endomorphism algebra in
+characteristic zero into E_p at both good primes for each curve (see also
+the specialization argument and source in Erdos849PatternGeometry.txt).
+If this subalgebra exceeded Q it would contain a copy of the first real
+cubic. In the second sextic E_q every totally real subfield is contained
+in its real cubic R_q: under a complex embedding, conjugation exchanges
+z and q/z and its fixed subfield is exactly R_q. An embedding R_p->E_q
+would therefore identify the two cubic fields. Their polynomial
+discriminants have different square classes (the product in each pair
+in the table is a nonsquare), excluding that identification. The
+endomorphism algebra is consequently Q, and its integral order is Z.
+For a principally polarized Jacobian, the Neron--Severi group tensored
+with Q corresponds to its Rosati-symmetric rational endomorphisms;
+hence the geometric Picard number is one in both cases.
+
+The standard numerical criterion for Chabauty--Coleman requires rational
+rank <g. The usual quadratic Chabauty sufficient rank criterion is
+r<g+rho-1 (Balakrishnan--Dogra, Lemma 3.2). Here g=3 and rho=1, while
+r>=8 or r>=7. Neither sufficient condition holds. The bitangent tests
+provide lower bounds, not a completed Selmer-group calculation or a new
+height bound on admissible binomial collisions.
+https://kclpure.kcl.ac.uk/portal/files/149873874/rationalpoints_heights_with_biblio.pdf
+
+Run python Erdos849QuarticDescent.py with assertions enabled. The script
+uses the earlier local helper files Erdos849PatternGeometryQuartics.py,
+Erdos849SmallestCurve.py and Erdos849ThreeFiveCurve.py.
