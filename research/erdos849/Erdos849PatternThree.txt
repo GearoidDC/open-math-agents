@@ -1,0 +1,133 @@
+Four simultaneous columns and the large prime divisors of their common value
+
+Let a=C(n_3,3)=C(n_5,5)=C(n_7,7)=C(n_8,8), with admissible rows.
+The checker and its certificate file use the column order (8,7,5,3).
+For a>=10^128 it proves at least 31 distinct prime divisors. A second
+argument using the 25 primes below 100 proves that at least seven
+divisors exceed 100. A finite congruence check strengthens seven to
+ten. Here K=128, Q=34800, and R=36.
+
+Local prime powers
+
+Write H=10^K. The certificate parameters K, Q and R specify the uniform
+bound
+
+    p^e <= p^v_p(420) Q (a/H)^(1/R),   p^e || a, a >= H.          (1)
+
+There are 840 offset tuples s with 0<=s_k<k. For any p^e || a the
+factorial floor formula gives such an s with p^e dividing n_k-s_k
+in every row. Indeed there are e distinct levels with a carry, so
+some level i>=e has n_k mod p^i < k mod p^i <= k. Put x_k=n_k-s_k,
+c_k=k!/product_(0<=v<k,v!=s_k)(s_k-v), and let L be the common
+denominator of all the rational numbers c_k/(s_k-v). Then L|420.
+
+If e>v_p(420), each x_k/(s_k-v) is p-divisible. The row equation is
+
+    u_k product_(v!=s_k)(1+c_k L u_k/(s_k-v))=a/L,    u_k=x_k/(c_k L).
+
+The product equation for x_k shows v_p(u_k)=e-v_p(L)>0. The integral
+formal inverse at zero exists because the linear coefficient in u_k is
+one. Substituting z=a/L in its truncated series therefore gives the
+actual u_k modulo p^(h(e-v_p(L))) through order h-1: the polynomial's
+divided difference at two p-divisible arguments is a p-adic unit.
+
+For each tuple the archive supplies an integer polynomial F(x_8,x_7,
+x_5,x_3) and an order h. The checker substitutes the four integral
+series to confirm that all coefficients through order h-1 vanish.
+Hence p^(h(e-v_p(L))) divides F. To control its ordinary value, put
+t=(a/H)^(1/840), z_k=floor((k!H)^(1/k)). The binomial product gives
+
+    (z_k-s_k)t^(840/k) <= x_k <= (z_k+k-s_k)t^(840/k).
+
+The weight of a monomial with exponents i_k is w=sum i_k*(840/k).
+Orient the leading coefficient positively. For a lower bound replace
+positive terms by their lower endpoints, negative terms by their
+upper endpoints, retaining all powers t^w. In decreasing weight order
+all partial sums of these signed coefficients are positive. Summation
+by parts proves positivity for t>=1. Thus F at the row is nonzero.
+The larger sum of the positive or negative upper absolute endpoints
+is B. With W the greatest weight, |F|<=B t^W. The checker verifies
+B<Q^h and R W<=840h. Together these give (1). When e<=v_p(420),
+(1) holds already since Q>1. All certificate checks use integers.
+
+Small prime powers
+
+If at most m primes exceed 100, then there are at most 25+m prime
+factors in total. Set Y=Q(a/H)^(1/R). A prime p<=100 contributes at
+most p^v_p(420) times the largest integer power of p not exceeding Y.
+Each of the other at most m primes contributes at most Y. Their
+product therefore satisfies
+
+    a <= 420 Y^m product_(p<=100) p^floor(log_p Y).
+
+The checker uses integer powers to bound this expression on intervals
+[10^(i/10),10^((i+1)/10)]. For the right endpoint use
+1+floor((Q^(10R) 10^(i+1-10K))^(1/(10R))) in place of Y, then
+compare the tenth power of the product with 10^i. Above the final
+interval the simpler expression 420 Y^(25+m) suffices since R>25+m.
+For m=6 this works on every tenth-decade up to 10^239.
+
+For m=7 the continuous bound starts at 10^308. There are 63 earlier
+tenth-decades in which the elementary product bound is insufficient.
+On each of them, write U for the upper bound on the product and V for
+the lower bound on a. Among the primes p>=31 up to 100 at most one
+can miss its maximum exponent, since U<31^2 V. For seven such primes
+having the largest maximal powers, at least six powers therefore
+divide a. For each of the possible choices, n_8 modulo each required
+prime power must belong to {0,...,7}. The checker enumerates these
+residues by the Chinese remainder theorem, with the binomial product
+inequalities providing the lower and upper bounds on n_8. Six merged
+ranges give one candidate row. Direct exact binomial tests exclude it.
+For m=8 the same argument allows more missed powers, as calculated
+from the ratio U/V in each band. The 770 exceptional tenth-decades
+merge into 72 ranges, leaving 69 candidate rows and zero common
+values. Replay with python -B Erdos849PatternThreeCRT.py --large 8.
+For m=9 the 2,013 exceptional tenth-decades merge into 181 ranges.
+The Chinese remainder search leaves 4,378 eighth-column rows, none
+of whose values is in all three other columns. The default replay
+uses a two-wheel interval join. For coprime wheel moduli M,N with
+residues b,c, a row is b+Mt with t congruent to (c-b)/M modulo N.
+Sorting the residues c/M modulo N lets binary search select only
+the entries that meet the required interval for t.
+Run python -B Erdos849PatternThreeCRT.py.
+
+Counting numerator factors
+
+Assign each full power p^e || a to a column-eight numerator term of
+largest p-adic valuation, choosing the first in case of a tie. It can
+absorb the full power: the sum of valuations of the other seven
+terms is at most v_p(8!) by counting at most floor(8/p^j) occurrences
+at each level after the largest is removed. Dividing each term by its
+assigned powers leaves a cofactor b_s, with product_s b_s=8!.
+
+For a subset S of one or two of the eight positions, the upper bound
+for the product of its terms given by (1) is C(S) Y^j, where j is the
+number of powers assigned to S. To compute C(S) we bound the product
+of its b_s and the assigned factors p^v_p(420). Only 2,3,5,7 matter.
+For each such p, enumerate n modulo the first p^u>8. A nonzero residue
+of n-s has known valuation. A zero residue is unique among the eight
+terms and its valuation can be replaced by u: increasing it increases
+the assigned exponent by the same amount, leaving b_s unchanged. The
+checker permits the denominator loss at this position even if the
+minimal exponent e is zero. It maximizes separately at each prime,
+so no compatibility of the maximizing residues is assumed.
+
+This gives C(S)<=117600 at one position and C(S)<=705600 at two.
+If there are at most 30 powers, one position receives at most two,
+or two positions each receive at most three. With M=z_8-7, both cases
+are impossible if M>117600 Q^2 and M^2>705600 Q^6 at H, since every
+term is at least M(a/H)^(1/8) and R>=24. This proves at least 31
+distinct prime factors under those checked inequalities.
+
+Reproduction
+
+Run python -B Erdos849PatternThree.py. The compressed JSON file stores
+the four offsets, the order, and each monomial's signed coefficient,
+integer weight, and four exponents. The checker recomputes weights,
+binomial endpoints, local divisibility, sign conditions, denominator
+losses, finite prime products, and all 840 offset tuples. Discovery
+uses recursive formal equation inversion. Replay independently uses
+Lagrange inversion: for z=u phi(u), the coefficient of z^m in u^e
+equals (e/m) times the coefficient of u^(m-e) in phi(u)^(-m).
+The software used to discover the polynomials is unnecessary for
+verification.

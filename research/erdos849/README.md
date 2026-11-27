@@ -2,13 +2,16 @@
 
 Can every positive integer be the exact number of rows sharing an entry in the left half of Pascal’s triangle? For example, 3003 occurs in rows 14, 15, 78, and 3003. Five is the first unknown multiplicity. [Official problem](https://lefttosolve.com/p/Erdos849.erdos_849)
 
-Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least six of its prime divisors exceed 100. For either proper-column pattern $\{3,5,7,8\}$ or $\{5,6,7,8\}$, at least seven primes exceed 100. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the final deductions with the external inputs exposed as hypotheses. The existence of a five-row entry remains open.
+Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least seven of its prime divisors exceed 100. For proper columns $\{3,5,7,8\}$, the value must exceed $10^{136}$ and at least ten prime divisors exceed 100. For $\{5,6,7,8\}$ it must exceed $10^{144}$. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the deductions in the linked formal theorems, with external inputs exposed as hypotheses. The existence of a five-row entry remains open.
 
 - [Finite search through 10¹²⁸ and verification commands](Erdos849Focused128.md)
 - [Hypotheses in the Lean cutoff theorem](Erdos849Interval128.lean)
 - [21-prime proof at all heights and reproduction commands](Erdos849TwentyOneAtAllHeights.md)
 - [Lean theorem for 21 primes and its computational hypotheses](Erdos849TwentyOneGraph.lean)
 - [Pell equations for the two four-column patterns and the all-height large-prime bounds](Erdos849PellPatterns.md)
+- [Seven prime divisors above 100 for all five-row values](Erdos849SevenAtAllHeights.md)
+- [At least ten primes above 100 for columns 3, 5, 7 and 8](Erdos849PatternThree.txt)
+- [Finite exclusions through 10¹³⁶ and 10¹⁴⁴ for the two patterns](Erdos849PatternHeights.md)
 - [Twenty-prime proof at all heights and reproduction commands](Erdos849TwentyAtAllHeights.md)
 - [Lean theorem for twenty primes and its computational hypotheses](Erdos849TwentyGraph.lean)
 - [Nineteen-prime proof and reproduction commands](Erdos849NineteenAtAllHeights.md)
@@ -36,7 +39,7 @@ The proposed reduction proves the first four cases in Lean. Their first witnesse
 
 If both statements hold, the least value with at least \(t\) rows has exactly \(t\). Otherwise the second step produces a smaller witness, contradicting minimality. Each step asks only for positive witnesses that can be checked by listing their rows. The descent condition is sufficient and may be stronger than necessary. The original question allows an exact \(t\)-row witness to occur later than the first value reaching \(t+1\) rows.
 
-The project linter accepted the single-file reduction. Lean 4.33.1 checked it against the pinned problem statement and reported only `propext`, `Classical.choice`, and `Quot.sound`. [Read the reduction](https://github.com/GearoidDC/open-math-agents/blob/a6a891beb411b67eb2b8fb421549e99a79662d26/reductions/Erdos849.erdos_849.R1.lean)
+The upstream proof checker accepted the single-file reduction against the pinned problem statement on November 27, 2026. Its axiom audit reported only `propext`, `Classical.choice`, and `Quot.sound`. [Submitted reduction](https://github.com/GuillaumeBAUD-coder/open-math-agents/pull/12651) · [Upstream verification](https://github.com/GuillaumeBAUD-coder/open-math-agents/actions/runs/46072753324)
 
 ## Additional shallow-column checks
 

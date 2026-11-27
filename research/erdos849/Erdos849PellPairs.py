@@ -170,6 +170,7 @@ def check(compiler,workers):
            and all(v%(p*p) for p in PRIMES)}
     assert total+len(small)==sum(c for r,c in enumerate(counts) if MASKS[r])
     assert total==19_398_233 and candidates==4
+    assert all(norm!=9 for _,_,norm in witnesses)
     rows={n for a,b in pairs for n in range(b,a+8)}
     assert len(pairs)==36 and len(rows)==120
     collisions=[]
