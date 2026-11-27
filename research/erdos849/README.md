@@ -13,6 +13,7 @@ Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has 
 - [Nineteen-prime proof and reproduction commands](Erdos849NineteenAtAllHeights.md)
 - [Lean theorem for nineteen primes and its computational hypotheses](Erdos849NineteenGraph.lean)
 - [Five primes above 100 and the exact multiplicities of 100-smooth values](Erdos849SmoothNeighbors.md)
+- [Six primes above 100 through approximately 3.32535 × 10¹⁴⁹ and from 10³¹³³ onward](Erdos849EightSmooth.txt)
 - [Twenty distinct primes at large heights](Erdos849TwentyLarge.txt)
 - [Sixteen-prime argument](Erdos849-sixteen-primes.txt)
 - [Eighteen-prime proof at all heights and reproduction commands](Erdos849EighteenAtAllHeights.md)

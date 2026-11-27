@@ -1,0 +1,140 @@
+Six prime divisors above 100 in two ranges for five-row values
+
+Every five-row value a up to C(2^64-1,8), and every such value at or
+above 10^3133, has at least six distinct prime divisors greater than
+100. If a five-row value has only five such divisors, four proper
+columns must be either {3,5,7,8} or {5,6,7,8}; its value lies strictly
+between the two bounds. In its column-eight row, exactly three
+numerator factors are 100-smooth, with offsets {0,3,6} or {1,4,7}.
+The finite search through 10^128 is in Erdos849Focused128.md. The
+result for largest column at least nine is in Erdos849SmoothNeighbors.md.
+
+1. A finite calculation in a single column
+
+Suppose 10^128 <= a=C(n,8) and n<=2^64-1. Then a has at least six
+distinct prime divisors above 100. This applies to every value in this
+column. The upper endpoint C(2^64-1,8) is about 3.32535 * 10^149.
+
+If there are at most five such primes, at least three of the eight
+numerator terms are 100-smooth. A prime above 100 occurs in at most
+one of those terms and survives division by 8!. Among any three terms
+there are two at distance at most three. All terms lie between
+floor((8! 10^128)^(1/8))-7 = 37643505995031279 and 2^64-1.
+
+The corrected Luca--Najman Theorem 1 gives precisely 16,223 centers
+x>=2 at which x-1 and x+1 are both 100-smooth. The checker verifies
+all stored centers and the cardinality. This gives all pairs of gap
+two directly and all pairs of gap one by dividing an even pair by two.
+A gap-three pair of multiples of three is three times an adjacent pair.
+These cases give eight pairs in our interval and 48 compatible end
+rows. None of the rows has three smooth terms.
+Source: https://web.math.pmf.unizg.hr/~fnajman/FLFNMC.pdf
+
+For any other smooth gap-three pair, one endpoint is odd and coprime
+to three. Erdos849EightSmooth.c enumerates products of primes 5 to 97
+in sorted order, including repetitions. Division of the upper endpoint
+by the next factor prevents integer overflow before multiplication.
+The extension by a prime is taken only when the new product is within
+the upper limit. Every eligible anchor is reached once by unique
+factorization. There are exactly 1,431,208,549 anchors in the interval.
+Neither neighbor at distance three was smooth and within the interval
+for any of those anchors.
+
+An independent count partitions the 23 primes into alternating
+subsets. They give 4,316,984 and 1,719,142 products up to 2^64-1,
+respectively, including 1. For each product in the first list, count
+the second-list multipliers bringing it into the stated interval
+by binary search. The total is again 1,431,208,549.
+
+Run python -B Erdos849EightSmooth.py. It needs a C compiler and accepts
+--cc PATH. The Python wrapper cross-checks the C enumeration by direct
+enumeration on [100,10000] before scanning the full interval.
+
+2. A necessary condition at every height above 10^128
+
+A row with at most five primes above 100 must contain exactly three
+smooth terms in arithmetic progression with common difference three.
+All three are coprime to three. In particular its smooth terms have
+offsets {0,3,6} or {1,4,7} among the eight numerator factors.
+
+Indeed an odd center x of a smooth pair x-2,x+2 is at most
+407479035814853 by Filip Najman's Theorem 3(a), below our lower bound.
+An even center of such a pair reduces by division by two to a smooth
+gap-two pair. Without any upper bound on n, the complete known lists
+for gaps one and two, doubled gap-two pairs, and tripled gap-one pairs
+leave 15 pairs above the lower bound. Their 79 compatible end rows
+have at most two smooth factors. Thus no pair at gap one, two or four,
+or pair of multiples of three at gap three, can occur with a third
+smooth term. Among three positions spanning at most seven with these
+excluded gaps, both successive gaps must equal three. A fourth
+position would force a gap of at most two.
+Source: https://web.math.pmf.unizg.hr/~fnajman/smooth.pdf
+
+3. A smaller tail for common columns 5, 7 and 8
+
+If a>=10^3133 occurs in columns 5, 7 and 8, it has at least 31
+distinct prime divisors. In particular at least six exceed 100. The
+two surviving five-row patterns with largest column eight above 10^128
+both contain these columns by the classifications of Blokhuis, Brouwer
+and de Weger, Theorem 2.2. For largest column at least nine the
+separate smooth-neighbor calculation already gives six primes above
+100 at all heights relevant here.
+Source: https://arxiv.org/abs/1707.06893
+
+Let H=10^3133 and write n_k for the row in column k. For a full
+prime power p^e in a, put s_k = n_k mod p^e if that residue is <k.
+This is always so: the factorial floor formula supplies a level
+i>=e at which n_k mod p^i < k mod p^i <= k. Write x_k=n_k-s_k,
+c_k=k!/product_(v!=s_k)(s_k-v) with 0<=v<k. Let D=420 and let
+L be the least common multiple of denominators of c_k/(s_k-v)
+over these three rows. Then L|D. For e>v_p(D), all x_k/(s_k-v)
+have positive valuation. The equation for u_k=x_k/(c_k L) is
+
+    u_k product_(v!=s_k)(1 + u_k c_k L/(s_k-v)) = z,   z=a/L.
+
+The linear coefficient in u_k is one and the other coefficients are
+integral. In the p-adic integers u_k is the integral power series in z
+obtained by formal inversion at zero. Indeed the binomial product
+formula gives v_p(u_k)=v_p(z)>0, and the divided difference of the
+left side at any two p-divisible arguments is a unit. Reducing the
+formal inverse modulo z^h therefore gives the actual solution modulo
+p^(h(e-v_p(L))).
+
+Erdos849EightSmoothTail.py constructs a polynomial F in the three
+shifted rows for every one of 280 offset triples. Integer elimination
+on the lowest 24 nonconstant monomials of distinct weights gives the
+polynomials. Exponents 0<=i_k<k have integer weight sum i_k*(280/k).
+The checker recomputes the substituted Taylor coefficients and checks
+that coefficients of degrees 0,...,h-1 vanish. Thus p^(h(e-v_p(L)))
+divides the value of F when e>v_p(D).
+
+Put t=(a/H)^(1/280), R_k=floor((k! H)^(1/k)). The binomial product
+bounds give (R_k-s_k)t^(280/k) <= x_k <= (R_k+k-s_k)t^(280/k).
+At t=1 the lower bound on the absolute value of the leading monomial
+exceeds the sum of upper bounds on all opposite-sign terms. Since
+the leading monomial has greatest weight W, this proves F!=0 for
+every t>=1. The checker also bounds |F| <= B*t^W, taking B to be
+the larger sign-separated sum of upper bounds at t=1. It verifies
+
+    30W <= 280h,   B < Q^h,   Q=floor(((H-1)/420)^(1/30)).
+
+In the displayed definition the integer floor in the radicand can be
+taken first. Consequently p^e < p^v_p(D) * (a/D)^(1/30) for every
+p|a, including e<=v_p(D) by a>D. If at most 30 primes divide a,
+multiplying gives a < D*(a/D)^(omega(a)/30) <= a, a contradiction.
+Every branch is checked exactly with integer arithmetic and h<=24.
+Replay with python -B Erdos849EightSmoothTail.py. This leaves the
+interval C(2^64-1,8)<a<10^3133 open for the six-prime question in
+five-row patterns with largest column eight.
+
+4. An unconditional effective tail using only column eight
+
+If two numerator factors B>A are 100-smooth, then g=B-A<=7 and
+B/g + (-A/g) = 1 is a rational S-unit equation with S the 25 primes
+under 100. In Corollary 7.2, Rafael von Kanel gives the bound
+h(B/g)<=3 n_S(log n_S)^2/2+65, where n_S=128*product_(p in S) p.
+Here n_S<3*10^38 and log n_S<90, so the height is below 4*10^42.
+The rational height implies B<=7 exp(4*10^42), hence
+n<=B+7 and a<=n^8<10^(10^44). Thus above the latter cutoff every
+column-eight value has at least seven distinct primes above 100.
+Source: https://doi.org/10.1112/TLMS/TLU003
