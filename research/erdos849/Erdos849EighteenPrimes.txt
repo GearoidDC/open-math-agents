@@ -1,0 +1,81 @@
+At least eighteen distinct primes at height 10^524
+
+Suppose a=C(n,d)=C(m,j), j<d, a=X y, X=10^524, y>=1, and write w
+for the number of distinct prime divisors. Assign each full prime
+power p^e exactly dividing a to the term n-s with s=n mod p^e.
+The argument in Erdos849GridHeight.txt gives s<d. Assign it likewise
+on the j side. The quotient of each term by its assigned powers is
+a positive integer, and the products of these cofactors are d! and
+j!, respectively. Write R_k=floor((k!X)^(1/k)), L_k=R_k-k+1 and
+U_k=R_k+k. Each term in the k-column row lies between
+L_k y^(1/k) and U_k y^(1/k), by comparing the extreme factors.
+
+1. An additional obstruction for (7,8)
+
+The signed congruence and integer bounds in Erdos849SeventeenLarge.py
+bound every assigned power P by Q_p y^(1/14), including powers which
+share their original slot with others. Indeed modulo P^2, each falling
+product is its unique chosen host term times the signed product of
+the offset differences from that host. Cross-multiplication gives a
+signed linear expression divisible by P^2. Nonzero magnitude and
+the p-free common multiplier are checked over the 56 possible
+offset pairs. The new verifier also bounds all Q_p by one constant Q.
+
+At X the eight terms each need at least two assigned powers, because
+L_8>8! Q and 1/8>1/14. Call the powers from slots containing exactly
+two powers ordinary. No three ordinary powers can belong to a single
+seven-side term. To verify this, if they come from distinct paired
+slots, multiply their three lower bounds obtained by dividing the
+three slot sizes by their cofactors and partner powers. The three
+cofactors have product at most 8!, and the three partners have
+distinct prime bases. This lower bound exceeds U_7 y^(1/7) since
+3/8-3/14>1/7 and the integer inequality holds at X. If two come
+from one pair, its product is the slot size divided by its cofactor.
+Only the third power has to be divided by a partner. The resulting
+exponent 2/8-1/14 again exceeds 1/7. These are the distinct- and
+shared-pair comparisons in eight_seven(524); their proof uses only
+the ordinary powers in question.
+
+If w=16 there are sixteen ordinary powers and only seven receiving
+terms, which is impossible. If w=17 there are seven pairs and one
+triple. The fourteen ordinary powers distribute exactly two to each
+seven-side term. At least four of those terms contain none of the
+triple's powers. Their eight ordinary powers occupy only seven
+original pair slots, so include a complete original pair.
+
+If the two powers of that pair come from one of the four receiving
+terms, their product is at least (L_7/7!)y^(1/7). If from different
+ones, divide the product of the two receiving terms by their
+cofactors and other powers. Their two cofactors multiply to a divisor
+of 7!, so the product is at least (L_7^2/(7! Q^2))y^(1/7).
+Both expressions exceed U_8 y^(1/8) by exact comparison at X.
+The complete pair divides one eight-side term, giving a contradiction.
+
+2. Component exclusions and the remaining column patterns
+
+Use a bipartite graph on all j+d terms with one edge per prime,
+joining its two hosts. For the pairs tested L_j>j! and L_d>d!
+exclude isolated vertices. A connected component has h>=1 vertices
+on the d side and q>=1 on the j side. The products of the assigned
+powers agree, so the ratio of the two term products is D/J for some
+positive D|d!, J|j!. Compare the lower and upper row bounds at X,
+retaining an exclusion throughout y>=1 only when the lower side
+grows at least as fast in y. If h/d=q/j, then for some J|j! an
+integer D must lie in the closed interval
+
+  J L_d^h/U_j^q <= D <= J U_d^h/L_j^q.
+
+The verifier discards impossible (h,q) pairs. A graph with w<=17
+edges has at least j+d-17 components. A finite recurrence checks
+whether the sum of that many or more allowed pairs can equal (d,j).
+It excludes the column pair when there is no such partition.
+
+Finally the usual a<=n^17 bound and the comparison C(n,18)>n^17 at
+the lower row limit force every proper column to be at most 17.
+The comparison persists with increasing n by writing C(n,18)/n^17
+as (n/18!) times the product of (1-h/n), h=0,...,17.
+There are 1,820 four-element subsets of columns 2 through 17.
+The earlier published and computed pair exclusions, the new component
+test and the (7,8) obstruction together meet all of them.
+Run python Erdos849EighteenPrimes.py to verify the integer inequalities
+and exhaust the column sets. Its output is an empty unresolved list.

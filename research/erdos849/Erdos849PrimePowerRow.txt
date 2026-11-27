@@ -1,0 +1,59 @@
+A prime-power term excludes a common value in columns 7 and 8
+
+Theorem. If n>=16, m>=14 and binom(n,8)=binom(m,7), then each of
+n-7,...,n has at least two distinct prime factors. This holds at all
+heights. In particular it applies to the eighth-column row of any
+hypothetical common value of columns (3,5,7,8).
+
+Proof. Suppose n=P+s, 0<=s<=7, where P=p^e and p is prime, e>=1.
+Set f=v_p(8!), b=p^f. For the estimates below first suppose e>f.
+Put T=P/b. Since P divides the eight-factor product 8!a, T divides
+a. Some r in [0,6] has T | m-r. Indeed removing a term of maximal
+p-valuation from the seven consecutive factors leaves total valuation
+at most v_p(7!): at level h the remaining count is at most floor(7/p^h).
+The original total valuation is v_p(a)+v_p(7!). Write m=qT+r.
+
+From 7!(n)_8=8!(m)_7, where (x)_k is the falling factorial, divide by
+T and reduce modulo T. The resulting congruence is
+
+    T | A (R b + or - L q),
+    A=s!(7-s)! r!(6-r)!,   R=7 binom(6,r),   L=8 binom(7,s).
+
+In fact the terms after division and reduction are
+7! b (-1)^(7-s) s!(7-s)! and 8! q (-1)^(6-r) r!(6-r)! respectively.
+The sign will not be needed. We have 0<R<=140, 0<L<=280, and A|7!6!.
+
+For P>=4096, n<=2P. The size comparison gives
+
+   (m-6)^7 <= (m)_7 = (n)_8/8 <= (2P)^8/8,
+   q <= b m/P <= 3 b P^(1/7).
+
+Consequently |Rb +/- Lq| <= 980 b P^(1/7).
+
+If p>7 then b=1 and p does not divide A. For P>=4096 the last upper
+bound is strictly less than P (4096^6>980^7). Hence the signed
+integer must vanish. This is impossible because 8 divides Lq and the
+values R=7,42,105,140,105,42,7 are all nonmultiples of 8. Any
+remaining case with p>7 has n<=4095+7=4102.
+
+If p=2,3,5 or 7, then b<=128 and b*p^v_p(A)<=32768, as checked
+directly from the factorials. For P>=10^14 we have e>f, and the
+congruence implies that Rb +/- Lq is divisible by
+P/(b*p^v_p(A)). This modulus exceeds 980 b P^(1/7), since
+P^(6/7)>=10^12>980*128*32768. Thus equality Rb=Lq must hold. It gives
+L(m-r)=R P and hence m<=18P+6<=19P. On the other hand
+
+   (P/2)^8 / 8 <= (n)_8/8 = (m)_7 <= (19P)^7,
+
+because each n-i is at least P-7>=P/2. It follows that
+P<=2048*19^7<10^14, a contradiction.
+
+The remaining indices consist of all 16<=n<=4102, together with
+p^e+s for p=2,3,5,7, 0<=s<=7, p^e<10^14, e>=1 and n>=16.
+Erdos849PrimePowerRow.py exhausts their union of 4752 integers. For
+each n it finds the first m>=14 with binom(m,7)>=binom(n,8) by
+doubling and binary search. There are no equalities. The small-prime
+instances e<=f are included here. Since n-7>=9 no factor can be one.
+
+This is an exclusion for a specified class of rows; it leaves possible
+integer points for which all eight factors have multiple prime bases.

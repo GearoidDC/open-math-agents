@@ -1,0 +1,131 @@
+An explicit interpolation bound for a common value in four binomial columns
+
+If a >= 10^230000000000000 occurs in at least five admissible rows of
+Pascal's triangle, then a has at least 840 distinct prime divisors.
+All logarithms in the height estimates below are to base ten.
+The size of the displayed exponent is 230 trillion.
+
+1. Choosing columns and local offsets
+
+Suppose there are at most W=839 distinct prime divisors. Kummer's theorem
+gives p^v_p(a) <= n in every representation a=C(n,k), hence a<=n^W.
+For k>=840, 2k<=n, and n>2^840 840!, the elementary bound
+C(n,k)>=C(n,840)>=(n/2)^840/840!>n^W excludes this representation.
+The stated height forces all rows above this cutoff. Thus k<=839.
+
+Five rows require four distinct proper columns, say i<j<k<d. The
+published classifications, Theorem 2.2 of Blokhuis, Brouwer and de
+Weger (https://arxiv.org/pdf/1707.06893), give j>=5, k>=7 and
+i*j*k*d>=840. The product minimum follows by checking tuples through
+24 and observing that 2*5*7*d already suffices when d>=24.
+Take the largest columns first until their product P reaches 840.
+They give r=2, 3 or 4 selected columns k_i, maximum d, and P<=839^2.
+For r=2, d<=P/7. For r=3, the largest pair has product <840, so
+d<=119 and d<=P/(5*7). For r=4, the largest three have product <840,
+so d<=23 and d<=P/(2*5*7).
+
+For every full prime power p^e exactly dividing a, put s_i=n_i mod p^e
+in each selected row. Then 0<=s_i<k_i. Indeed in the floor formula for
+v_p(C(n_i,k_i)) exactly e levels contribute 1. At some level h>=e
+we have n_i mod p^h < k_i mod p^h <= k_i, giving the claim on reduction
+modulo p^e. There are at most W occupied tuples s of these offsets.
+
+2. Polynomial interpolation on the fiber above zero
+
+Work in R=Z[t,x_1,...,x_r]/((x_i)_(k_i)-k_i!t for i=1,...,r), where
+(x)_k is a falling factorial. The products x^h, 0<=h_i<k_i, form a
+free Z[t]-basis of size P by monic division in each variable.
+The generic algebra over Q(t) is a field by the geometric irreducibility
+proof for distinct normalized binomial columns in sections 1–3 of
+Erdos849ReciprocalRunge.txt. This last property is needed for the
+nonvanishing of the norm in section 4.
+
+Put b=min(P,1680), M=ceil(2br/(b-W)), N=b(M-r), and K=WM. Then N>K.
+Use any b of the basis monomials and all their multiples t^q for
+0<=q<M-r as N unknown coefficients of a polynomial F. For every
+occupied tuple s set
+
+  B_s = product over i and 0<=v<k_i, v!=s_i of (x_i-v).
+
+Impose B_s^M F=0 in R/t^M. These are integer linear conditions.
+Over Q[t]/t^M the ring splits as P copies of Q[t]/t^M: at t=0 all roots
+of each falling factorial are simple rational integers, and each root
+lifts uniquely to the truncated power series ring. On all components
+apart from s, B_s is divisible by t. On the s component it is a unit.
+Thus these conditions have rank at most M per occupied tuple, hence at
+most K in total. An integral normal form which vanishes after tensoring
+with Q already vanishes in R/t^M because its monomial basis is free.
+
+For coefficient bounds use the sum of absolute coefficients of a
+normal form. Multiplication by x_i in the monic basis has operator
+norm at most 2d!: each column either shifts a monomial or uses the
+defining monic relation, whose lower coefficients have absolute sum
+at most 2 k_i!. This follows by evaluating the unsigned falling
+factorial at 1. Addition of a shift -v increases the bound to S=3d!.
+Multiplication by t has norm 1; truncation only decreases the norm.
+The entries of every integer constraint row therefore have absolute
+value <= E=S^((M+1)rd), counting at most Mrd linear factors in B_s^M
+and at most rd more in the original basis monomial.
+
+Keep a rational basis of the integer constraint rows. Let
+J=ceil(K/(N-K)) and C=(2NE+1)^J. On the coefficient cube {0,...,C}^N
+there are at least (C+1)^N inputs and at most (2NEC+1)^K outputs.
+The former is larger, since C^(N-K)>=(2NE+1)^K. Subtract two inputs
+with the same output. This gives a nonzero F in the required kernel,
+with integer coefficients bounded by C. Freeness of the monomial
+basis ensures F is nonzero in R.
+
+3. Evaluation at the putative solution
+
+For the tuple belonging to p^e, the identity B_s^M F=t^M G_s in R
+has integral G_s. At t=a, x_i=n_i it gives p^(eM) | B_s(n)^M F(n).
+Set D=(d!)^r. If p^e>d, then for v!=s_i,
+v_p(n_i-v)=v_p(s_i-v), since 0<|s_i-v|<p^e. The valuation of B_s(n)
+is at most that of D: for each i the corresponding product of
+differences has absolute value s_i!(k_i-1-s_i)!, which divides d!.
+If p^e<=d then p^e divides D directly. Combining all p gives
+
+  a^M | D^M F(a,n_1,...,n_r).
+
+Every n_i <= (k_i!a)^(1/k_i)+k_i <= 2d a^(1/k_i). Every basis
+monomial used has weight q+sum h_i/k_i < M-1. Thus
+|D^M F(a,n)| <= D^M N C (2d)^(rd) a^(M-1).
+For a>D^M N C (2d)^(rd), the integer F(a,n) must vanish.
+
+4. Concluding with a nonzero univariate polynomial
+
+The determinant of multiplication by F on the P-dimensional monic
+basis is a nonzero integer polynomial H(t), by the field property.
+On specializing at t=a, evaluation at the rational tuple n gives a
+homomorphism to Q. The equality F(a,n)=0 makes the specialized F
+a nonunit, so H(a)=0. Each matrix entry has polynomial coefficient
+sum <= N C S^(rd). The determinant expansion gives
+
+  ||H||_1 <= P! (N C S^(rd))^P.
+
+Every nonzero integer root has absolute value at most ||H||_1:
+divide off all powers of t, and apply the rational root theorem to
+the remaining integer polynomial with nonzero constant term.
+
+Erdos849GridHeight.py checks that both logarithmic height bounds are
+strictly below 230,000,000,000,000. It uses integer upper bounds on
+logarithms only. For each r it checks every 840<=P<1680 and then the
+largest allowed P,d for P>=1680. In this last range b,M,N,K,J are
+constant for each r. The largest upper bound occurs for two selected
+columns at P=840. This proves the stated restriction, leaving the
+existence of any five-row value unresolved.
+
+5. An explicit restriction on each individual numerator factor
+
+For the fixed columns (3,5,7,8), begin directly at section 2 with
+P=840, d=8, r=4. That part of the proof uses only the number of
+occupied tuples, regardless of how many primes map to each tuple.
+The upper bound on log(a) with at most 839 occupied tuples is
+1,818,901,158,481. Thus for a>=10^1820000000000, every one of the
+840 tuples must receive a full prime power. Distinct tuples receive
+different prime bases. Holding a single coordinate s_i fixed, the
+840/k_i tuples extending it therefore give 840/k_i distinct primes
+which divide both a and n_i-s_i. In particular each of the eight
+consecutive numerator factors in column 8 shares at least 105
+distinct primes with a. The corresponding counts for columns 3, 5
+and 7 are 280, 168 and 120. No bound on omega(a) is assumed here.

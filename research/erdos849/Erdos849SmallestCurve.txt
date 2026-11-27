@@ -1,0 +1,291 @@
+The (3,5,7,8) common-value curve
+
+Set f_k(X)=X(X-1)...(X-k+1)/k!. For K=(3,5,7,8), consider integer
+points f_k(n_k)=a>=2, n_k>=2k for every k. Its affine curve over Q is
+denoted by C, and its nonsingular projective completion by Cbar.
+
+1. Localized restrictions on the prime divisors of a
+
+For u=(u_k) with 0<=u_k<k, put H_u=gcd(a, (n_k-u_k) for k in K).
+Write D=840, g=924. For every integer m>g there are positive, effectively
+computable constants c_m,C_m, depending only on m and the displayed
+columns, such that all admissible solutions satisfy
+
+   c_m a^((1-g/m)/D) <= H_u <= C_m a^((1+g/m)/D)                  (1)
+
+simultaneously for all 840 tuples. Thus, for any epsilon>0, one can
+compute a threshold above which each log(H_u)/log(a) lies within
+epsilon of 1/840. This is an effective restriction even though existence
+of arbitrarily large points on a fixed curve is already ruled out by
+qualitative finiteness theorems.
+
+In particular, above an effectively computable absolute cutoff, each
+individual factor n_k-s (0<=s<k) and a share at least D/k distinct
+prime divisors. The counts per individual factor are
+
+             column            3      5      7      8
+             common primes   280    168    120    105.
+
+For example, the admissible eighth-column rows for which any of the
+eight consecutive integers n_8-7,...,n_8 has at most 104 prime divisors
+are effectively bounded, regardless of the total prime count of a.
+More generally, after fixing any subset of coordinates u_k=s_k, at
+least the product of the remaining column indices counts distinct primes
+shared by a and all the fixed factors. The proof supplies an algorithm
+for the cutoff. A practical numerical cutoff has not been computed.
+
+Geometry used in (1). The maps f_k are totally ramified at infinity.
+For these four degrees the finite branch sets are disjoint, as verified
+in section 2. Each small loop around a finite branch value therefore
+acts on only one coordinate, and these loops generate each transitive
+single-column monodromy group. The product is transitive, giving a
+geometrically irreducible curve with degree D over the t-line, t=a.
+On the affine chart at most one f'_k vanishes at once, so the equations
+f_k(X_k)=t have full Jacobian rank and the coordinate ring R is smooth.
+At infinity the simultaneous cycle has length lcm(3,5,7,8)=840,
+giving a unique rational place I. Its orders of pole are D for t and
+D/k for X_k. At t=0 lie the 840 distinct rational smooth points P_u
+with coordinates u. The genus follows from section 2.
+
+The divisibility argument. Let R=Q[t,(X_k)]/(f_k(X_k)-t for all k).
+For e=v_p(a)>0, each column has an offset u_k for which p^e divides
+n_k-u_k. Indeed, if v is the greatest valuation among its k factors,
+then at each level h<=v there are at most floor(k/p^h)+1 multiples of
+p^h in k consecutive integers; higher levels contribute none. Removing
+one factor of valuation v leaves total valuation <=sum_h floor(k/p^h)
+=v_p(k!). Since the entire product has valuation e+v_p(k!), v>=e.
+Choosing one such offset in each column gives a full tuple w with
+p^e | H_w.
+
+If F in R has vanishing order at least m at P_w, then F is in the
+m-th power of its maximal ideal in R, generated there by t and all
+X_k-w_k. To see the global ideal membership, localize at the maximal
+ideal. The local ring is a discrete valuation ring. The quotient by
+the m-th power is already local Artinian, so localization preserves
+that quotient. Clearing rational denominators in the resulting finite
+sum of polynomial multiples of degree-m products, choose an integer
+c>0 such that cF evaluated at an integral point is an integer multiple
+of H_w^m. A single c works for any prescribed finite set of tuples.
+
+By Riemann--Roch choose a nonzero rational function in
+
+   L((m+g) I - m P_u).
+
+It is regular on the smooth affine curve, hence lies in R. Any F in
+L(N I) has magnitude O_F(a^(N/D)) on admissible integer points.
+For an explicit reason, reduce its representative to monomials
+t^h product X_k^i_k, 0<=i_k<k, h>=0, using the monic equations.
+The pole orders hD+sum i_k(D/k) are distinct: reduction modulo each
+k first recovers i_k because the degrees are pairwise coprime. Thus
+each surviving monomial has weight <=N. Use n_k<=k-1+(k!a)^(1/k)
+and the known coefficients to compute the constant. Off the finitely
+many zeros of F we now have H_u^m<=|cF|<=O_F(a^((m+g)/D)).
+
+For the other inequality choose a nonzero F in
+
+   L(((D-1)m+g) I - m sum_{w != u} P_w).
+
+Its defining divisor also has degree g. Consider any p^e exactly
+dividing a. If v_p(H_u)<e, the full tuple w found above is different
+from u. Consequently p^(me) divides cF at the solution. If v_p(H_u)
+=e this prime is absent from a/H_u. Hence (a/H_u)^m divides cF.
+Off its zeros this gives the lower bound in (1).
+
+All computations used here are effective over Q. For instance enumerate
+the bounded-weight monomials, solve the linear jet conditions at the
+rational P_w using t as local parameter (all f'_k(w_k) are nonzero),
+and clear denominators in ideal representations by linear algebra or
+Groebner reduction. The norm of each selected F from Q(C) to Q(t)
+is a nonzero polynomial in t, obtained as the determinant of
+multiplication on the 840 reduced monomials over Q[t]. Thus one can
+bound all positive integral a where F vanishes using an ordinary root
+bound. A finite adjustment enlarges C_m and shrinks c_m to cover these
+values and all tuples, since a>=2 and H_u>=1.
+
+To count primes, take m=2g and choose a large enough cutoff that every
+H_u>lcm(1,2,...,7)=420. Some prime p occurring in H_u then has a
+power p^v>7 dividing H_u. No prime can serve two distinct tuples in
+this way: at an offset where they differ, the difference is nonzero
+with absolute value <=7 and would have to be divisible by a power >7.
+Each tuple can therefore be assigned a different prime. Restricting
+to the tuples containing a prescribed list of offsets proves the
+localized prime counts above. The same argument gives (1) for other
+fixed sets of pairwise coprime columns with disjoint finite branch
+sets, with the corresponding D and g.
+
+2. The reflection quotient and maps to small-genus curves
+
+Modulo 13 the monic finite branch polynomials Res_X((X)_k-k!t, ((X)_k)')
+up to units have the following coefficients, in ascending powers of t:
+
+    3     10,0,1
+    5     2,0,9,0,1
+    7     6,0,10,0,5,0,1
+    8     5,8,12,1,10,4,0,1.
+
+They retain their degrees k-1 and all six pairwise gcds are 1 modulo
+13. Thus the finite branch loci are pairwise disjoint in characteristic
+zero. Erdos849SmallestCurve.py reproduces them by evaluating and
+interpolating the resultants in the finite field. The repeated factors
+for k=8 reflect the symmetry X->7-X and do not affect disjointness.
+
+Passing to Y=(X_8-7/2)^2 gives a degree-four polynomial map in Y;
+its branch values form a subset of the degree-eight finite branch
+values. For any selection of degrees d_1,...,d_r among 3,5,7 and at
+most one of 4 (the reflection quotient), 8, put d=product d_i. All are
+pairwise coprime. Riemann--Hurwitz gives
+
+    g=(d(r-1)-sum_i d/d_i+1)/2.
+
+Indeed the ramification contribution from each polynomial at its finite
+branch points is (d/d_i)(d_i-1), with the extra d-1 at infinity.
+The full curve has genus 924; quotienting by just the degree-eight
+reflection gives genus 436. The pairs of coordinates yield at least
+genus 3, attained by the degree-3 and reflected degree-4 pair.
+
+These are all intermediate fields between Qbar(t) and Qbar(C).
+Over a common unbranched base the total monodromy is the product of
+the single groups. For each odd degree p, the finite simple branch
+transpositions generate S_p. For degree eight the group is
+W=(C2)^4 semidirect S4: the quartic on blocks has distinct simple
+critical values, and the critical value at X=7/2 gives a single
+flip whose conjugates flip every block. These facts follow also from
+the critical point calculation in Erdos849ReciprocalRunge.txt.
+An intermediate field corresponds to an overgroup U of the product
+of the four point stabilizers. In each odd factor it projects to
+S_(p-1) or S_p. In the latter case U contains all S_p in that
+coordinate, since it contains S_(p-1) there and its conjugates by U
+generate S_p. In the former case the whole projected subgroup is
+already present in that coordinate. Strip off these three direct
+factors. In W, a subgroup containing the sheet stabilizer projects
+on block permutations to S3 or S4. For S4 it contains all individual
+flips by conjugating the flips of the other three blocks in the
+stabilizer; the group is W. For S3 it lies in the block stabilizer,
+of index two over the sheet stabilizer. This leaves only the full,
+reflected and discarded eighth-column choices. Thus there are exactly
+24 intermediate fields including both endpoints. None of the positive-
+genus intermediate curves has genus 1 or 2.
+
+An arbitrary morphism need not retain t. Nevertheless every nonconstant
+geometric map from Cbar to genus zero has degree at least 87 (and at
+most 105 for a minimal one, by projecting to X_8). For targets of
+genus one or two the lower bounds are 69 and 57, respectively.
+
+For the proof consider the tower dropping columns 3, then 5, leaving
+the (7,8) curve. The genera in succession are 924, 215, 21. At a
+step of prime degree k with lower curve of genus g', let b be the
+degree of the present map to a target of genus h. Unless the map
+factors through that step, their fields generate the entire upper
+field. Castelnuovo--Severi gives
+
+        b >= ceil((g-k g'+k-1)/(h+k-1)).
+
+If it factors, its degree over the lower curve becomes b/k. On the
+first step independence gives 141, 94, 71 for h=0,1,2. On the second
+it gives 87,69,57 when converted to degree over the original curve.
+
+The remaining (7,8) curve is a smooth plane octic: in its degree-eight
+homogenization the only point at infinity is [1:0:0], and the
+Z-derivative there is nonzero because the other polynomial has
+degree seven. The affine chart is smooth by disjoint finite branch
+loci. Adjunction identifies its canonical sections with the plane
+quintics. Any divisor of at most six distinct points imposes
+independent conditions on quintics, by taking for each point a
+product of lines through the others and avoiding that point. By
+Riemann--Roch it cannot move in a pencil. The octic thus has
+gonality seven (projection from a point of it gives the upper bound).
+
+It has no map of degree at most four to an elliptic curve. Degree
+<=3 would give a map of degree <=6 to the line. For degree four,
+fix two distinct generic fibers A,B of four points each. Their union
+moves in a pencil, since two points on an elliptic curve move in a
+pencil. Hence the eight points fail to impose independent conditions
+on quintics, forcing at least seven collinear. Indeed, in the absence
+of seven collinear, fix any one of the eight points x. Among the
+other seven points find two disjoint pairs whose joining lines miss
+x: grouped by direction from x, each class has size at most five.
+If the largest class has size at least two, pair two of its elements
+with two outside; if all are singletons any two pairs work. The
+remaining three points can each be covered by a line avoiding x.
+Their product is a separating quintic. Now at least three members
+of A lie on the seven-point line. This determines a unique line for
+the fixed A, since two triples in a four-set share two members. For
+every generic B the same line contains at least three of its points,
+contradicting the finite intersection of that line with the octic.
+
+For a genus-two target the hyperelliptic double cover and gonality
+seven imply degree at least four. Multiplying the octic's three lower
+bounds 7,5,4 by 15 and taking the minima with the previous two steps
+gives 87,69,57. These inequalities describe a barrier to low-degree
+quotient methods. They do not classify the integer points of the octic
+or of the genus-924 curve.
+
+3. A height-independent class of excluded values
+
+Gyory, Theorem 2, gives the full classification for x^l=binom(n,k),
+x,l>1, k>=2, n>=2k. The possibilities are k=l=2, or the single
+solution (n,k,x,l)=(50,3,140,2). Thus a perfect power a>=2 has
+half-row multiplicity exactly 2 if it is triangular and square or if
+a=19600. All other perfect powers have half-row multiplicity 1.
+Indeed 395^2<8*19600+1<396^2, and so its exceptional row cannot
+coexist with a triangular row. All values also have the row (a,1).
+
+A stronger uniform obstruction allows unrestricted factors at small
+primes. If k>=4 is any admissible column, then
+
+     gcd { v_p(a) : p>k, p|a } = 1.                                (2)
+
+Sylvester's theorem gives a prime p>k in the interval product k!a
+since its first term n_k-k+1 exceeds k. This prime divides a, so
+the gcd is over a nonempty set. If some prime exponent l divided
+all the listed valuations, the canonical l-th-power-free part b of
+k!a would be supported on primes <=k. Write k!a=b x^l. The chosen
+prime p>k divides x. Theorem 2 of Saradha and Gyory in Gyory's 1998
+paper excludes every such length-k interval product for k>=4.
+This proves (2). In particular one can discard the complete factors
+of a at 2,3,5,7 before testing the perfect-power obstruction for the
+(3,5,7,8) pattern. If the remainder is one or is a perfect power,
+no such four-column representation exists at any height. This test
+also applies to any a known to occupy a proper column at least 8:
+if every valuation at p>7 were divisible by l, the same would hold
+in the nonempty subset of primes p>k, contradicting (2).
+
+This also gives two exact unrestricted multiplicity conclusions.
+
+* Suppose a=2^A 3^B y^l for nonnegative A,B and integers y>=1,l>=2.
+  Then M(a)=2 if a is triangular with a>=6 or is 19600, and M(a)=1
+  otherwise.
+  Indeed (2) excludes k>=4. For k=3 the identical interval-product
+  argument applies with the single exception (48,3,6,140,2) in
+  Gyory's 1998 Theorem 2. It yields a=19600. The column k=2 gives
+  exactly the triangular values in this class with index n>=4.
+
+* Suppose a=2^A 3^B 5^E y^l with A,B,E>=0 and y>=1,l>=2. Then
+  M(a)<=2 except for M(120)=3. Indeed (2) forbids every k>=5.
+  The solved pairs among 2,3,4 give, after imposing n>=2k,
+  the only double proper values 120,1540,7140 for (2,3), 210 for
+  (2,4), and none for (3,4). Among these only 120 belongs to the
+  stated class; after stripping 2,3,5 each other value has a prime
+  of exponent one. The three rows for 120 are 120,16,10.
+
+References
+
+K. Gyory, On the diophantine equation (n choose k)=x^l, Acta Arith.
+80 (1997), 289-295, Theorem 2.
+https://matwbn.icm.edu.pl/ksiazki/aa/aa80/aa8038.pdf
+
+K. Gyory, On the diophantine equation n(n+1)...(n+k-1)=bx^l,
+Acta Arith. 83 (1998), 87-92, Theorem 2 and the cited Sylvester
+theorem on page 88.
+https://matwbn.icm.edu.pl/ksiazki/aa/aa83/aa8316.pdf
+
+R. J. Stroeker and B. M. M. de Weger, Elliptic binomial Diophantine
+equations, Mathematics of Computation 68 (1999), Theorems A23,A24,A34.
+https://deweger.net/papers/%5B28%5DStdW-EllBinom-MathComp%5B1999%5D.pdf
+
+The Stacks Project, Riemann--Roch for curves.
+https://stacks.math.columbia.edu/tag/0B5B
+
+D. Zywina, Classification of modular curves with low
+gonality, Theorem 2.2 (Castelnuovo--Severi, with proof).
+https://davidzywina.github.io/papers/lowgonality.pdf
