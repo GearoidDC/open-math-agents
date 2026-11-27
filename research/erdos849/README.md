@@ -2,12 +2,13 @@
 
 Can every positive integer be the exact number of rows sharing an entry in the left half of Pascal’s triangle? For example, 3003 occurs in rows 14, 15, 78, and 3003. Five is the first unknown multiplicity. [Official problem](https://lefttosolve.com/p/Erdos849.erdos_849)
 
-Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least five of its prime divisors exceed 100. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the final deductions with the external inputs exposed as hypotheses. The existence of a five-row entry remains open.
+Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least six of its prime divisors exceed 100. For either proper-column pattern $\{3,5,7,8\}$ or $\{5,6,7,8\}$, at least seven primes exceed 100. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the final deductions with the external inputs exposed as hypotheses. The existence of a five-row entry remains open.
 
 - [Finite search through 10¹²⁸ and verification commands](Erdos849Focused128.md)
 - [Hypotheses in the Lean cutoff theorem](Erdos849Interval128.lean)
 - [21-prime proof at all heights and reproduction commands](Erdos849TwentyOneAtAllHeights.md)
 - [Lean theorem for 21 primes and its computational hypotheses](Erdos849TwentyOneGraph.lean)
+- [Pell equations for the two four-column patterns and the all-height large-prime bounds](Erdos849PellPatterns.md)
 - [Twenty-prime proof at all heights and reproduction commands](Erdos849TwentyAtAllHeights.md)
 - [Lean theorem for twenty primes and its computational hypotheses](Erdos849TwentyGraph.lean)
 - [Nineteen-prime proof and reproduction commands](Erdos849NineteenAtAllHeights.md)
