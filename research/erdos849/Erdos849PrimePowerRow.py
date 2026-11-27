@@ -1,4 +1,4 @@
-"""Remaining finite cases from Erdos849PrimePowerRow.txt (columns 7 and 8)."""
+"""Check the finite prime-power cases for column eight and its shorter partners."""
 
 from math import comb, factorial
 
@@ -48,7 +48,7 @@ def main():
 
     assert (64 - 7)**8 > 8 * (64 + 6)**7
     assert 32**8 * factorial(8) * 2**7 < 10**20
-    for k in (3, 5, 7):
+    for k in (3, 5, 6, 7):
         small_n = [(n, row(comb(n, 8), k)) for n in range(16, 64)]
         assert all(m is None for n, m in small_n)
         candidates = set()

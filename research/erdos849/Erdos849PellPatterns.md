@@ -4,7 +4,7 @@ The two patterns are the proper columns $\{3,5,7,8\}$ and $\{5,6,7,8\}$ in the l
 
 **Both patterns require at least seven distinct prime divisors greater than 100. Every five-row value, with any column pattern, requires at least six.** Indeed the earlier reduction put every potential exception to the six-prime statement in these two patterns. Their simultaneous occurrence remains open.
 
-Subsequent checks use this Pell enumeration to prove seven large primes for every five-row value. Pattern-specific interpolation and an exact row search give at least eleven for each named pattern. [Eleven-prime argument](Erdos849PatternCapTen.md) [Global seven-prime argument](Erdos849SevenAtAllHeights.md) · [Columns 3, 5, 7 and 8](Erdos849PatternThree.txt) · [Columns 5, 6, 7 and 8](Erdos849PatternSixHost.md)
+Subsequent checks use this Pell enumeration to prove seven large primes for every five-row value. Pattern-specific interpolation and an exact row search give at least twelve for each named pattern. [Twelve-prime argument](Erdos849PatternThreshold.md) [Global seven-prime argument](Erdos849SevenAtAllHeights.md) · [Columns 3, 5, 7 and 8](Erdos849PatternThree.txt) · [Columns 5, 6, 7 and 8](Erdos849PatternSixHost.md)
 
 Lean checks that either four-column pattern supplies five distinct rows, that at most six large primes force two smooth numerator terms in column eight, and that at least 32 prime divisors force seven above 100. It combines these facts with the finite exclusions and the interpolation bound as explicit hypotheses. The continued-fraction enumerations run outside Lean. [Lean source](Erdos849LargePrimePatterns.lean)
 

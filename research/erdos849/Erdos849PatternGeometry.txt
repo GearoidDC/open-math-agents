@@ -1,0 +1,224 @@
+Distribution of prime powers among all offset tuples
+
+Fix distinct proper Pascal columns k_1,...,k_r. Put f_k(X)=(X)_k/k!,
+D=product k_i, and S=sum_i (k_i-1)/k_i. For an admissible shared
+value a>=2, write f_ki(n_i)=a, n_i>=2k_i. An offset tuple u chooses
+0<=u_i<k_i for every i. There are exactly D tuples. Define
+
+             H_u=gcd(a,n_1-u_1,...,n_r-u_r).
+
+1. An effective estimate independent of the total number of primes
+
+For every positive integer m there are effectively computable positive
+constants c_m,C_m depending only on the columns and m, such that
+
+       c_m a^(1/D - S/m) <= H_u <= C_m a^(1/D + S/m).              (1)
+
+In particular each normalized log H_u is within epsilon of (log a)/D
+in the following sense: |log H_u/log a - 1/D|<epsilon above an
+effectively computable threshold for each fixed epsilon>0. This proof
+works even if some column indices have a common factor and if some
+affine points away from t=0 are singular. It uses elementary linear
+algebra instead of a genus calculation or prime support restriction.
+
+Consequently, given any fixed selection of offsets in a subset of
+columns, each sufficiently large solution has at least product k_j,
+over all omitted columns j, different primes common to a and every
+selected row factor. This is an effective height restriction on the
+specified factor or simultaneous factors. For (5,6,7,8) it requires
+at least 336,280,240,210 different primes in each *individual* factor
+of columns 5,6,7,8, respectively. For (3,5,7,8) the corresponding
+numbers are 280,168,120,105. The threshold for these limiting counts
+has not been explicitly evaluated. Section 2 gives smaller all-height
+counts with evaluated constants for these same patterns.
+
+Proof of (1). Let R=Q[t,X_1,...,X_r]/(f_ki(X_i)-t). It is free of
+rank D over Q[t], with basis product X_i^e_i (0<=e_i<k_i), by
+successive reduction by the monic equations (X_i)_ki-k_i! t.
+The full-product monodromy argument in Erdos849ReciprocalRunge.txt
+proves R is a domain for distinct integer indices. This is the only
+geometric irreducibility input here. Each rational point P_u=(0,u)
+is smooth and unramified above t=0 because f'_ki(u_i) is nonzero.
+Thus its Taylor expansions in the local parameter t are rational and
+can be computed recursively from the defining equations.
+
+Select a set of J offset tuples. Put h=floor(Jm/D) and take the span
+of all products t^v product X_i^e_i for 0<=v<=h and 0<=e_i<k_i.
+Its dimension D(h+1)>Jm. Requiring a zero of order >=m at each of
+the J points gives at most Jm rational linear constraints, so there
+is a nonzero F in this span with all those zeros. On an integer
+solution, n_i<=k_i-1+(k_i!a)^(1/k_i), and hence
+
+                   |F(a,n_1,...,n_r)| <= A_F a^(h+S).
+
+The coefficient norm gives A_F explicitly. At every selected tuple
+the function F belongs to the m-th power of its maximal ideal in R:
+this holds in the smooth local discrete valuation ring by the jet
+test, and the global maximal-ideal power contracts back unchanged,
+since its quotient is local Artinian. Express F as a sum of polynomial
+multiples of products of m generators among t and X_i-u_i, and clear
+rational denominators. With one positive integer c working for the
+whole selected set, H_u^m divides cF(a,n_1,...,n_r) for each member.
+The coefficients and c can be found by solving linear equations or
+by an ideal membership calculation.
+
+For each p^e exactly dividing a there is at least one tuple w with
+p^e|H_w. For each row, remove the term of greatest p-valuation. For
+every level h>=1 the remaining count of multiples of p^h is at most
+floor(k_i/p^h). Thus the removed factor has valuation at least
+v_p(k_i!a)-v_p(k_i!)=e. Its offsets across the rows furnish w.
+
+Select just u for the upper estimate in (1). For the lower estimate,
+select all D-1 other tuples. If v_p(H_u)<e, any tuple w hosting p^e
+is different from u and therefore p^(em) divides the selected cF.
+This gives (a/H_u)^m | cF. Combining with h<=Jm/D gives the two
+exponents as claimed, off the zero set of F.
+
+The determinant of multiplication by F on the D-element basis over
+Q[t] is a nonzero polynomial since R is a domain. If F vanishes at
+a solution, the image of multiplication in the specialized algebra
+cannot contain one, so the determinant vanishes at t=a. A polynomial
+root bound therefore bounds all exceptional integral a effectively.
+Taking maxima of A_F,c and finitely adjusting for those small a and
+the D choices of u gives the stated uniform constants.
+
+For the prime count choose m>DS. When a exceeds an effective bound,
+all H_u exceed lcm(1,...,max k_i-1). Each then has a prime power >
+max k_i-1. One prime cannot so serve two tuples: their differing
+offset difference is positive in absolute value and <=max k_i-1,
+and is divisible by the smaller of the two powers. Restrict to all
+tuples extending the prescribed partial assignment to get the count.
+The conclusion is compatible with Siegel finiteness for fixed
+columns. It provides effective restrictions when only selected
+offsets are deficient in prime divisors. It does not bound the
+heights of solutions when all offsets satisfy the restrictions.
+
+2. Evaluated conditions for the two patterns at all heights
+
+For each prime dividing a assign its full power to a term of greatest
+valuation in each row. The following lists give the minimum number of
+distinct assigned powers per factor n_k-s, in order s=0,...,k-1.
+The counts are independent of the total number of primes dividing a.
+
+    Columns (3,5,7,8)           Columns (5,6,7,8)
+    k=3    9,9,9                k=5    6,6,6,6,6
+    k=5    6,5,5,5,6            k=6    5,5,5,5,5,5
+    k=7    4,4,4,4,4,4,4        k=7    4,4,4,4,4,4,4
+    k=8    3,3,3,3,3,3,3,3      k=8    4,3,3,3,3,3,3,4
+
+The separate finite host calculation in Erdos849HostCount.md strengthens every column-eight entry in this table to at least four.
+
+Inputs. Erdos849PatternThree.py and Erdos849PatternSixHost.py check
+the bound p^v_p(a)<=p^v_p(420) Y with Y=Q (a/10^128)^(1/36), Q=34800
+or 35519, respectively. Erdos849PatternHeights.md excludes the two
+patterns through a=10^E for E=136 or 144, respectively. The short
+elementary prime-power exclusions in Erdos849PrimePowerRow.txt can
+instead be used independently of those inputs but give weaker counts.
+
+Let ell=lcm(1,...,k). The host cofactor b_s=(n_k-s)/(product of the
+powers assigned to s) divides ell. For any prime p choose a maximum
+term of valuation V and consider the count N_h of multiples of p^h
+in the row. The exponent V-v_p(a) is sum_{h<=V} (1+floor(k/p^h)-N_h):
+there are no further factorial levels since p^(V+1)>k. Each summand
+is 0 or 1, and is zero for p^h>k. The exponent is thus at most
+floor(log_p k). Other terms cannot contain a power >k of the same
+prime because two such multiples cannot fit in the row. This proves
+the cofactor claim, including primes absent from a.
+
+Call an assigned prime exceptional when its full power exceeds Y; its
+base then belongs to {2,3,5,7}. Its power exceeds 7, so all the other
+terms have p-valuation v_p(s-v) at offset v!=s. The exponent in the
+cofactor is consequently v_p(k!/(s!(k-1-s)!))=v_p(k*binom(k-1,s)).
+If T is the set of exceptional bases, an upper bound for b_s times the
+possible losses is therefore
+
+     ell * product_{p in T} p^(v_p(k*binom(k-1,s))-v_p(ell)+v_p(420)).
+
+Take the maximum B of this expression over all subsets of at most t
+exceptional bases when testing a slot with <=t total powers. Then
+n_k-s<=B Y^t, padding missing ordinary powers with units if needed.
+On writing a=10^E Z, Z>=1, the opposite bound is
+n_k-s>=(floor((k!10^E)^(1/k))-s) Z^(1/k), since n_k^k>=k!a.
+For kt<=36, it suffices to check
+
+  (B Q^t)^36 10^((E-128)t) < (floor((k!10^E)^(1/k))-s)^36.
+
+Erdos849PatternGeometry.py evaluates these inequalities by integer
+arithmetic for every listed slot. An entry t+1 means that all counts
+up to t were eliminated. This is a consequence of the earlier height
+and local inequalities, supplemented by the cofactor calculation.
+
+3. Absolute simplicity of the natural genus-three quotients
+
+In the pattern (3,5,7,8), keep just columns 3 and 8, using x=n_3,
+y=(2n_8-7)^2. In (5,6,7,8) keep just columns 6 and 8, using
+x=(2n_6-5)^2 and the same y. The two rational plane quartics are
+
+  (y-1)(y-9)(y-25)(y-49) = (2^8 8!/3!) x(x-1)(x-2),       K3,
+  (y-1)(y-9)(y-25)(y-49) = 224 (x-1)(x-9)(x-25),          K6.
+
+Both their Jacobians are absolutely simple. In particular neither
+of these genus-three curves admits a nonconstant map to a genus-one
+or genus-two curve over the algebraic closure: such a map would
+induce a nonzero-dimensional proper abelian subvariety by pullback.
+This concerns these two quotients specifically. The full four-column
+curves can have further quotients unrelated to these two projections.
+
+Here is an exact certificate. For K3 use p=11 and for K6 use p=17.
+In each case the original row polynomials f_k and f_8 have disjoint
+finite branch sets modulo p, checked by taking the gcd of their two
+critical-value resultants in F_p[t]. The critical values of the
+reflected polynomial are included in the branch values of the full
+map because the square map is surjective over an algebraic closure.
+The two partial derivatives cannot both vanish at a point of the
+affine quartic. In the degree-four homogenization the unique point
+at infinity [1:0:0] is smooth by its nonzero Z-derivative. These
+quartics have good reduction at the indicated primes and genus three.
+
+    curve    p     #F_p      #F_(p^2)     #F_(p^3)
+    K3       11      20         128          1358
+    K6       17      19         337          4876
+
+The three point counts in each row determine the three leading
+nonconstant Frobenius coefficients by Newton sums; the functional
+equation supplies the remaining coefficients. The resulting monic
+Frobenius polynomials in variable T are
+
+    K3: T^6 + 8T^5 + 35T^4 + 118T^3 + 385T^2 + 968T + 1331,
+    K6: T^6 +  T^5 + 24T^4 +  11T^3 + 408T^2 + 289T + 4913.
+
+They are irreducible modulo 5 and 31, respectively, so in particular
+over Q. The six complex Frobenius roots are therefore conjugate.
+No ratio of two different roots is a root of unity. Indeed such a
+ratio would have degree at most 6*5=30, by the Galois action on
+ordered distinct pairs. If its order is b then phi(b)<=30 and hence
+b<=1800 since phi(b)>=sqrt(b/2). For every b in this finite range
+with phi(b)<=30, compute the degree-six polynomial with roots the
+b-th powers of the six Frobenius roots modulo 1000003 and test its
+gcd with its derivative. All gcds are one. The computation uses
+only modular power sums and Newton identities. A repeated root in
+characteristic zero would have given zero discriminant modulo this
+auxiliary prime also.
+
+Thus over every finite extension of the chosen residual field the
+six powered Frobenius conjugates remain distinct. They form a single
+Galois orbit, so the Frobenius polynomial over the extension remains
+irreducible over Q. A positive-dimensional proper abelian subvariety
+would be defined over some finite extension and would yield a proper
+positive-degree Frobenius-polynomial factor there. The reductions are
+therefore absolutely simple. This implies absolute simplicity in
+characteristic zero: a hypothetical geometric isogeny decomposition
+would be defined over a number field and give a nontrivial rational
+idempotent in the geometric endomorphism algebra. Specialization of
+endomorphisms is injective at good reduction, so this idempotent would
+survive, contradicting absolute simplicity of the reduction. See also
+B. Smith, Families of explicitly isogenous Jacobians of variable-
+separated curves, LMS J. Comput. Math. 14 (2011), section 14, on
+deducing absolute simplicity from a good absolutely simple reduction.
+https://doi.org/10.1112/S1461157010000410
+
+Erdos849PatternGeometryQuartics.py reproduces the finite-field counts
+by exact enumeration over fields of orders p,p^2,p^3, counts the
+single point at infinity, and checks irreducibility and every powered
+polynomial. The helper files Erdos849SmallestCurve.py and
+Erdos849ThreeFiveCurve.py must be in the same directory.

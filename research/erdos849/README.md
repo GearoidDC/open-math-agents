@@ -2,7 +2,7 @@
 
 Can every positive integer be the exact number of rows sharing an entry in the left half of Pascal’s triangle? For example, 3003 occurs in rows 14, 15, 78, and 3003. Five is the first unknown multiplicity. [Official problem](https://lefttosolve.com/p/Erdos849.erdos_849)
 
-Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least seven of its prime divisors exceed 100. Each of the proper-column patterns $\{3,5,7,8\}$ and $\{5,6,7,8\}$ requires at least 31 distinct prime divisors, including at least eleven above 100. The first pattern requires $a>10^{136}$ and the second requires $a>10^{144}$. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the deductions in the linked formal theorems, with external inputs exposed as hypotheses. The existence of a five-row entry remains open.
+Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least seven of its prime divisors exceed 100. Each of the proper-column patterns $\{3,5,7,8\}$ and $\{5,6,7,8\}$ requires at least 32 distinct prime divisors, including at least twelve above 100. The first pattern requires $a>10^{136}$ and the second requires $a>10^{144}$. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the deductions in the linked formal theorems, with external inputs exposed as hypotheses. The existence of a five-row entry remains open.
 
 - [Finite search through 10¹²⁸ and verification commands](Erdos849Focused128.md)
 - [Hypotheses in the Lean cutoff theorem](Erdos849Interval128.lean)
@@ -10,6 +10,10 @@ Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has 
 - [Lean theorem for 21 primes and its computational hypotheses](Erdos849TwentyOneGraph.lean)
 - [Pell equations for the two four-column patterns and the all-height large-prime bounds](Erdos849PellPatterns.md)
 - [Seven prime divisors above 100 for all five-row values](Erdos849SevenAtAllHeights.md)
+- [Four assigned primes in each of the eight numerator terms and 32 in total](Erdos849HostCount.md)
+- [Twelve distinct prime divisors above 100](Erdos849PatternThreshold.md)
+- [Prime divisors of the preceding and following integers](Erdos849NeighborDivisors.md)
+- [Prime counts in individual numerator terms and the genus-three quotient curves](Erdos849PatternGeometry.txt)
 - [At least eleven primes above 100 for both remaining patterns](Erdos849PatternCapTen.md)
 - [At least ten primes above 100 for columns 3, 5, 7 and 8](Erdos849PatternThree.txt)
 - [At least ten primes above 100 for columns 5, 6, 7 and 8](Erdos849PatternSixHost.md)
@@ -62,6 +66,6 @@ The eleventh Lind–Singmaster value has 1,004,713,714 decimal digits. Its only 
 
 The four columns 6, 10, 34, and 36 have an effectively computable finite set of shared values. A square product of factorials gives the same conclusion for infinitely many fixed four-column patterns. For the harder pair of columns 3 and 5, the associated genus-four Jacobian has rational rank at least ten and geometric Picard rank at most four. These bounds explain why the usual rank tests for classical and quadratic Chabauty do not classify that pair. [Fixed-column arguments](Erdos849FixedColumnMethods.txt) · [Curve argument](Erdos849ThreeFiveCurve.txt) · [Arithmetic verifier](Erdos849ThreeFiveCurve.py)
 
-For columns 7 and 8 to share a value, each of the eight consecutive factors in the eighth-column numerator must have at least two distinct prime divisors. This restriction applies at every height. For the four-column pattern (3,5,7,8), sufficiently large values require at least 105 distinct prime divisors in each of those eight factors. [Prime-power exclusion](Erdos849PrimePowerRow.txt) · [Explicit height bound](Erdos849GridHeight.txt) · [Other restrictions on the four-column pattern](Erdos849SmallestCurve.txt)
+In both four-column patterns, every numerator term in every represented proper column must have at least two distinct prime divisors. The pairwise proof uses the eighth column and a shorter column at a time. This restriction applies at every height. For the four-column pattern (3,5,7,8), sufficiently large values require at least 105 distinct prime divisors in each of those eight factors. [Prime-power exclusion](Erdos849PrimePowerRow.txt) · [Explicit height bound](Erdos849GridHeight.txt) · [Other restrictions on the four-column pattern](Erdos849SmallestCurve.txt)
 
 Every value at least $10^{128}$ shared by columns 7 and 8 has at least 24 distinct prime divisors, regardless of its other representations. Each numerator term in the eighth column receives at least three distinct prime powers. [Twenty-four-prime proof](Erdos849PairPowerSlots.txt)

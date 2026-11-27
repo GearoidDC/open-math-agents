@@ -57,3 +57,36 @@ instances e<=f are included here. Since n-7>=9 no factor can be one.
 
 This is an exclusion for a specified class of rows; it leaves possible
 integer points for which all eight factors have multiple prime bases.
+
+The shorter columns, also at all heights
+
+Theorem. If k is 3,5,6 or 7, m>=2k, n>=16, and
+binom(m,k)=binom(n,8), none of m-k+1,...,m is a prime power.
+Consequently all 23 numerator factors in the pattern (3,5,7,8) and
+all 26 in the pattern (5,6,7,8) have at least two distinct prime
+divisors each. The first eight terms follow from the preceding (7,8)
+theorem. The shorter-column statement itself is pairwise and does not
+use the other two representations, the factorization of a, or results
+from any large-height sieve.
+
+Suppose m=P+r, 0<=r<k, P=p^e. As before, if e>v_p(k!), the integer
+P/b for b=p^v_p(k!) divides a and is hosted by a single factor of
+the eighth-column numerator. In particular P/b<=n. When p>k we
+have b=1, so m<=n+6. For n>=64 this is impossible: the function
+(n-7)((n-7)/(n+6))^7 strictly increases for n>7 and at n=64 it
+exceeds 8. Therefore (n-7)^8>8(n+6)^7 and binom(n,8)>binom(n+6,7).
+Half-row monotonicity gives binom(m,k)<=binom(n+6,k)<=binom(n+6,7).
+Checking 16<=n<=63 excludes all remaining large-base cases.
+
+For p<=k, b<=16 for all four k. For P>=10^20, e>v_p(k!) and so
+n>=P/16, n-7>=P/32. Thus
+
+  (P/32)^8 <= (n)_8 = (8!/k!)(m)_k <= 8! (2P)^7.
+
+It would follow that P<=32^8*8!*2^7<10^20, a contradiction.
+For P<10^20 enumerate the powers of the small prime bases p<=k
+and the k choices of r. The script uses the same exact binomial
+inversion. The numbers of distinct admissible m tested for k=3,5,6,7
+are respectively 311,644,769 and 1048, in addition to the 48 small
+n for each k. No equality occurs. The tests include the exponents
+e<=v_p(k!).
