@@ -990,6 +990,362 @@ theorem solutions_through_330 {n : ℕ} (hn : 0 < n) (size : n ≤ 330) :
       exact_mod_cast hv
     · exact (by exact_mod_cast lo : (1 : ℕ∞) ≤ (v n 1 : ℕ∞)).trans (offset_le (by decide))
 
+private theorem fifth_order {b q : ℕ} (pb : b.Prime) (ob : Odd b) (pq : q.Prime)
+    (dq : q ∣ 2^b+1) (small : q < b) : q=3 := by
+  -- The order of -2 divides both the prime b and q-1. It must be one.
+  let _ : Fact q.Prime := ⟨pq⟩
+  have zero := (ZMod.natCast_eq_zero_iff (2^b+1) q).mpr dq
+  push_cast at zero
+  have eq : (-2 : ZMod q)^b=1 := by rw [ob.neg_pow]; linear_combination -zero
+  have ne : (-2 : ZMod q) ≠ 0 := by
+    intro h
+    rw [h,zero_pow pb.ne_zero] at eq
+    exact zero_ne_one eq
+  have cases := (Nat.dvd_prime pb).mp (orderOf_dvd_of_pow_eq_one eq)
+  have one : orderOf (-2 : ZMod q)=1 := cases.resolve_right (by
+    intro same
+    have dd := ZMod.orderOf_dvd_card_sub_one ne
+    rw [same] at dd
+    have := Nat.le_of_dvd (show 0 < q-1 by have := pq.two_le; omega) dd
+    omega)
+  have nz := orderOf_eq_one_iff.mp one
+  have z : ((3 : ℕ) : ZMod q)=0 := by push_cast; linear_combination -nz
+  exact (Nat.prime_dvd_prime_iff_eq pq Nat.prime_three).mp ((ZMod.natCast_eq_zero_iff _ _).mp z)
+
+private theorem mersenne_left_factor {b L : ℕ} (pb : b.Prime) (lb : L < b) (hb : 3 < b) :
+    ∃ q : ℕ, q.Prime ∧ L < q ∧ q ∣ 2^b+1 := by
+  have ob := pb.odd_of_ne_two (by omega)
+  have no9 : ¬9 ∣ 2^b+1 := by
+    have b3 : ¬3 ∣ b := by
+      intro h
+      have := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pb).mp h
+      omega
+    obtain ⟨w,hw⟩ := ob
+    have rem : b%6=1 ∨ b%6=5 := by omega
+    have pow : Nat.ModEq 9 (2^b) (2^(b%6)) := by
+      have h : Nat.ModEq 9 (2^6) 1 := by decide
+      calc
+        2^b = 2^(b%6)*(2^6)^(b/6) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+        _ ≡ 2^(b%6)*1^(b/6) [MOD 9] := (h.pow _).mul_left _
+        _ = _ := by simp
+    change 2^b%9=2^(b%6)%9 at pow
+    rcases rem with h|h <;> rw [h] at pow <;> norm_num at pow <;> omega
+  by_contra! none
+  have big := Nat.pow_le_pow_right (by decide : 0<2) (show 3 ≤ b by omega)
+  norm_num at big
+  have eq : 2^b+1=3^(2^b+1).primeFactorsList.length :=
+    Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+      intro q pq dq
+      have upper : q ≤ L := by by_contra! high; exact none q pq high dq
+      exact fifth_order pb ob pq dq (by omega))
+  generalize (2^b+1).primeFactorsList.length = e at eq
+  have e2 : 2 ≤ e := by
+    by_contra! bad
+    interval_cases e <;> norm_num at eq
+    all_goals omega
+  exact no9 (eq ▸ (pow_dvd_pow (3 : ℕ) e2))
+
+private theorem fifth_power_residue (a e : ℕ) (sq : a^2%8=1) :
+    a^e%8=1 ∨ a^e%8=a%8 := by
+  have m : Nat.ModEq 8 (a^2) 1 := sq
+  rcases Nat.even_or_odd e with ⟨j,hj⟩|⟨j,hj⟩
+  · left
+    change Nat.ModEq 8 (a^e) 1
+    rw [hj, ←two_mul, pow_mul]
+    simpa only [one_pow] using m.pow j
+  · right
+    change Nat.ModEq 8 (a^e) a
+    rw [hj, pow_succ, pow_mul]
+    simpa only [one_pow,one_mul] using (m.pow j).mul_right a
+
+/-- Every fifth power of a Mersenne prime provides a two-prime witness. -/
+theorem mersenne_fifth_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+    q ∣ p^5+d ∧ s ∣ p^5+d := by
+  have ep : p=2^b-1 := by omega
+  have b1 : b ≠ 1 := by rintro rfl; norm_num at base; have := pp.two_le; omega
+  have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime b1 (ep ▸ pp)).2
+  by_cases small : b ≤ 33
+  · have primes : b ∈ [2,3,5,7,11,13,17,19,23,29,31] := by
+      have tab : ∀ k : Fin 34, k.val.Prime → k.val ∈ [2,3,5,7,11,13,17,19,23,29,31] := by decide +kernel
+      exact tab ⟨b,by omega⟩ pb
+    subst p
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at primes
+    rcases primes with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl
+    · exact ⟨2,5,7,by decide +kernel⟩
+    · exact ⟨1,11,191,by decide +kernel⟩
+    · exact ⟨6,37,47,by decide +kernel⟩
+    · exact ⟨1,11,41,by decide +kernel⟩
+    · exact ⟨0,23,89,by decide +kernel⟩
+    · exact ⟨1,11,181,by decide +kernel⟩
+    · exact ⟨2,7,23,by decide +kernel⟩
+    · exact ⟨1,31,421,by decide +kernel⟩
+    · exact ⟨1,11,281,by decide +kernel⟩
+    · exact ⟨0,233,1103,by decide +kernel⟩
+    · exact ⟨3,5,23,by decide +kernel⟩
+  by_contra missing
+  have d8 : 8 ∣ 2^b := pow_dvd_pow (2 : ℕ) (show 3 ≤ b by omega)
+  let x := p-2
+  have xp : p=x+2 := by dsimp [x]; have := pp.two_le; omega
+  have xm : Nat.ModEq 8 x 5 := by change x%8=5; omega
+  let F (y : ℕ) := (((y+6)*y+16)*y+16)*y+16
+  let C (y : ℕ) := (((y+7)*y+19)*y+23)*y+11
+  have fc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (F i) (F j) :=
+    ((((((h.add_right 6).mul h).add_right 16).mul h).add_right 16).mul h).add_right 16
+  have cc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (C i) (C j) :=
+    ((((((h.add_right 7).mul h).add_right 19).mul h).add_right 23).mul h).add_right 11
+  have f8 : F x%8=7 := (fc xm).trans (by decide +kernel : Nat.ModEq 8 (F 5) 7)
+  have c8 : C x%8=5 := (cc xm).trans (by decide +kernel : Nat.ModEq 8 (C 5) 5)
+  have fac : p^5+32=(p+2)*F x := by rw [xp]; dsimp [F]; ring
+  have first : p^5+1=(p+1)*C x := by rw [xp]; dsimp [C]; ring
+  -- The two shifted powers differ by 31. A divisor 31 at offset 33
+  -- gives a divisor at offset two, where C cannot be a power of 31.
+  have no31 : ¬31 ∣ F x := by
+    intro d
+    have d32 : 31 ∣ p^5+32 := fac ▸ dvd_mul_of_dvd_right d _
+    have d1 : 31 ∣ p^5+1 := by omega
+    have pr : Nat.Prime 31 := by decide
+    have eq : C x = 31^(C x).primeFactorsList.length :=
+      Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+        intro q pq dq
+        by_contra neq
+        have lq : 2 < q := by
+          have := pq.two_le
+          by_contra! low
+          have q2 : q=2 := by omega
+          rw [q2] at dq
+          omega
+        exact missing ⟨1,q,31,pq,pr,neq,lq,by decide,first ▸ dvd_mul_of_dvd_right dq _,d1⟩)
+    have res := fifth_power_residue 31 (C x).primeFactorsList.length (by decide)
+    rw [←eq] at res
+    norm_num at res
+    omega
+  obtain ⟨q,pq,hq,dq⟩ := mersenne_left_factor pb (show 33 < b by omega) (by omega)
+  have dl : q ∣ p+2 := by convert dq using 1; omega
+  obtain ⟨s,ps,hs,ds⟩ : ∃ s : ℕ, s.Prime ∧ 33 < s ∧ s ∣ F x := by
+    by_contra! none
+    have eq : F x = 11^(F x).primeFactorsList.length :=
+      Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+        intro s ps ds
+        have le : s ≤ 33 := by by_contra! big; exact none s ps big ds
+        have tab : ∀ i : Fin 34, i.val.Prime → ∀ j : Fin i.val, F j.val%i.val=0 →
+            i.val=2 ∨ (i.val=5 ∧ (j.val+4)%5=0) ∨ i.val=11 ∨ i.val=31 := by decide +kernel
+        have cong := fc (Nat.mod_modEq x s).symm
+        change F x%s=F (x%s)%s at cong
+        have opts := tab ⟨s,by omega⟩ ps ⟨x%s,Nat.mod_lt _ ps.pos⟩ (cong ▸ Nat.mod_eq_zero_of_dvd ds)
+        change s=2 ∨ (s=5 ∧ (x%s+4)%5=0) ∨ s=11 ∨ s=31 at opts
+        rcases opts with rfl|⟨rfl,h⟩|ok|rfl
+        · omega
+        · have d5 : 5 ∣ 2^b+1 := by omega
+          have bad := fifth_order pb (pb.odd_of_ne_two (by omega)) (by decide : Nat.Prime 5) d5 (by omega)
+          contradiction
+        · exact ok
+        · exact False.elim (no31 ds))
+    have res := fifth_power_residue 11 (F x).primeFactorsList.length (by decide)
+    rw [←eq] at res
+    norm_num at res
+    omega
+  have ne : q≠s := by
+    rintro rfl
+    have ident : F x+16*(p+2)=80+(p+2)*(x^3+2*x^2+8*x) := by rw [xp]; dsimp [F]; ring
+    have dd := dvd_add ds (dvd_mul_of_dvd_right dl 16)
+    rw [ident] at dd
+    have d80 := (Nat.dvd_add_iff_left (dvd_mul_of_dvd_left dl _)).mpr dd
+    have mem := pq.mem_primeFactors d80 (by decide)
+    have list : (80:ℕ).primeFactors={2,5} := by decide +kernel
+    rw [list] at mem
+    simp only [Finset.mem_insert,Finset.mem_singleton] at mem
+    omega
+  exact missing ⟨32,q,s,pq,ps,ne,hq,hs,fac ▸ dvd_mul_of_dvd_left dl _,fac ▸ dvd_mul_of_dvd_right ds _⟩
+
+
+private theorem seventh_residue_product {v : ℕ} (hv : v ≠ 0)
+    (h : ∀ q : ℕ, q.Prime → q ∣ v → q%24 ∈ [1,5,19,23]) : v%24 ∈ [1,5,19,23] := by
+  let G : List ℕ := [1,5,19,23]
+  -- These four residues form a subgroup of the units modulo 24.
+  have closed : ∀ a ∈ G, ∀ b ∈ G, a*b%24 ∈ G := by decide +kernel
+  have aux (l : List ℕ) (hl : ∀ q ∈ l, q%24 ∈ G) : l.prod%24 ∈ G := by
+    induction l with
+    | nil => decide +kernel
+    | cons a t ih =>
+      rw [List.prod_cons,Nat.mul_mod]
+      exact closed _ (hl a (List.mem_cons_self ..)) _ (ih (fun q hq => hl q (List.mem_cons_of_mem _ hq)))
+  have res := aux v.primeFactorsList (fun q hq => h q (Nat.prime_of_mem_primeFactorsList hq)
+    (Nat.dvd_of_mem_primeFactorsList hq))
+  rwa [Nat.prod_primeFactorsList hv] at res
+
+set_option maxRecDepth 16384 in
+private theorem seventh_small {b : ℕ} (small : b≤129) (pb : b.Prime) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ (2^b-1)^7+d ∧ s ∣ (2^b-1)^7+d := by
+  let certs : List (ℕ × ℕ × ℕ × ℕ) := [(2,2,11,199),(3,1,113,911),(5,4,7,397),(7,1,673,757),(11,0,23,89),(13,1,29,71),(17,3,11,23),(19,1,71,281),(23,2,5,17),(29,0,233,1103),(31,1,71,113),(37,1,673,3067),(41,1,29,127),(43,3,13,31),(47,0,2351,4513),(53,4,7,73),(59,1,113,701),(61,3,23,157),(67,2,5,353),(71,2,5,17),(73,5,11,1487),(79,2,5,17),(83,1,71,127),(89,1,71,281),(97,1,29,127),(101,2,179,199),(103,1,239,673),(107,4,7,73),(109,3,349,557),(113,2,419,3583),(127,2,5,17)]
+  have covers : ∀ k : Fin 130, k.val.Prime → ∃ z ∈ certs, z.1=k.val := by decide +kernel
+  have valid : ∀ z ∈ certs, z.2.2.1.Prime ∧ z.2.2.2.Prime ∧ z.2.2.1≠z.2.2.2 ∧
+      z.2.1+1<z.2.2.1 ∧ z.2.1+1<z.2.2.2 ∧ z.2.2.1 ∣ (2^z.1-1)^7+z.2.1 ∧
+        z.2.2.2 ∣ (2^z.1-1)^7+z.2.1 := by decide +kernel
+  obtain ⟨⟨j,d,q,s⟩,mem,eq⟩ := covers ⟨b,by omega⟩ pb
+  change j=b at eq
+  subst j
+  exact ⟨d,q,s,valid _ mem⟩
+
+set_option maxRecDepth 16384 in
+set_option synthInstance.maxSize 512 in
+set_option maxHeartbeats 2000000 in
+/-- Every seventh power of a Mersenne prime provides a two-prime witness. -/
+theorem mersenne_seventh_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+    q ∣ p^7+d ∧ s ∣ p^7+d := by
+  have ep : p=2^b-1 := by omega
+  have b1 : b ≠ 1 := by rintro rfl; norm_num at base; have := pp.two_le; omega
+  have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime b1 (ep ▸ pp)).2
+  by_cases small : b ≤ 129
+  · exact ep ▸ seventh_small small pb
+  by_contra missing
+  have ob := pb.odd_of_ne_two (by omega)
+  have d16 : 16 ∣ 2^b := pow_dvd_pow (2 : ℕ) (show 4 ≤ b by omega)
+  let x := p-2
+  have xp : p=x+2 := by dsimp [x]; have := pp.two_le; omega
+  have p3 : Nat.ModEq 3 (2^b) 2 := by
+    obtain ⟨j,hj⟩ := ob
+    rw [hj,pow_succ,pow_mul]
+    have h : Nat.ModEq 3 (2^2) 1 := by decide
+    simpa only [one_pow,one_mul] using (h.pow j).mul_right 2
+  change 2^b%3=2 at p3
+  have xm : Nat.ModEq 24 x 5 := by change x%24=5; omega
+  have xn : Nat.ModEq 16 x 13 := by change x%16=13; omega
+  let F (y : ℕ) := (((((y+10)*y+44)*y+104)*y+144)*y+96)*y+64
+  let C (y : ℕ) := (((((y+11)*y+51)*y+127)*y+179)*y+135)*y+43
+  have fc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (F i) (F j) :=
+    ((((((((((h.add_right 10).mul h).add_right 44).mul h).add_right 104).mul h).add_right 144).mul h).add_right 96).mul h).add_right 64
+  have cc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (C i) (C j) :=
+    ((((((((((h.add_right 11).mul h).add_right 51).mul h).add_right 127).mul h).add_right 179).mul h).add_right 135).mul h).add_right 43
+  have f24 : F x%24=7 := (fc xm).trans (by decide +kernel : Nat.ModEq 24 (F 5) 7)
+  have c16 : C x%16=7 := (cc xn).trans (by decide +kernel : Nat.ModEq 16 (C 13) 7)
+  have fac : p^7+128=(p+2)*F x := by rw [xp]; dsimp [F]; ring
+  have first : p^7+1=(p+1)*C x := by rw [xp]; dsimp [C]; ring
+  have no127 : ¬127 ∣ F x := by
+    intro d
+    have d128 : 127 ∣ p^7+128 := fac ▸ dvd_mul_of_dvd_right d _
+    have d1 : 127 ∣ p^7+1 := by omega
+    have pr : Nat.Prime 127 := by decide
+    have eq : C x = 127^(C x).primeFactorsList.length :=
+      Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+        intro q pq dq
+        by_contra neq
+        have lq : 2 < q := by
+          have := pq.two_le
+          by_contra! low
+          have q2 : q=2 := by omega
+          rw [q2] at dq
+          omega
+        exact missing ⟨1,q,127,pq,pr,neq,lq,by decide,first ▸ dvd_mul_of_dvd_right dq _,d1⟩)
+    have res (e : ℕ) : 127^e%16=1 ∨ 127^e%16=15 := by
+      induction e with
+      | zero => decide
+      | succ e ih =>
+        rw [pow_succ,Nat.mul_mod]
+        rcases ih with h|h <;> rw [h] <;> decide
+    have rr := res (C x).primeFactorsList.length
+    rw [←eq] at rr
+    omega
+  have no113 : ¬113 ∣ F x := by
+    -- The period of 2 modulo 113 is 28. The prime exponent b is coprime to 28.
+    have period : Nat.ModEq 113 (2^28) 1 := by decide
+    have red : Nat.ModEq 113 (2^b) (2^(b%28)) := by
+      calc
+        2^b = 2^(b%28)*(2^28)^(b/28) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+        _ ≡ 2^(b%28)*1^(b/28) [MOD 113] := (period.pow _).mul_left _
+        _ = _ := by simp
+    have b7 : ¬7 ∣ b := by
+      intro h
+      have := (Nat.prime_dvd_prime_iff_eq (by decide : Nat.Prime 7) pb).mp h
+      omega
+    have trans := (Nat.mod_modEq x 113).add_right 3
+    change (x%113+3)%113=(x+3)%113 at trans
+    change 2^b%113=2^(b%28)%113 at red
+    have g := fc (Nat.mod_modEq x 113).symm
+    change F x%113=F (x%113)%113 at g
+    have tab : ∀ k : Fin 28, k.val%2=1 → k.val%7≠0 → ∀ z : Fin 113,
+        (z.val+3)%113=2^k.val%113 → F z.val%113≠0 := by decide +kernel
+    obtain ⟨w,ow⟩ := ob
+    have rr := tab ⟨b%28,Nat.mod_lt _ (by decide)⟩ (by dsimp; omega) (by dsimp; omega)
+      ⟨x%113,Nat.mod_lt _ (by decide)⟩ (by dsimp; omega)
+    rw [Nat.dvd_iff_mod_eq_zero,g]
+    exact rr
+  obtain ⟨q,pq,hq,dq⟩ := mersenne_left_factor pb (show 129 < b by omega) (by omega)
+  have dl : q ∣ p+2 := by convert dq using 1; omega
+  obtain ⟨s,ps,hs,ds⟩ : ∃ s : ℕ, s.Prime ∧ 129 < s ∧ s ∣ F x := by
+    by_contra! none
+    have res := seventh_residue_product (v:=F x) (by omega) (by
+      intro s ps ds
+      have le : s ≤ 129 := by by_contra! big; exact none s ps big ds
+      have tab : ∀ i : Fin 130, i.val.Prime → ∀ j : Fin i.val, F j.val%i.val=0 →
+          i.val=2 ∨ (i.val=7 ∧ (j.val+4)%7=0) ∨ i.val=113 ∨ i.val=127 ∨
+            i.val%24 ∈ [1,5,19,23] := by decide +kernel
+      have cong := fc (Nat.mod_modEq x s).symm
+      change F x%s=F (x%s)%s at cong
+      have opts := tab ⟨s,by omega⟩ ps ⟨x%s,Nat.mod_lt _ ps.pos⟩ (cong ▸ Nat.mod_eq_zero_of_dvd ds)
+      change s=2 ∨ (s=7 ∧ (x%s+4)%7=0) ∨ s=113 ∨ s=127 ∨ s%24 ∈ [1,5,19,23] at opts
+      rcases opts with rfl|⟨rfl,h⟩|rfl|rfl|ok
+      · omega
+      · have d7 : 7 ∣ 2^b+1 := by omega
+        have bad := fifth_order pb ob (by decide : Nat.Prime 7) d7 (by omega)
+        contradiction
+      · exact False.elim (no113 ds)
+      · exact False.elim (no127 ds)
+      · exact ok)
+    rw [f24] at res
+    norm_num at res
+  have ne : q≠s := by
+    rintro rfl
+    have ident : F x+96*(p+2)=448+(p+2)*(x^5+6*x^4+20*x^3+24*x^2+48*x) := by rw [xp]; dsimp [F]; ring
+    have dd := dvd_add ds (dvd_mul_of_dvd_right dl 96)
+    rw [ident] at dd
+    have d448 := (Nat.dvd_add_iff_left (dvd_mul_of_dvd_left dl _)).mpr dd
+    have mem := pq.mem_primeFactors d448 (by decide)
+    have list : (448:ℕ).primeFactors={2,7} := by decide +kernel
+    rw [list] at mem
+    simp only [Finset.mem_insert,Finset.mem_singleton] at mem
+    omega
+  exact missing ⟨128,q,s,pq,ps,ne,hq,hs,fac ▸ dvd_mul_of_dvd_left dl _,fac ▸ dvd_mul_of_dvd_right ds _⟩
+
+
+/-- A solution cannot immediately precede any nontrivial fifth or seventh power. -/
+theorem fifth_seventh_exclusion {n x r : ℕ} (hx : 1 < x) (hr : r=5 ∨ r=7)
+    (eq : n+1=x^r) : v_l 1 n ≠ 1 := by
+  intro sol
+  have rp : 1 < r := by omega
+  have ro : Odd r := by rcases hr with rfl|rfl <;> decide
+  have bound : 32 ≤ x^r := by
+    have a := Nat.pow_le_pow_left (show 2 ≤ x by omega) r
+    rcases hr with rfl|rfl <;> norm_num at a <;> omega
+  have ox : Odd x := by
+    apply Nat.not_even_iff_odd.mp
+    intro ex
+    have dd : 2 ∣ x^r := (even_iff_two_dvd.mp ex).trans (dvd_pow_self x (by omega))
+    have on : Odd n := by rw [Nat.odd_iff]; omega
+    rcases (odd_classification on).mp sol with h|h|h|h <;> omega
+  obtain ⟨b,base⟩ := odd_power_root_neighbor ox hx ro rp eq sol
+  have pure := prime_power_succ (n:=n) (by omega) sol
+  rw [eq,isPrimePow_pow_iff (by omega : r≠0)] at pure
+  obtain ⟨p,e,pp,pe,he⟩ := (isPrimePow_nat_iff _).mp pure
+  have op := pp.odd_of_ne_two (by
+    rintro rfl
+    have div := dvd_pow_self (2:ℕ) pe.ne'
+    rw [he] at div
+    exact (Nat.not_even_iff_odd.mpr ox) (even_iff_two_dvd.mpr div))
+  have one := mersenne_power_exponent op pp.one_lt pe (he.symm ▸ base)
+  rw [one,pow_one] at he
+  subst x
+  have hit : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+      q ∣ p^r+d ∧ s ∣ p^r+d := by
+    rcases hr with rfl|rfl
+    · exact mersenne_fifth_witness pp base
+    · exact mersenne_seventh_witness pp base
+  obtain ⟨d,q,s,pq,ps,ne,hq,hs,dq,ds⟩ := hit
+  have rearr : n+(d+1)=p^r+d := by omega
+  exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (rearr ▸ dq) (rearr ▸ ds) sol
+
 /-- At every sufficiently large odd prime, find a later or equal integer
 with two distinct prime factors larger than the offset from its predecessor. -/
 def H1 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p →
@@ -1006,10 +1362,10 @@ def H2 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B < p^2 →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p^2+d ∧ s ∣ p^2+d
 
-/-- The remaining odd exponents are primes at least five, and the only
+/-- The remaining odd exponents are primes at least eleven, and the only
 bases that need be considered are Mersenne primes. -/
 def H3 : Prop := ∃ B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → (∃ b : ℕ, p+1=2^b) →
-    r.Prime → 5 ≤ r → B < p^r →
+    r.Prime → 11 ≤ r → B < p^r →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
       q ∣ p^r+d ∧ s ∣ p^r+d
 
@@ -1045,11 +1401,12 @@ theorem main : H1 → H2 → H3 → type_of% @Erdos889.erdos_889.variants.v1_eq_
           simp only [pow_zero, pow_one] at he ⊢
           exact primeCase p pp op (by omega)
         | succ t => exact dyadicCase p (t+1) pp op (by omega) (by omega)
-      · have a5 : 5 ≤ a := by
+      · have exc : ¬(a=5 ∨ a=7) := fun h => fifth_seventh_exclusion pp.one_lt h he hn
+        have a11 : 11 ≤ a := by
           obtain ⟨w, hw⟩ := oa
           have := pr.two_le
           omega
-        exact mersenneCase p a pp op base pr a5 (by omega)
+        exact mersenneCase p a pp op base pr a11 (by omega)
     obtain ⟨d,q,s,pq,ps,ne,hq,hs,dq,ds⟩ := witness
     have equal : n+(d+1)=p^a+d := by omega
     exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (equal ▸ dq) (equal ▸ ds) hn
