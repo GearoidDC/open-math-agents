@@ -49,6 +49,8 @@ The ninth Lind–Singmaster value has 21,386,570 decimal digits and exactly thre
 
 The tenth Lind–Singmaster value has 146,585,752 decimal digits and exactly three admissible rows, including the edge. An exact modular search, rigorously rounded row intervals and a locally certified prime cover account for every column. [Proof and verification commands](Erdos849LindTenth.md)
 
+The eleventh Lind–Singmaster value has 1,004,713,714 decimal digits. Its only rows are 3,478,759,199, 3,478,759,200, and the edge. The count has two verifications of the deep columns, one using a published prime-gap table and one using 200,898 locally certified primes. [Proof and verifiers](Erdos849LindEleven.md)
+
 ## Fixed-column results
 
 The four columns 6, 10, 34, and 36 have an effectively computable finite set of shared values. A square product of factorials gives the same conclusion for infinitely many fixed four-column patterns. For the harder pair of columns 3 and 5, the associated genus-four Jacobian has rational rank at least ten and geometric Picard rank at most four. These bounds explain why the usual rank tests for classical and quadratic Chabauty do not classify that pair. [Fixed-column arguments](Erdos849FixedColumnMethods.txt) · [Curve argument](Erdos849ThreeFiveCurve.txt) · [Arithmetic verifier](Erdos849ThreeFiveCurve.py)
