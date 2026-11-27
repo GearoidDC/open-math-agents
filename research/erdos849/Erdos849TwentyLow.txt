@@ -1,0 +1,71 @@
+Twenty distinct primes when the largest of four proper columns is at most 17
+
+Suppose a>=X=10^128 occurs in column 1 and at least four distinct
+proper columns from 2,...,17. Then a has at least 20 distinct prime
+divisors. The same argument only needs the four proper columns.
+
+1. First reduction
+
+Suppose there are at most 19 prime bases. Use the host-assignment lemma
+and allocation test of Erdos849NineteenLow.txt with a prime-factor cap
+of nineteen. Take nonnegative occupancies of the k numerator
+terms summing to 19. Pad by units if fewer actual powers occur. Every
+cofactor divides M_k=lcm(1,...,k), and their product is k!.
+
+The interpolation archive supplies for each available pair
+7<=j<d<=17 bounds P<=Q_p (a/X)^(1/17), where one constant covers
+ordinary primes and one covers each exceptional small prime base.
+Take the componentwise minimum over all available pairs in the pattern.
+For the ordinary constant Q and a slot containing t factors, the
+cofactor is at least
+  max(1,(floor((k!X)^(1/k))-k+1)/Q^t)
+up to the losses of its exceptional bases, provided tk<=17. If tk>17
+use the trivial bound 1. Each small-prime loss can be applied in at most
+one slot. The checker enumerates every unordered allocation and compares
+with the individual cofactor bound M_k and the full product k!.
+
+The nine published fixed-column pairs and the (7,8) exclusion of
+Erdos849PairPowerSlots.txt are imposed first. For every surviving
+pattern at least one certified pair is available. The allocation test
+using only the original Erdos849InterpolatedPowers.json.gz archive leaves
+the following eight choices:
+  (3,5,8,17), (5,6,8,17),
+  (i,5,9,d) as unordered sets, with i in {3,4,6}, d in {16,17}.
+Each includes column 5 and one of (8,17),(9,16),(9,17).
+
+2. A bound strong enough for column five
+
+Put Y=a/X and T=120013011. For all 433 offset pairs of the three
+remaining column pairs we show
+  P<=T Y^(1/15) for each full prime power P=p^e||a.
+Use the original branch polynomial except for four polynomials of
+orders 6 or 7 stored in Erdos849TwentyLow.json. The checker verifies
+the exact Taylor conditions, the uniform nonvanishing, and the
+archimedean bound |F|<=H Y^(w/(jd)) as in
+Erdos849InterpolatedPowers.txt. In every case 15w<jdh and H<T^h.
+For p not dividing the local series denominator L, this directly
+implies the claim, since P^h divides the nonzero value F. Trivial
+small powers P<=d already satisfy the bound.
+
+For p dividing L, let f=v_p(L) and e0 be the least integer with
+p^e0>T. A possible exception has e>=e0. Compute
+N=ceil(h e0/(e0-f)) and the integral coefficients c_t of the local
+series F mod z^N, where z=a/L. The terms of order below h vanish.
+As in the earlier Taylor refinement,
+  delta=max(0,max_{h<=t<N,c_t!=0}(h e0-t(e0-f)-v_p(c_t)))
+gives p^(he) dividing p^delta F. The tail of degree at least N has
+valuation at least h e. Hence
+  P^h<=p^delta H Y^(w/(jd)).
+If contrary to the claim P>T Y^(1/15), substitute Y<(P/T)^15.
+Since jdh-15w>0 and P>=p^e0, this implies strictly
+  p^(e0*(jdh-15w)) T^(15w) < (p^delta H)^(jd).
+The checker verifies the opposite weak inequality on every branch.
+
+Finally 60 T^3<floor((5!X)^(1/5))-4. Any of the five numerator terms
+assigned at most three factors would be at most
+  lcm(1,...,5) T^3 Y^(3/15)=60 T^3 Y^(1/5),
+strictly below its lower bound. Each of the five terms therefore
+requires at least four factors, contradicting the nineteen-prime cap.
+
+Run python Erdos849TwentyLow.py to reproduce both reductions. No
+intermediate lattice-search files or probabilistic computations are used.

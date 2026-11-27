@@ -1,0 +1,48 @@
+Twenty-four distinct primes in a common value of columns seven and eight
+
+If a=C(n,8)=C(m,7)>=X=10^128 with n>=16 and m>=14, every one of
+n-7,...,n hosts at least three distinct full prime powers of a when
+each full power is assigned to its term of maximal valuation. In
+particular a has at least 24 distinct prime divisors.
+
+Put Y=a/X. For each pair of offsets 0<=s<8, 0<=r<7 the accompanying
+archive supplies an integral polynomial F in the shifted rows and a
+vanishing order h. The local divisibility and real nonvanishing checks
+are exactly those in Erdos849InterpolatedPowers.txt. Here 19W<=56h for
+every polynomial, so the ordinary prime powers at slot s are bounded
+by Q_s Y^(1/19). For p=2,3,5,7 the respective bounds are
+Q_{s,p} Y^(1/19). The constants are maximized over r. The verifier
+checks three candidate exponent thresholds for each prime to sharpen
+the Taylor denominator estimates and takes the smallest valid bound.
+All Q_s exceed 8, and their maximum is 3,967,273.
+
+Assign each full prime power to a term of maximal valuation. The
+cofactor b_s of n-s divides M=lcm(1,...,8)=840, by the elementary
+valuation argument in section 1 of Erdos849NineteenLow.txt.
+Call a power exceptional only if it exceeds its ordinary bound, so its
+base is one of 2,3,5,7 and the power exceeds 8. For such a base, write
+e=v_p(a) and V=v_p(n-s). Every other term n-v in the row has
+v_p(n-v)=v_p(s-v) because p^e>8 as an integer and v_p(n-s)>=e.
+Consequently
+
+  v_p(b_s)=V-e=v_p(8!)-v_p(s! (7-s)!)=v_p(8*C(7,s)).
+
+For each possible collection of at most two hosted powers the checker
+starts with M and replaces its p-part by the p-part of 8*C(7,s) for
+each exceptional base in the collection. This gives a cofactor bound B.
+Let q_i,q_j be the corresponding bounds Q_s or Q_{s,p}. Use ordinary
+unit factors to pad an empty or singleton slot to two factors. The
+checker verifies the strict inequality
+
+  B q_i q_j < floor((8!X)^(1/8))-s
+
+in every case, allowing two ordinary factors and requiring different
+exceptional bases. Two hosted factors would imply
+
+  n-s <= B q_i q_j Y^(2/19)
+       < (floor((8!X)^(1/8))-s) Y^(1/8)
+       <= n-s,
+
+since 2/19<1/8. Thus at least three powers are assigned to each slot.
+Run python Erdos849PairPowerSlots.py to recheck all 56 polynomials
+and the final inequalities with integer arithmetic.

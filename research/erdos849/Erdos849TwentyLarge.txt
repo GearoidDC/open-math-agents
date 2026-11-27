@@ -1,0 +1,62 @@
+Twenty distinct prime factors above an explicit height
+
+Every a>=10^310 occurring in at least five admissible rows has at
+least twenty distinct prime factors. The verifier uses the existing
+two-column polynomial archive and the published pair classifications.
+
+Assume instead that w<=19 prime bases occur. Write Z=10^310.
+For k=21, direct integer arithmetic verifies
+  (floor((k!Z)^(1/k))+k)^19 < Z.
+If a row had column d>=k, half-row monotonicity would give C(n,k)<=a.
+The standard bound n<=(k!a)^(1/k)+k-1 then gives n^19<a, since
+19/k<=1. But every full prime power of a is <=n. Hence d<21.
+Choose any four distinct proper columns from the five rows; at most
+one of 2,3,4,6 can occur. The verifier exhausts all such choices from
+{2,...,20} using the following two necessary conditions.
+
+1. Connected components of the prime assignment
+
+For a pair j<d, make a bipartite graph with j and d numerator terms
+on its respective vertex classes. Assign each full prime power to a
+maximal-valuation term of each row and join the two chosen vertices
+by an edge. Every vertex cofactor divides M_k=lcm(1,...,k) by the
+valuation lemma in Erdos849NineteenLow.txt, and the cofactors on the
+whole side multiply to k!. Using
+  L_k=floor((k!Z)^(1/k))-k+1, U_k=floor((k!Z)^(1/k))+k,
+every term lies between L_k*(a/Z)^(1/k) and U_k*(a/Z)^(1/k).
+If L_k>M_k for both columns, no vertex is isolated. Since the graph
+has at most 19 edges, it has at least j+d-19 components.
+
+Consider a component with h vertices on the d side and q on the j
+side. The ratio of the two numerator products equals the ratio of
+their respective cofactor products; write this as D/J. In particular
+D<=min(d!,M_d^h)=B_d and J<=min(j!,M_j^q)=B_j. For h/d>=q/j,
+L_d^h>B_d U_j^q rules it out. For q/j>=h/d apply the reverse
+comparison. In the equal-weight case, a proper component additionally
+requires an integer J dividing j!, J<=B_j, such that the interval
+  [J L_d^h/U_j^q, min(B_d,J U_d^h/L_j^q)]
+contains an integer D. Dynamic programming checks if any surviving
+component sizes can partition (d,j) into at least j+d-19 parts.
+An impossible partition rules out the pair.
+
+2. A simultaneous power constraint on any other occupied column
+
+For a certified pair 7<=j<d<=17 the local polynomial at each offset
+pair gives P<=C*(a/X)^alpha, X=10^128 and alpha=W/(jdh).
+Take C large enough for the ordinary bound and the six small prime
+base bounds from the higher Taylor coefficients. Finite small powers
+are included as in Erdos849SingletonInterpolation.txt.
+
+For any occupied column k put t=floor(19/k). Its smallest term is
+at least L*(a/X)^(1/k), where L=floor((k!X)^(1/k))-k+1. If every
+branch of the chosen pair obeys
+  g=1/k-t*alpha>=0,   M_k C^t < L*(Z/X)^g,
+no such term can have at most t powers: every individual power
+satisfies P^t < L*(a/X)^(1/k)/M_k regardless of its branch, and thus
+the product of any t powers satisfies the same bound. Padding by ones
+handles slots with fewer powers. This forces at least k(t+1)>19
+prime bases. The verifier checks the rational exponents by raising
+both sides to their positive integer common denominator.
+
+All four-column choices fail a published pair, the component test,
+or this simultaneous power constraint. Run python Erdos849TwentyLarge.py.

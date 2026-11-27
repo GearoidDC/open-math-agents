@@ -18,7 +18,8 @@ MODULES = (
     "Erdos849EffectiveMultiplicity", "Erdos849Threshold", "Erdos849FiveSeven",
     "Erdos849FourteenGraph", "Erdos849SixteenGraph", "Erdos849Interval105",
     "Erdos849LindDiagonal", "Erdos849Interval128", "Erdos849PrimeWindow",
-    "Erdos849EighteenGraph",
+    "Erdos849EighteenGraph", "Erdos849NineteenGraph", "Erdos849TwentyGraph",
+    "Erdos849FallingBounds",
 )
 
 THEOREMS = (
@@ -37,6 +38,11 @@ THEOREMS = (
     ("Erdos849PrimeWindow","slope_power"),
     ("Erdos849EighteenGraph","column_bound"),
     ("Erdos849EighteenGraph","eighteen_distinct_prime_factors"),
+    ("Erdos849NineteenGraph","column_bound"),
+    ("Erdos849NineteenGraph","nineteen_distinct_prime_factors"),
+    ("Erdos849TwentyGraph","column_bound"),
+    ("Erdos849TwentyGraph","twenty_distinct_prime_factors"),
+    ("Erdos849FallingBounds","row_interval"),
 )
 
 

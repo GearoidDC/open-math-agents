@@ -1,0 +1,68 @@
+Excluding eighteen prime factors when the largest column is at most seventeen
+
+Put X=10^128 and Y=a/X. If a>=X occurs in five admissible rows with
+largest chosen column at most 17, then a has at least 19 distinct prime
+divisors. The inputs are the published incompatibility of any two
+columns in {2,3,4,6} above X and the existing exact interpolation
+polynomials. Erdos849NineteenLow.py verifies the following finite steps.
+
+1. An individual bound on every cofactor
+
+Suppose C(n,k)=a. For each prime p dividing a, assign its full power
+p^e||a to a term of maximal p-valuation among n,n-1,...,n-k+1.
+Let V be that maximal valuation. Write m=floor(log_p k). In the
+factorial floor formula for e, at each level i the count of multiples
+of p^i amongst the k terms minus floor(k/p^i) is zero or one.
+For m<i<=V that difference is always one. Also e<=V, since at levels
+i>V the count vanishes. Thus V-e<=m. In particular the full power
+divides the chosen term. For p not dividing a, take e=0; the same
+count shows V<=m. Any other term has valuation at most m since two
+terms divisible by p^(m+1)>k cannot occur. Consequently the integers
+
+  b_s=(n-s)/product of the full powers assigned to slot s
+
+all divide M_k=lcm(1,...,k). Their product is k!, by (n)_k=k!a.
+
+2. Simultaneous use of a column pair
+
+Four different proper columns are necessary for five distinct rows.
+At most one can belong to the classified clique {2,3,4,6}. Hence the
+two largest satisfy 7<=j<d<=17. For that pair the exact verifier
+Erdos849SingletonInterpolation.branch_bounds gives
+
+  P <= Q Y^(1/17)          for ordinary prime bases,
+  P <= Q_p Y^(1/17)        for p=2,3,5,7,11,13.
+
+Here Q and Q_p are the maxima of the corresponding local bounds over
+both row offsets. If P>d, its multiple in the d consecutive terms is
+unique, so the maximal-valuation assignment of section 1 has the
+required offsets. Smaller powers satisfy these bounds directly. Put
+rho_p=max(1,Q_p/Q) and E=product rho_p, ordering the rho_p in
+nonincreasing order.
+
+Test any additional column k, including j and d themselves. Its terms
+are at least L Y^(1/k) for L=floor((k!X)^(1/k))-k+1. If a slot has t
+assigned powers, put
+
+  C_t=max(1,L/Q^t) for tk<=17, and C_t=1 otherwise.
+
+The slot's cofactor is at least C_t divided by the product of its
+exceptional-base loss factors. This follows by comparing the two
+estimates for the numerator term and using Y>=1. Thus a slot is
+impossible if C_t>M_k times the product of the t largest rho_p
+(use all available factors if t exceeds their number). Over the
+whole row, product C_t > k! E also gives a contradiction, since
+each exceptional prime base is assigned just once.
+
+Under a cap of eighteen primes, pad the allocation by units if necessary
+to make eighteen assigned factors. Each unit satisfies the ordinary
+bound without any exceptional-base cost and leaves the cofactor
+unchanged. The checker enumerates all unordered k-tuples of nonnegative
+occupancies summing to eighteen. Reject a column if every tuple fails
+one of the preceding comparisons. All comparisons use exact integers
+or rational numbers.
+
+Of the 55 possible pairs, all except (9,17) reject j or d in its own
+right. With (9,17) present, the only allowable smaller proper columns
+are 2,3,4,6. At most one of them can occur, giving no fourth proper
+column. Run python Erdos849NineteenLow.py to reproduce the computation.
