@@ -2,6 +2,8 @@
 
 Suppose a value $a$ occurs in at least five distinct rows of the left half of Pascal's triangle. Then at least **seven distinct primes greater than 100** divide $a$. This strengthens the earlier result of six. The two special four-column patterns have further restrictions described in the research index.
 
+Lean 4.33.1 verifies the deduction, including the existence of four proper columns and their exhaustive split into cases. The finite searches, published classifications and interpolation bounds are explicit hypotheses. The kernel reported only `propext`, `Classical.choice` and `Quot.sound`. [Lean theorem](Erdos849GlobalLargePrimes.lean)
+
 The finite search gives $a>10^{128}$. Choose four proper columns and write $d$ for their largest member. At most one of the four belongs to $\{2,3,4,6\}$ by the small-column classifications. Thus $d\ge8$ and at least two earlier columns belong to $\{5\}\cup\{7,\ldots,d-1\}$. If $d=8$, both of the possible patterns have already been shown to require seven large primes. If $d\ge11$, the smooth-neighbor theorem for a single column gives seven directly. It remains to check $d=9,10$. [Finite search](Erdos849Focused128.md) · [Column classifications, Theorem 2.2](https://arxiv.org/abs/1707.06893) · [Column-eight proof](Erdos849PellPatterns.md) · [Single-column theorem and extended verifier](Erdos849SmoothNeighbors.md)
 
 ## Bounded heights in columns 9 and 10
