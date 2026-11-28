@@ -21,6 +21,7 @@ def positions(k, i):
     return (k//2-1-i, k//2+i)
 
 
+@cache
 def missing_denominator(k, h, i, j):
     denominator = 1
     for prime in (2, 3, 5, 7):

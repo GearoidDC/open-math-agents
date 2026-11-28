@@ -73,6 +73,19 @@ def example(columns, M):
     return N, bound, norm, real
 
 
+def seventy_primes():
+    columns = (5, 7)
+    M, N = 24, 863
+    _, norm, real = height(prod(columns), weight_sum(columns), column_constants(columns), M, N)
+    assert (norm, real) == (1554751662, 44437792)
+    # The common bound for both four-column patterns is < 2^7 a^(1/36).
+    assert (7 * 35519)**36 < (2**7)**36 * 10**128
+    assert 36*M - N == 1
+    cutoff = max(norm, 36*(real + 7*N) + 1)
+    assert cutoff == 1599977989
+    return cutoff
+
+
 if __name__ == "__main__":
     if not __debug__:
         raise RuntimeError("Run with assertions enabled.")
@@ -80,3 +93,4 @@ if __name__ == "__main__":
         for M in (1, 4, 8):
             N, bound, norm, real = example(columns, M)
             print(f"{columns} M={M} N={N} H={bound} norm={norm} real={real}")
+    print("Two distinct primes in every (5,7) cell of either pattern above 2^H, H =", seventy_primes())

@@ -10,6 +10,8 @@ $$
 
 In particular, for two distinct columns $k,h$, the product in **every individual numerator-term intersection** is between $a^{1/(kh)-\epsilon}$ and $a^{1/(kh)+\epsilon}$ above an effective cutoff for each $\epsilon>0$. The argument applies to noncoprime column indices and to any number of fixed columns. All $P$ cells must eventually be occupied, and the exponent $1/P$ is their average because $\prod_s b_s=a$. The cutoff depends on the columns. This gives a necessary condition on collisions and leaves their full classification open.
 
+An earlier interpolation estimate gave effective bounds with any fixed exponent error for the gcd of the row terms at each tuple. The square-root error here also bounds the product under an arbitrary maximizing assignment. [Earlier tuple estimate](Erdos849PatternGeometry.txt)
+
 ## Interpolation at the zero fiber
 
 Set $g_i(X)=\prod_{j=0}^{k_i-1}(X-j)$ and work in
@@ -125,3 +127,24 @@ Run the command below to reproduce the table using integer and rational arithmet
 ~~~sh
 python -B Erdos849PrimePowerCells.py
 ~~~
+
+## Two distinct primes in each of the 35 intersections
+
+For either pattern $(3,5,7,8)$ or $(5,6,7,8)$, every $a\ge 2^{1,599,977,989}$ has at least two distinct primes assigned to **each** of the 35 individual term intersections of columns five and seven. In particular $a$ has at least 70 distinct prime divisors.
+
+Apply the displayed height formulas to columns five and seven with $M=24$, $N=863$. They give $H_0=1,554,751,662$ and $H_1=44,437,792$. For every full prime power $p^e\parallel a$, the four-column estimate for the two patterns gives
+
+$$
+p^e\le p^{v_p(420)}\,35519\,(a/10^{128})^{1/36}
+<2^7a^{1/36}.
+$$
+
+Here $p^{v_p(420)}\le7$, and the strict comparison is verified by raising to the 36th power. [Four-column prime-power bound](Erdos849PatternCapTen.md)
+
+If a cell received at most one prime, its product would be at most $2^7a^{1/36}$. Combining this with $b_s^N\ge2^{-H_1}a^M$ gives
+
+$$
+a^{36M-N}\le 2^{36(H_1+7N)} .
+$$
+
+The exponent $36M-N$ is one and $36(H_1+7N)=1,599,977,988$. This contradicts the stated lower bound for $a$. The argument holds independently for every cell and every choice at ties.
