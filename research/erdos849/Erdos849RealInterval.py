@@ -41,7 +41,7 @@ def lebesgue_bound(nodes):
     return bound
 
 
-def check(data):
+def integer_bounds(data):
     cols,A,d,node_den,nodes,degrees,polys,second = data
     assert cols==[8,7,5,3] and A>1 and d>=1 and second in (11,13,17,19)
     assert nodes==sorted(set(nodes)) and nodes[0]==0 and nodes[-1]==node_den
@@ -71,11 +71,19 @@ def check(data):
             sample_max[i] = max(sample_max[i],abs(sum(c*x for c,x in zip(cs,vals))))
     leb = lebesgue_bound(nodes)
     J = len(nodes)
+    caps = []
     for cs,maximum in zip(polys,sample_max):
         # Sample rounding, row rounding, and analytic interpolation remainder.
         top = leb*(maximum+2*sum(map(abs,cs)))*d**J
         top += S*8**J*sum(abs(c)*m for c,m in zip(cs,M))
-        assert top < S*d**J
+        caps.append(top//(S*d**J))
+    return caps,leb
+
+
+def check(data):
+    caps,leb = integer_bounds(data)
+    assert all(cap==0 for cap in caps)
+    cols,A,d,node_den,nodes,degrees,polys,second = data
     for tuples in fibers(cols,second,False).values():
         for point in tuples:
             vals = [prod(pow(x,e,second) for x,e in zip(point,es))%second for es in degrees]

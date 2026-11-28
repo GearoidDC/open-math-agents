@@ -296,6 +296,13 @@ def check_interval(dll, args):
         assert columns == (5, 6, 7, 8) and args.lower >= 146 and (args.upper <= 170)
         subprocess.run([sys.executable, '-B', str(ROOT / 'Erdos849RequiredPrime.py')], check=True)
         excluded[53] = set(range(1, 53))
+    if args.first_divisors:
+        assert columns == (3, 5, 7, 8) and 137 <= args.lower < args.upper <= 185
+        if not args.plan:
+            for verifier in ('Erdos849ThirteenFactor.py', 'Erdos849First107.py'):
+                subprocess.run([sys.executable, '-B', str(ROOT / verifier)], check=True)
+        for prime in (13, 107):
+            excluded[prime] = set(range(1, prime))
     opts = get_rules(columns, apply_113, excluded)
     choose = optimize_groups if args.optimize else pick
     groups = choose(opts, [args.left, args.right])
@@ -335,6 +342,8 @@ def main():
     parser.add_argument('--optimize', action='store_true')
     parser.add_argument('--mixed', nargs='*', metavar='P=V,V', help='Checked residue exclusions for the second pattern')
     parser.add_argument('--required-53', action='store_true')
+    parser.add_argument('--first-divisors', action='store_true',
+                        help='Replay the first-pattern certificates forcing 13 and 107 to divide the coefficient')
     args = parser.parse_args()
     cc = args.cc or shutil.which('clang') or shutil.which('cc')
     if not cc:
