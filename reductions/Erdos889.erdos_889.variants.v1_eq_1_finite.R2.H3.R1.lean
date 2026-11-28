@@ -890,6 +890,102 @@ theorem power_missing_exponent_linear {p r : ℕ} (hp : 3 ≤ p) (oddp : Odd p)
 
 
 
+private theorem prime_power_order_two {l k : ℕ} (pl : l.Prime) (hk : 0 < k) :
+    ∃ q : ℕ, q.Prime ∧ orderOf (2 : ZMod q) = l ^ k := by
+  have hn := Nat.one_lt_pow hk.ne' pl.one_lt
+  let F := ((cyclotomic (l^k) ℤ).eval 2).natAbs
+  have hf : 1 < F := sub_one_lt_natAbs_cyclotomic_eval (q:=2) hn (by decide)
+  obtain ⟨q,pq,dq⟩ := Nat.exists_prime_and_dvd (n:=F) (by omega)
+  let : Fact q.Prime := ⟨pq⟩
+  have eqn := (power_cyclotomic_order (p:=2) (n:=l^k) (by omega) pq dq).1
+  by_cases nd : q ∣ l^k
+  · obtain rfl := (Nat.prime_dvd_prime_iff_eq pq pl).mp (pq.dvd_of_dvd_pow nd)
+    rw [Nat.factorization_pow_self pq, Nat.div_self (pow_pos pq.pos _)] at eqn
+    have h := pow_orderOf_eq_one (2 : ZMod q)
+    simp only [Nat.cast_ofNat] at eqn
+    rw [eqn,pow_one] at h
+    have z : (1 : ZMod q)=0 := by linear_combination h
+    exact (one_ne_zero z).elim
+  · simp only [Nat.factorization_eq_zero_of_not_dvd nd,pow_zero,Nat.div_one,Nat.cast_ofNat] at eqn
+    exact ⟨q,pq,eqn⟩
+
+/-- Local divisibility of a Mersenne power predecessor forces a congruence on its index. -/
+theorem mersenne_index_multiple_of_fixed_modulus {m p b r : ℕ}
+    (hm : 0 < m) (hp : 0 < p) (hb : 0 < b) (pr : r.Prime)
+    (hr : 2^m < r) (base : p+1=2^b)
+    (allDiv : ∀ q : ℕ, q.Prime → q ∣ 2^m-1 → q ∣ p^r-1) : m ∣ b-1 := by
+  apply (Nat.dvd_iff_prime_pow_dvd_dvd _ _).mpr
+  intro l k pl d
+  rcases Nat.eq_zero_or_pos k with rfl | hk
+  · simp
+  obtain ⟨q,pq,oq⟩ := prime_power_order_two pl hk
+  let : Fact q.Prime := ⟨pq⟩
+  have jm : (2 : ZMod q)^m=1 := orderOf_dvd_iff_pow_eq_one.mp (oq ▸ d)
+  have htm : 1 < 2^m := Nat.one_lt_pow hm.ne' (by decide)
+  have dm : q ∣ 2^m-1 := by
+    apply (ZMod.natCast_eq_zero_iff _ _).mp
+    rw [Nat.cast_sub (by omega), Nat.cast_one, Nat.cast_pow, Nat.cast_ofNat, jm, sub_self]
+  have qr := Nat.le_of_dvd (by omega : 0 < 2^m-1) dm
+  have dp := (ZMod.natCast_eq_zero_iff _ _).mpr (allDiv q pq dm)
+  rw [Nat.cast_sub (Nat.one_le_pow _ _ hp), Nat.cast_pow, Nat.cast_one, sub_eq_zero] at dp
+  have notzero : (p : ZMod q) ≠ 0 := by
+    intro z
+    rw [z,zero_pow pr.ne_zero] at dp
+    exact zero_ne_one dp
+  have od := ZMod.orderOf_dvd_card_sub_one notzero
+  have ol := Nat.le_of_dvd (by have := pq.one_lt; omega : 0 < q-1) od
+  have rdiv := orderOf_dvd_of_pow_eq_one dp
+  have one : orderOf (p : ZMod q)=1 := by
+    rcases (Nat.dvd_prime pr).mp rdiv with eq | eq
+    · exact eq
+    · omega
+  have pp := pow_orderOf_eq_one (p : ZMod q)
+  rw [one,pow_one] at pp
+  have bq : (p : ZMod q)+1=2^b := by
+    simpa only [Nat.cast_add,Nat.cast_one,Nat.cast_pow,Nat.cast_ofNat] using
+      congrArg (fun n : ℕ => (n : ZMod q)) base
+  rw [pp,one_add_one_eq_two] at bq
+  have twon : (2 : ZMod q) ≠ 0 := by
+    intro q2
+    rw [q2,zero_pow hm.ne'] at jm
+    exact zero_ne_one jm
+  have prod : (2 : ZMod q)^(b-1)*2=1*2 := by
+    rw [← pow_succ, show b-1+1=b by omega, ← bq, one_mul]
+  exact oq ▸ orderOf_dvd_of_pow_eq_one (mul_right_cancel₀ twon prod)
+
+
+/-- Every fixed positive modulus eventually divides the Mersenne index minus one. -/
+theorem eventually_index_multiple_of_fixed_modulus (bad : ℕ → Prop)
+    (divisibility : ∀ L : ℕ, ∃ B : ℕ, ∀ n : ℕ, B < n → bad n →
+      ∀ q : ℕ, q ≤ L → q.Prime → q ∣ n)
+    (bounded : ∀ R : ℕ, ∃ B : ℕ, ∀ n p r : ℕ,
+      B < n → 1 < p → 3 ≤ r → r ≤ R → n+1=p^r → ¬bad n)
+    (m : ℕ) (hm : 0 < m) :
+    ∃ B : ℕ, ∀ n p r b : ℕ, B < n → bad n → p.Prime → r.Prime → 3 ≤ r →
+      p+1=2^b → n+1=p^r → m ∣ b-1 := by
+  obtain ⟨C,hC⟩ := divisibility (2^m)
+  obtain ⟨D,hD⟩ := bounded (2^m)
+  refine ⟨max C D,?_⟩
+  intro n p r b hn sol pp pr r3 base he
+  have hc := (Nat.le_max_left C D).trans_lt hn
+  have hd := (Nat.le_max_right C D).trans_lt hn
+  have hi : 2^m < r := by
+    by_contra! h
+    exact hD n p r hd pp.one_lt r3 h he sol
+  have bh : 0 < b := by
+    by_contra! neg
+    have bz : b=0 := by omega
+    rw [bz,pow_zero] at base
+    have := pp.two_le
+    omega
+  apply mersenne_index_multiple_of_fixed_modulus hm pp.pos bh pr hi base
+  intro q pq dq
+  have hp := Nat.one_lt_pow hm.ne' (by decide : 1 < 2)
+  have le := Nat.le_of_dvd (by omega : 0 < 2^m-1) dq
+  rw [show p^r-1=n by omega]
+  exact hC n hc sol q (by omega) pq
+
+
 end Erdos889.PrimitivePowers
 namespace Erdos889.Missing
 open Finset
@@ -5140,27 +5236,32 @@ theorem nineteenth_power_exclusion {n x : ℕ} (hx : 1 < x)
 
 
 
-/-- The remaining prime exponents congruent to 1 modulo three, beyond any chosen cutoff. -/
-def H1 : Prop := ∃ P R B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → 31 < p → P < p →
+/-- The remaining prime exponents congruent to 1 modulo three, with a chosen modulus for the Mersenne index. -/
+def H1 : Prop := ∃ P R B M : ℕ, 0 < M ∧ ∀ p r : ℕ, p.Prime → Odd p → 31 < p → P < p →
     r.Prime → 23 ≤ r → R < r → r%3=1 → 2*(r-1) ≤ 3*p →
-    (∃ b : ℕ, p+1=2^b ∧ (2^(b-1) ∣ r-1 → ∃ t : ℕ, r-1=2^t)) →
+    (∃ b : ℕ, p+1=2^b ∧ M ∣ b-1 ∧ (2^(b-1) ∣ r-1 → ∃ t : ℕ, r-1=2^t)) →
     B < p^r → ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q∣p^r+d ∧ s∣p^r+d
 
-/-- The remaining prime exponents congruent to 2 modulo three, beyond any chosen cutoff. -/
-def H2 : Prop := ∃ P R B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → 31 < p → P < p →
+/-- The remaining prime exponents congruent to 2 modulo three, with a chosen modulus for the Mersenne index. -/
+def H2 : Prop := ∃ P R B M : ℕ, 0 < M ∧ ∀ p r : ℕ, p.Prime → Odd p → 31 < p → P < p →
     r.Prime → 23 ≤ r → R < r → r%3=2 → 2*(r-2) ≤ 3*p^2 →
-    (∃ b : ℕ, p+1=2^b ∧ (2^(b-1) ∣ r-1 → ∃ t : ℕ, r-1=2^t)) →
+    (∃ b : ℕ, p+1=2^b ∧ M ∣ b-1 ∧ (2^(b-1) ∣ r-1 → ∃ t : ℕ, r-1=2^t)) →
     B < p^r → ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q∣p^r+d ∧ s∣p^r+d
 
 theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2.H3 := by
-  rintro ⟨P,R,A,left⟩ ⟨Q,S,B,right⟩
+  rintro ⟨P,R,A,M,hM,left⟩ ⟨Q,S,B,N,hN,right⟩
   let X := max (max P Q) 31
   let Y := max (max R S) 23
   obtain ⟨C,hC⟩ := Erdos889.UniformPowers.finite_prime_threshold X
   obtain ⟨D,hD⟩ := Erdos889.UniformPowers.bounded_power_exclusion Y
-  refine ⟨max (max A B) (max C D)+1,?_⟩
+  obtain ⟨E,hE⟩ := Erdos889.PrimitivePowers.eventually_index_multiple_of_fixed_modulus
+    (fun n => Erdos889.v_l 1 n = 1) Erdos889.UniformPowers.finite_prime_threshold
+    Erdos889.UniformPowers.bounded_power_exclusion (M*N) (Nat.mul_pos hM hN)
+  refine ⟨max (max (max A B) (max C D)) E+1,?_⟩
   rintro p r pp op hp pr low ⟨b,base,align,_⟩ _ large
   by_contra missing
+  have hOld := Nat.le_max_left (max (max A B) (max C D)) E
+  have hNew := Nat.le_max_right (max (max A B) (max C D)) E
   have hAB := Nat.le_max_left (max A B) (max C D)
   have hCD := Nat.le_max_right (max A B) (max C D)
   have hA := Nat.le_max_left A B
@@ -5169,6 +5270,9 @@ theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
   have h2 := Nat.le_max_right C D
   have eq : p^r-1+1=p^r := by omega
   have sol := Erdos889.Missing.predecessor_solution_of_missing (by omega : 1 < p^r) missing
+  have joint := hE (p^r-1) p r b (by omega) sol pp pr (by omega) base eq
+  have leftIndex : M ∣ b-1 := (dvd_mul_right M N).trans joint
+  have rightIndex : N ∣ b-1 := (dvd_mul_left N M).trans joint
   have bigp : X < p := by
     by_contra! small
     have dp := hC (p^r-1) (by omega) sol p small pp
@@ -5192,13 +5296,13 @@ theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
   by_cases hm : r%3=1
   · exact missing (left p r pp op (by omega) (by omega) pr (by omega) (by omega) hm
       (Erdos889.PrimitivePowers.power_missing_exponent_linear (by omega) op hm missing)
-      ⟨b,base,align⟩ (by omega))
+      ⟨b,base,leftIndex,align⟩ (by omega))
   · have nz : r%3≠0 := by
       intro z
       have h := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pr).mp (Nat.dvd_of_mod_eq_zero z)
       omega
     exact missing (right p r pp op (by omega) (by omega) pr (by omega) (by omega) (by omega)
       (Erdos889.PrimitivePowers.power_missing_exponent_bound (by omega) op pr (by omega) missing)
-      ⟨b,base,align⟩ (by omega))
+      ⟨b,base,rightIndex,align⟩ (by omega))
 
 end OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2_H3_R1
