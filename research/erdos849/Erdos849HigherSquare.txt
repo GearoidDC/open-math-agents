@@ -1,0 +1,212 @@
+Explicit square-class bounds for three and four simultaneous Pascal columns
+
+Let K be one of the tuples in the table, d=max K, and suppose all the
+proper columns k in K represent the same integer a=binom(n_k,k), n_k>=2k.
+Choose an even number 2u_k of offsets in each row, possibly zero. At
+a>=10^H, the product of the selected integers n_k-s can be a square only
+if every selection is empty. The two rightmost columns consequently give
+the number of different primes of odd exponent in a that exceed 7 or
+13. The statements in the >7 column for d>8 also hold: the primes up
+to d are still exactly 2,3,5,7 in all the cases listed.
+
+         K           H          >7     >13
+   (3,5,7,8)      1399280        15      13
+   (5,6,7,8)      3209464        18      16
+   (5,7,8)         346896        13      11
+   (7,9)            49374        10       8
+   (8,9)            61479        11       9
+   (7,10)           63540        11       9
+   (8,10)           74870        12      10
+   (9,10)           92330        13      11
+
+Thus 10^100000 suffices for all five displayed deep pairs. These are
+height-conditional results. Limits for odd-exponent primes at smaller
+heights require additional arguments such as those in
+Erdos849SquareClassRows.md. The short Python verifier evaluates exact
+integer inequalities; it need not enumerate coefficients to the stated
+height or find an individual large auxiliary polynomial.
+
+1. The cover and its arithmetic basis
+
+Write y=n_d and x_k=n_k for k<d. Over Q(y) let x_k satisfy
+
+          (x_k)_k = (k!/d!)(y)_d,
+
+where (x)_k=x(x-1)...(x-k+1). The geometric irreducibility and degree
+product for distinct binomial columns are established by the monodromy
+proof in Erdos849ReciprocalRunge.txt; in particular the field degree
+over Q(y) is product_{k<d} k. The fiber at value zero consists of all
+tuples of offsets; every such point is smooth and the value is a local
+parameter since each row polynomial has distinct roots.
+
+Write S_k for the offset sets, F=product_{k,s in S_k}(n_k-s). If some
+S_k is proper nonempty, varying just that coordinate on the zero fiber
+gives a point at which F has odd valuation. If only full columns are
+selected, each is even. A single full column also gives odd valuation.
+The only remaining nonempty choices among the listed tuples use both
+full columns 6 and 8, or both full columns 8 and 10. The corresponding
+product is respectively 56(6!a)^2 or 90(8!a)^2, hence cannot be a
+square at a positive integral point. In every case left to consider,
+adjoining Z with Z^2=F yields degree two even geometrically. The ring
+defined by these monic equations over Q[y] is free with basis
+product_{k<d} x_k^i_k Z^b, 0<=i_k<k, b=0,1, of size D'=2 product_{k<d} k.
+Tensoring with Q(y) gives a field. When F is a square at an integral
+point, take its positive integer square root Z at that point.
+
+2. Analytic expansion and rational coefficient groups
+
+Put E=lcm(K), w=a^(1/E), z=1/w, W_k=E/k, q=W_d, and alpha_k=(k!)^(1/k)
+as a positive real radical. Locally the positive branch is
+
+   n_k=alpha_k z^(-W_k) U_k(T_k),       T_k=z^(W_k)/alpha_k,
+   product_{s=0}^{k-1}(U_k(T)-sT)=1,    U_k(0)=1.
+
+For |T|<=1/1000 there is one such simple analytic root in |U-1|<1/20.
+On the boundary with delta=1/20, |U^k-1|>=2k delta-((1+delta)^k-1),
+by separating the linear term. Perturbing by all sT changes U^k by
+at most (1+delta+(k-1)/1000)^k-(1+delta)^k. The verifier checks the
+strict Rouche inequality for each k. Every factor U-sT stays nonzero
+and has magnitude <2. For a sufficiently large positive w the actual
+row is on this branch by 1<=n_k/(alpha_k w^W_k)<=1+(k-1)/(alpha_k w^W_k).
+
+Fix L=mE as in section 5. Consider the independent monomials
+product n_k^i_k Z^b with 0<=i_k<k for k<d, i_d>=0, b=0,1, and
+weight W=sum_k W_k beta_k<=L, where beta_k=i_k+b u_k. Their number N
+lies between the values N_min and N_max obtained by making all u_k
+as large as allowed, or all zero. Set
+
+    G_k(T)=U_k(T)^i_k [product_{s in S_k}(U_k(T)-sT)]^(b/2).
+
+Use the analytic square root with value one at zero. Write G_k=sum c_l T^l.
+Cauchy's estimate gives |c_l|<=2^beta_k 1000^l. Also (4k^2)^l c_l is
+an integer. To check integrality, replace T by 4k^2 T and put U=1+4kV.
+After dividing the defining equation minus one by 4k^2, the polynomial
+has integral coefficients, constant term zero at T=V=0, and V-derivative
+one there. Its solution V(T) has integral coefficients by recursion.
+Thus each shifted factor belongs to 1+4T Z[[T]]. Its product has an
+integral square root: for 1+4H solve W+W^2=H with W(0)=0 and use 1+2W.
+
+After multiplication by z^L, a basis monomial on the chosen branch is
+
+               z^(L-W) product_k alpha_k^beta_k G_k(T_k).
+
+In its coefficient of z^h the contributing l_k>=0 satisfy
+sum W_k l_k=h-L+W<=h. Write beta_k-l_k=k t_k+r_k with 0<=r_k<k.
+Every such contribution is a rational number
+
+             product_k c_(l_k) (k!)^t_k
+
+times the single radical product alpha_k^r_k. For fixed h one has
+sum W_k r_k=L-h modulo E. The map from product of the groups Z/k to
+Z/E given by these weights is surjective since their gcd is one. For
+each h there are therefore exactly g=product(k)/E possible residue
+tuples. If the sum of the rational contributions vanishes separately
+in each of these g groups, the entire coefficient vanishes. This is
+sufficient whether or not the radical factors are linearly independent.
+For (5,6,7,8) the kernel has size two; the two rational groups retain
+both conjugate branches over infinity, and avoid treating either as
+a rational branch. The same calculation covers (8,10).
+
+3. Height of the linear equations
+
+Impose the preceding g rational conditions for each 0<=h<=L, using
+R=g(L+1) equations altogether. They have integer coefficients after
+clearing the denominators below, common to all monomials in each row.
+For p<=d set
+
+   c_p=sum_k v_p(k!),  b_p=max_k (k v_p(4k^2)+v_p(k!)),
+   D_h=product_{p prime <=d} p^(c_p+floor(h b_p/E)).
+
+Indeed t_k>=-ceil(l_k/k). The denominator valuation of a rational
+contribution is at most the sum of l_k v_p(4k^2)+ceil(l_k/k)v_p(k!).
+This is bounded by c_p+floor(h b_p/E) since sum l_k/k<=h/E. All other
+primes have valuation zero in the denominators.
+
+Put V=2^floor(L/q)(d!)^m. For the archimedean estimate, any individual
+rational contribution has magnitude <=V 1000^floor(h/q). This follows
+from sum beta_k<=L/q and sum max(t_k,0)<=sum beta_k/k<=m. There are
+at most (1+floor(L/q))^r possible tuples (l_k), where r=|K|. Each
+integer matrix entry for h is thus at most
+
+       H_h = D_h (1+floor(L/q))^r V 1000^floor(h/q)
+
+in absolute value. Write digits(n) for the number of decimal digits of
+a positive integer. With N_min>R set
+
+   C = 1+floor(g sum_{h=0}^L digits(2 N_max H_h+1)/(N_min-R)).
+
+There is a nonzero integer coefficient vector supported on the selected
+monomials with all absolute values <=10^C, annihilating the R equations.
+Indeed map the coefficient box {0,...,10^C}^N into Z^R. The number of
+images is at most (10^C)^R product_h(2 N_max H_h+1)^g, strictly less
+than (10^C+1)^N by the choice of C. Subtract two preimages to obtain
+an auxiliary polynomial B. Monomial independence ensures B is nonzero
+in the function field.
+
+On |z|<=rho=1000^(-1/q) each |T_k|<=1/1000 and each normalized basis
+monomial z^L product n_k^i Z^b has magnitude at most V. All terms of
+the linear combination through z^L vanish. By Cauchy, when w>=2/rho,
+
+          |B| <= 2 N_max 10^C V rho^(-(L+1))/w.
+
+This bound concerns evaluation on the actual positive branch. The
+integer evaluation must vanish whenever w>=10^A with
+
+         A=C+digits(2 N_max V 1000^ceil((L+1)/q))+1.
+
+These thresholds ensure the actual row lies within the above root
+disk at every column, since (k-1)/(alpha_k w^W_k)<1/20 there.
+
+4. Bounding the zeros by a nonzero arithmetic norm
+
+Multiply B by each free-basis element over Q[y] to form its multiplication
+matrix. A factor Z^2 is replaced by F, whose polynomial coefficient l1
+norm is at most product_k k!. In each k<d the raw x_k-degree is at most
+3k-2. Substituting the monic degree-k equation at most J_k=2k-1 times
+along each reduction branch suffices. The substituted right hand side
+has coefficient l1 norm <2k!: the lower powers from (x)_k contribute
+k!-1 and (k!/d!)(y)_d contributes k!. Each reduction costs a denominator
+dividing d!/k!. For polynomial l1 bounds this reduction can be done in
+J_k rounds, decreasing the maximal offending degree each round; terms
+that are already reduced incur no cost. Clearing the common denominator
+product_{k<d}(d!/k!)^J_k in each matrix entry leaves a matrix over Z[y]
+with all entry l1 norms <=10^C T, where
+
+   T = N_max (product_k k!) (2 d!)^(sum_{k<d} J_k).
+
+Its determinant P(y) is a nonzero integer polynomial, since multiplication
+by the nonzero B in the function field is invertible. If B vanishes at
+an integral point then P(y) vanishes there: the specialized algebra
+has a residue homomorphism evaluating at that point and multiplication
+by B cannot be surjective. The determinant expansion bounds the l1
+norm by D'! (10^C T)^D'. Therefore a positive integral zero satisfies
+y<=1+||P||_1. In particular, at such a zero a=binom(y,d)<10^U, where
+
+    U=d (digits(D'!)+D'(C+digits(T))+1).
+
+Together the two implications give the stated square exclusion for
+a>=10^H, H=max(E A,U).
+
+5. Finite checks and the prime count
+
+The numerical rows below give L,g,N_min,N_max,C,E A,U. Run
+python Erdos849HigherSquare.py to reproduce them with exact integers.
+
+  (3,5,7,8)      6720  1  10198 11594  683  789600 1399280
+  (5,6,7,8)      7560  2  23196 26268  773  891240 3209464
+  (5,7,8)        1680  1   2560  2932  496  193200  346896
+  (7,9)           189  1    277   332  303   26208   49374
+  (8,9)           288  1    454   522  325   34128   61479
+  (7,10)          280  1    443   508  350   36120   63540
+  (8,10)          160  2    500   580  350   20640   74870
+  (9,10)          360  1    565   650  380   49140   92330
+
+The choices with even parity in each row form a vector space of
+dimension sum(k-1) over F_2. Mapping a choice to its product in the
+rational square-class group is linear. The square exclusion says that
+its kernel is zero. Every prime >d dividing a numerator appears once
+as a base in each row, in a unique term, with exponent v_p(a), since
+two offsets differ by less than p and the factorial denominator is a
+unit. Thus the image lies in the span of the small primes and those
+larger primes dividing a to odd exponent. Subtracting the four primes
+through d (or the six primes through 13) gives the displayed counts.
