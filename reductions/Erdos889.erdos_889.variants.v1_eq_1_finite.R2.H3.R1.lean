@@ -1050,34 +1050,34 @@ private theorem seventeen_smooth_residue {p b T k m : ℕ} (base : p+1=2^b) (idx
     simp
   exact (Nat.ModEq.add_right_cancel' 1 (c.trans h.symm)).trans (Nat.mod_modEq _ _).symm
 
-private theorem seventeen_smooth_primes : ∀ s ∈ [3,5,7,11,17,19,29,37,71,73,103,137,239,307,337,409,433,613,919,953,1321,2521,10711,14449,34511], Nat.Prime s := by
+private theorem mersenne_character_primes : ∀ s ∈ [3,5,7,11,13,17,19,23,29,31,37,41,43,53,67,71,73,79,89,103,127,131,137,151,157,191,211,229,239,281,307,313,337,397,409,433,457,571,613,631,761,911,919,937,953,991,1009,1217,1249,1321,1483,1597,1873,2129,2281,2521,3121,3191,3361,3433,4733,6271,6841,9241,10711,11287,13681,14449,18481,21169,30097,34511] , Nat.Prime s := by
   intro s hs
   simp only [List.mem_cons, List.not_mem_nil, or_false] at hs
-  rcases hs with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> norm_num1
+  rcases hs with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> norm_num1
 
-private theorem seventeen_smooth_row {p b T k : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%T=k)
+private theorem mersenne_character_row {r p b T k : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%T=k)
     (d q : ℕ) (S ms : List ℕ) (pm : ℕ → ℕ → ℕ → ℕ)
     (hpm : ∀ a e m, pm a e m=a^e%m)
     {pool : List ℕ} (facts : ∀ s ∈ pool, s.Prime)
     (ok :
-      let V (m : ℕ) := ((pm 2 k m+m-1)%m)^17+d
+      let V (m : ℕ) := ((pm 2 k m+m-1)%m)^r+d
       let C (m n : ℕ) : ℤ := if n%m=0 then 0 else if pm (n%m) (m/2) m=1 then 1 else -1
       q∈pool ∧ d+1 < q ∧ q∈S ∧ pm 2 T q=1 ∧ V q%q=0 ∧
       (∀ s ∈ List.range (d+2), s.Prime → s∈S ∨ (pm 2 T s=1 ∧ V s%s≠0)) ∧
       (∀ m ∈ ms, m∈pool ∧ 2 < m ∧ m≠4 ∧ m≠8 ∧ pm 2 T m=1) ∧
       (∀ s ∈ S, (ms.map (fun m => C m s)).prod=1) ∧
       (ms.map (fun m => C m (V m))).prod= -1) :
-    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d := by
-  let V (m : ℕ) := ((pm 2 k m+m-1)%m)^17+d
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^r+d ∧ s ∣ p^r+d := by
+  let V (m : ℕ) := ((pm 2 k m+m-1)%m)^r+d
   let C (m n : ℕ) : ℤ := if n%m=0 then 0 else if pm (n%m) (m/2) m=1 then 1 else -1
   obtain ⟨qm,large,qmem,qper,qzero,small,mods,good,bad⟩ := ok
   have pq := facts q qm
-  have red {m : ℕ} (hm : 1 < m) (per : pm 2 T m=1) : Nat.ModEq m (p^17+d) (V m) := by
+  have red {m : ℕ} (hm : 1 < m) (per : pm 2 T m=1) : Nat.ModEq m (p^r+d) (V m) := by
     dsimp only [V]; rw [hpm]
-    exact ((seventeen_smooth_residue base idx hm ((hpm ..) ▸ per)).pow 17).add_right d
-  have dq : q ∣ p^17+d := Nat.modEq_zero_iff_dvd.mp ((red pq.one_lt qper).trans qzero)
+    exact ((seventeen_smooth_residue base idx hm ((hpm ..) ▸ per)).pow r).add_right d
+  have dq : q ∣ p^r+d := Nat.modEq_zero_iff_dvd.mp ((red pq.one_lt qper).trans qzero)
   by_contra missing
-  have support (s : ℕ) (ps : s.Prime) (ds : s ∣ p^17+d) : s∈S := by
+  have support (s : ℕ) (ps : s.Prime) (ds : s ∣ p^r+d) : s∈S := by
     by_cases h : s=q
     · exact h ▸ qmem
     by_cases high : d+1 < s
@@ -1101,14 +1101,14 @@ private theorem seventeen_smooth_row {p b T k : ℕ} (hp : 0 < p) (base : p+1=2^
         rw [h m (by simp),ih (fun j hj => h j (by simp [hj]))]
         ring
     exact gen ms gm
-  have neg : chi (p^17+d)= -1 := by
-    apply Eq.trans (congrArg List.prod (List.map_congr_left (l:=ms) (f:=fun m => C m (p^17+d)) (g:=fun m => C m (V m)) ?_)) bad
+  have neg : chi (p^r+d)= -1 := by
+    apply Eq.trans (congrArg List.prod (List.map_congr_left (l:=ms) (f:=fun m => C m (p^r+d)) (g:=fun m => C m (V m)) ?_)) bad
     intro m hm
     obtain ⟨_,lt,_,_,per⟩ := mods m hm
-    have eq : (p^17+d)%m=V m%m := red (by omega) per
+    have eq : (p^r+d)%m=V m%m := red (by omega) per
     simp only [C,eq]
   have one : chi 1=1 := by
-    have h := mul 1 (p^17+d)
+    have h := mul 1 (p^r+d)
     rw [one_mul,neg] at h
     omega
   have gen (l : List ℕ) (h : ∀ s ∈ l,s ∈ S) : chi l.prod=1 := by
@@ -1117,7 +1117,7 @@ private theorem seventeen_smooth_row {p b T k : ℕ} (hp : 0 < p) (base : p+1=2^
     | cons s tail ih =>
       rw [List.prod_cons,mul,show chi s=1 from good s (h s (by simp)),one_mul]
       exact ih (fun j hj => h j (by simp [hj]))
-  have pos := gen (p^17+d).primeFactorsList (fun s h => support s (Nat.prime_of_mem_primeFactorsList h) (Nat.dvd_of_mem_primeFactorsList h))
+  have pos := gen (p^r+d).primeFactorsList (fun s h => support s (Nat.prime_of_mem_primeFactorsList h) (Nat.dvd_of_mem_primeFactorsList h))
   rw [Nat.prod_primeFactorsList (by positivity),neg] at pos
   contradiction
 
@@ -1125,127 +1125,127 @@ private theorem seventeen_smooth_row {p b T k : ℕ} (hp : 0 < p) (base : p+1=2^
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_361 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=361) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 14 29 [2,3,5,29] [71] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 14 29 [2,3,5,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_673 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=673) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_841 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=841) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 8 37 [2,3,37] [433] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 8 37 [2,3,37] [433] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_1201 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1201) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 8 37 [2,3,37] [337] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 8 37 [2,3,37] [337] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_1321 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1321) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_1513 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1513) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 5 11 [2,3,11] [1321] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 5 11 [2,3,11] [1321] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_1681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_1793 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1793) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 2 7 [2,3,7] [2521] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 2 7 [2,3,7] [2521] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_1873 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1873) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 5 11 [2,3,11] [1321] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 5 11 [2,3,11] [1321] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_2520_2161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 8 29 [2,3,29] [14449] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 8 29 [2,3,29] [14449] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_2521 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=2521) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 1 34511 [2,34511] [953] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 1 34511 [2,34511] [953] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_5041 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=5041) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 10 239 [2,11,239] [10711] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 10 239 [2,11,239] [10711] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_7561 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=7561) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 21 613 [2,11,613] [137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 21 613 [2,11,613] [137] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_12601 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=12601) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 10 137 [2,11,137] [3,5,103] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 10 137 [2,11,137] [3,5,103] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_15121 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=15121) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 33 307 [2,17,23,307] [409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 33 307 [2,17,23,307] [409] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_17641 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=17641) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 47 103 [2,3,23,47,103] [34511] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 47 103 [2,3,23,47,103] [34511] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_20161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=20161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 1 103 [2,103] [137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 1 103 [2,103] [137] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_22681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=22681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 7 409 [2,409] [103] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 7 409 [2,409] [103] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_25201 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=25201) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 1 103 [2,103] [409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 1 103 [2,103] [409] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_27721 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=27721) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 1 613 [2,613] [103] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 1 613 [2,613] [103] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_30241 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=30241) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 38 239 [2,3,13,23,239] [7,11,17,19,137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 38 239 [2,3,13,23,239] [7,11,17,19,137] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_32761 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=32761) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 53 307 [2,3,23,47,53,307] [7,11,17,19,137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 53 307 [2,3,23,47,53,307] [7,11,17,19,137] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_35281 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=35281) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 17 307 [2,3,307] [409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 17 307 [2,3,307] [409] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_37801 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=37801) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 46 103 [2,23,47,103] [919] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 46 103 [2,23,47,103] [919] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 set_option maxRecDepth 2048 in
 set_option maxHeartbeats 4000000 in
 private theorem case17_42840_40321 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=40321) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
-  seventeen_smooth_row hp base idx 57 103 [2,23,29,47,53,103] [3,5,7,409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+  mersenne_character_row (r:=17) hp base idx 57 103 [2,23,29,47,53,103] [3,5,7,409] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
 
 private theorem seventeen_compact_coset {G : Type*} [Monoid G] {v : G} {M b o : ℕ}
     (idx : b%M=1) (per : v^o=1) :
@@ -2261,6 +2261,2883 @@ theorem seventeenth_power_exclusion {n x : ℕ} (hx : 1 < x)
   obtain ⟨d,q,s,pq,ps,ne,hq,hs,dq,ds⟩ := mersenne_seventeenth_witness pp base
   have rearr : n+(d+1)=p^17+d := by omega
   exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (rearr ▸ dq) (rearr ▸ ds) sol
+
+
+private theorem nineteen_offset_mod {p b m u q d : ℕ} (base : p+1=2^b)
+    (rem : b%m=u) (period : 2^m%q=1) (large : 1 < q)
+    (hit : (((2^u-1)%q)^19+d)%q=0) : q ∣ p^19+d := by
+  have period' : Nat.ModEq q (2^m) 1 := by change 2^m%q=1%q; rwa [Nat.mod_eq_of_lt large]
+  have cyc := seventeen_smooth_cycle period' b
+  rw [rem,←base] at cyc
+  have right : 2^u-1+1=2^u := by have := @Nat.one_le_two_pow u; omega
+  have lhs : Nat.ModEq q p (2^u-1) := Nat.ModEq.add_right_cancel' 1 (right ▸ cyc)
+  have canonical := lhs.trans (Nat.mod_modEq _ q).symm
+  have finish := (canonical.pow 19).add_right d
+  exact Nat.modEq_zero_iff_dvd.mp (finish.trans hit)
+
+private theorem nineteen_small_offset_prime {v : ℕ} (h : v ∈ [7,11,13,17,19,29,31,37,41,43,61,71,73,109,113,127,181,241,281,421,433,1429,38737]) : v.Prime := by
+  simp only [List.mem_cons,List.not_mem_nil,or_false] at h
+  rcases h with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> norm_num1
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+/-- Finite congruence witnesses for the nineteenth power of a Mersenne prime. -/
+theorem nineteen_coarse_from_eight {p b : ℕ} (pb : b.Prime) (_pp : p.Prime)
+    (base : p+1=2^b) (hb : 8 < b)
+    (missing : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧
+      q ∣ p^19+d ∧ s ∣ p^19+d) :
+    b%2520 ∈ ([1,37,121,181,221,241,311,361,401,421,491,541,661,697,781,841,961,1021,1031,1081,1117,1121,1201,1247,1261,1297,1381,1441,1481,1501,1571,1621,1661,1681,1751,1801,1921,2041,2101,2221,2281,2327,2341,2377,2381,2461] : List ℕ) := by
+  let rows : List (ℕ × ℕ × ℕ × ℕ × ℕ) := [(10,3,3,11,0),(10,9,2,11,31),(12,7,3,13,0),(9,2,3,73,0),(28,5,3,29,0),(21,20,4,7,127),(72,35,10,19,241),(180,97,19,31,37),(72,53,10,17,19),(72,17,37,73,433),(180,77,34,41,73),(120,107,10,41,241),(180,107,10,19,41),(360,71,15,17,181),(360,157,59,61,38737),(70,27,39,43,71),(420,337,59,61,71),(84,17,5,13,29),(252,97,54,73,113),(504,95,17,29,433),(1260,577,36,43,181),(1260,131,76,109,281),(140,47,9,11,29),(504,347,95,433,1429),(840,611,14,17,421),(1260,157,14,37,71),(1260,527,24,29,181),(1260,877,12,43,181)]
+  let rems : List ℕ := [1,37,121,181,221,241,311,361,401,421,491,541,661,697,781,841,961,1021,1031,1081,1117,1121,1201,1247,1261,1297,1381,1441,1481,1501,1571,1621,1661,1681,1751,1801,1921,2041,2101,2221,2281,2327,2341,2377,2381,2461]
+  change b%2520 ∈ rems
+  have tests : (List.range 40).all (fun row => (List.range 63).all (fun col =>
+      let i := 63*row+col
+      decide (i%2=0 ∨ i%3=0 ∨ i%5=0 ∨ i%7=0 ∨ i ∈ rems) ||
+      rows.any (fun z => i%z.1 == z.2.1))) = true := by decide +kernel
+  have test (i : Fin 2520) (h2 : i.val%2≠0) (h3 : i.val%3≠0) (h5 : i.val%5≠0)
+      (h7 : i.val%7≠0) (hm : i.val ∉ rems) : ∃ z ∈ rows, i.val%z.1=z.2.1 := by
+    have testRow := List.all_eq_true.mp tests (i.val/63) (List.mem_range.mpr (by have := i.isLt; omega))
+    have obs := List.all_eq_true.mp testRow (i.val%63) (List.mem_range.mpr (Nat.mod_lt _ (by decide)))
+    dsimp only at obs
+    rw [show 63*(i.val/63)+i.val%63=i.val by omega] at obs
+    simp only [Bool.or_eq_true,decide_eq_true_eq,List.any_eq_true,beq_iff_eq] at obs
+    exact obs.resolve_left (fun t => t.elim h2 (fun t => t.elim h3 (fun t => t.elim h5 (fun t => t.elim h7 hm))))
+  have data : ∀ z ∈ rows,
+      z.1 ∣ 2520 ∧ z.2.2.2.1 ∈ [7,11,13,17,19,29,31,37,41,43,61,71,73,109,113,127,181,241,281,421,433,1429,38737] ∧ z.2.2.1+1 < z.2.2.2.1 ∧ 2^z.1%z.2.2.2.1=1 ∧ (((2^z.2.1-1)%z.2.2.2.1)^19+z.2.2.1)%z.2.2.2.1=0 ∧
+      ((z.2.2.2.2=0 ∧ z.2.2.1=3 ∧ z.2.2.2.1 ≤ 73) ∨ (z.2.2.2.2 ∈ [7,11,13,17,19,29,31,37,41,43,61,71,73,109,113,127,181,241,281,421,433,1429,38737] ∧ z.2.2.1+1 < z.2.2.2.2 ∧ z.2.2.2.1≠z.2.2.2.2 ∧ 2^z.1%z.2.2.2.2=1 ∧ (((2^z.2.1-1)%z.2.2.2.2)^19+z.2.2.1)%z.2.2.2.2=0)) := by
+    decide +kernel
+  by_contra bad
+  have ndiv (z : ℕ) (pz : z.Prime) (hz : z≤7) : b%z≠0 := by
+    intro h
+    have eq := (Nat.prime_dvd_prime_iff_eq pz pb).mp (Nat.dvd_of_mod_eq_zero h)
+    omega
+  have n2 := ndiv 2 (by decide) (by decide)
+  have n3 := ndiv 3 (by decide) (by decide)
+  have n5 := ndiv 5 (by decide) (by decide)
+  have n7 := ndiv 7 (by decide) (by decide)
+  obtain ⟨⟨t,u,d,q,s⟩,mem,rule⟩ := test ⟨b%2520,Nat.mod_lt _ (by decide)⟩
+    (by dsimp; omega) (by dsimp; omega) (by dsimp; omega) (by dsimp; omega) bad
+  obtain ⟨dt,qmem,qb,qo,qHit,rest⟩ := data _ mem
+  have pq := nineteen_small_offset_prime qmem
+  change b%2520%t=u at rule
+  rw [Nat.mod_mod_of_dvd _ dt] at rule
+  have dq := nineteen_offset_mod base rule qo pq.one_lt qHit
+  rcases rest with ⟨_,rfl,small⟩|⟨smem,sb,ne,so,sHit⟩
+  · change q ≤ 73 at small
+    change 3+1 < q at qb
+    have congr : 2^(b-1) ∣ q-1 := mersenne_four_prime_congruence base (pb.odd_of_ne_two (by omega)) (by omega)
+      (by decide : Odd 19) pq qb dq missing
+    have low := Nat.le_of_dvd (show 0 < q-1 by omega) congr
+    have lb := Nat.pow_le_pow_right (by decide : 0<2) (show 8 ≤ b-1 by omega)
+    norm_num at lb
+    omega
+  · have ps := nineteen_small_offset_prime smem
+    exact missing ⟨d,q,s,pq,ps,ne,qb,sb,dq,nineteen_offset_mod base rule so ps.one_lt sHit⟩
+
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_37 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=37) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 9 11 [2,5,11] [151] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_121 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=121) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 12 43 [2,13,43] [337] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_181 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=181) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 127 [2,5,127] [14449] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_221 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=221) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 7 [2,5,7] [281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_241 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=241) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_311 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=311) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_361 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=361) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 8 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_401 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=401) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 7 [2,5,7] [281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_421 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=421) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 19 [2,7,19] [3,5,17] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_491 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=491) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [1009] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_541 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=541) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 10 17 [2,11,17] [433] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_661 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=661) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_697 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=697) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 211 [2,3,211] [1321] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_781 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=781) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 19 [2,7,19] [3361] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_841 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=841) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 13 433 [2,7,433] [3,37] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_961 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=961) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 19 [2,7,19] [14449] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1021 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1021) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 127 [2,5,127] [631] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1031 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1031) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1081 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1081) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1117 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1117) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 211 [2,3,211] [1321] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1121 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1121) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 7 [2,5,7] [1009] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1201 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1201) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 8 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1247 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1247) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1261 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1261) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 10 17 [2,11,17] [433] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1297 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1297) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 9 11 [2,5,11] [151] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1381 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1381) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 10 17 [2,11,17] [21169] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1441 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1441) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 127 [2,5,127] [14449] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1481 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1481) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 7 [2,5,7] [281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1501 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1501) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1571 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1571) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1621 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1621) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 8 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1661 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1661) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 7 [2,5,7] [281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 19 [2,7,19] [3,5,11,37] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1751 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1751) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [2521] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1801 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1801) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 12 43 [2,13,43] [337] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_1921 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1921) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2041 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2041) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 19 [2,7,19] [14449] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2101 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2101) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 10 17 [2,11,17] [21169] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2221 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2221) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 19 [2,7,19] [3361] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2281 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2281) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 127 [2,5,127] [631] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2327 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2327) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 5 [2,3,5] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2341 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2341) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2377 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2377) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 211 [2,3,211] [1321] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2381 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2381) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 7 [2,5,7] [3361] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_2520_2461 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2461) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 8 29 [2,3,29] [71] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_2521 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=2521) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 1 229 [2,229] [457] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_5041 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=5041) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 49 191 [2,5,23,47,191] [2281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_7561 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=7561) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 89 229 [2,3,5,23,47,53,59,67,79,83,89,229] [7,11,13,41,191] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_10081 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=10081) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 39 191 [2,5,23,191] [2281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_12601 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=12601) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 7 191 [2,191] [3,229] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_15121 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=15121) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 58 1217 [2,23,47,53,59,1217] [7,11,17,229] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_17641 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=17641) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 67 761 [2,17,23,47,53,59,67,761] [13,19,191] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_20161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=20161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 69 571 [2,5,7,23,47,53,59,67,571] [3,11,13,17,19,29,31,37,191] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_22681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=22681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 12 2129 [2,13,2129] [3,5,457] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_25201 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=25201) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 14 1597 [2,3,5,1597] [191] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_30241 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=30241) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 1 1597 [2,1597] [2281] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_32761 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=32761) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 1 1597 [2,1597] [5,229] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_35281 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=35281) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 7 191 [2,191] [6841] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_37801 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=37801) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 15 2129 [2,2129] [13681] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_40321 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=40321) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 87 761 [2,11,23,47,53,59,67,79,83,761] [13,17,41,43,457] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_42841 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=42841) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 1 191 [2,191] [457] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_47880_45361 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%47880=45361) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 18 229 [2,19,229] [2129] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_47881 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=47881) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 16 23 [2,17,23] [6271] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_95761 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=95761) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 17 11287 [2,3,11287] [7,17,23] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_143641 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=143641) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 9 67 [2,5,67] [9241] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_239401 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=239401) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 20 23 [2,3,7,23] [30097] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_287281 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=287281) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 89 [2,7,89] [11287] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_335161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=335161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 17 23 [2,3,23] [7,11,67] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_383041 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=383041) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 6 397 [2,7,397] [18481] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_430921 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=430921) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 12 67 [2,13,67] [991] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_526680_478801 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%526680=478801) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 4 23 [2,5,23] [3191] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_526681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=526681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 1 1483 [2,1483] [3433] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_1053361 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=1053361) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 2 53 [2,3,53] [937] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_1580041 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=1580041) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 15 157 [2,157] [3121] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_2106721 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=2106721) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 5 131 [2,3,131] [1873] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_2633401 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=2633401) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 10 79 [2,11,79] [313] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_3160081 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=3160081) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 17 157 [2,3,157] [911] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_4213441 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=4213441) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 14 53 [2,3,5,53] [3121] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_4740121 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=4740121) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 18 1249 [2,19,1249] [911] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_5266801 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=5266801) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 12 4733 [2,13,4733] [79] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_5793481 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=5793481) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 9 157 [2,5,157] [911] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem smooth_6846840_6320161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%6846840=6320161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d :=
+  mersenne_character_row (r:=19) hp base idx 3 79 [2,79] [313] _ seventeen_smooth_powMod_eq mersenne_character_primes (by decide +kernel)
+
+set_option maxHeartbeats 4000000 in
+theorem nineteen_last_class {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) (hb : 19 < b)
+    (missing : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d) : b%6846840=1 := by
+  have ep : p=2^b-1 := by omega
+  have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime (by omega) (ep ▸ pp)).2
+  have mem0 := nineteen_coarse_from_eight pb pp base (by omega) missing
+  have stage0 : b%2520=1 := by
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem0
+    rcases mem0 with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h
+    · exact h
+    · exact (missing (smooth_2520_37 pp.pos base h)).elim
+    · exact (missing (smooth_2520_121 pp.pos base h)).elim
+    · exact (missing (smooth_2520_181 pp.pos base h)).elim
+    · exact (missing (smooth_2520_221 pp.pos base h)).elim
+    · exact (missing (smooth_2520_241 pp.pos base h)).elim
+    · exact (missing (smooth_2520_311 pp.pos base h)).elim
+    · exact (missing (smooth_2520_361 pp.pos base h)).elim
+    · exact (missing (smooth_2520_401 pp.pos base h)).elim
+    · exact (missing (smooth_2520_421 pp.pos base h)).elim
+    · exact (missing (smooth_2520_491 pp.pos base h)).elim
+    · exact (missing (smooth_2520_541 pp.pos base h)).elim
+    · exact (missing (smooth_2520_661 pp.pos base h)).elim
+    · exact (missing (smooth_2520_697 pp.pos base h)).elim
+    · exact (missing (smooth_2520_781 pp.pos base h)).elim
+    · exact (missing (smooth_2520_841 pp.pos base h)).elim
+    · exact (missing (smooth_2520_961 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1021 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1031 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1081 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1117 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1121 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1201 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1247 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1261 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1297 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1381 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1441 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1481 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1501 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1571 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1621 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1661 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1681 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1751 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1801 pp.pos base h)).elim
+    · exact (missing (smooth_2520_1921 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2041 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2101 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2221 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2281 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2327 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2341 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2377 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2381 pp.pos base h)).elim
+    · exact (missing (smooth_2520_2461 pp.pos base h)).elim
+  have form1 : b%47880=1+2520*((b/2520)%19) := by omega
+  have nz1 : b%19≠0 := by
+    intro z
+    have eq := (Nat.prime_dvd_prime_iff_eq (by decide : Nat.Prime 19) pb).mp (Nat.dvd_of_mod_eq_zero z)
+    omega
+  have mem1 : b%47880 ∈ [1,2521,5041,7561,10081,12601,15121,17641,20161,22681,25201,30241,32761,35281,37801,40321,42841,45361] := by
+    have tab : ∀ t ∈ List.range 19, (1+2520*t)%19≠0 → 1+2520*t ∈ [1,2521,5041,7561,10081,12601,15121,17641,20161,22681,25201,30241,32761,35281,37801,40321,42841,45361] := by decide +kernel
+    have z : b%47880%19≠0 := by rwa [Nat.mod_mod_of_dvd _ (by decide : 19∣47880)]
+    rw [form1] at z ⊢
+    exact tab _ (List.mem_range.mpr (Nat.mod_lt _ (by decide))) z
+  have stage1 : b%47880=1 := by
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem1
+    rcases mem1 with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h
+    · exact h
+    · exact (missing (smooth_47880_2521 pp.pos base h)).elim
+    · exact (missing (smooth_47880_5041 pp.pos base h)).elim
+    · exact (missing (smooth_47880_7561 pp.pos base h)).elim
+    · exact (missing (smooth_47880_10081 pp.pos base h)).elim
+    · exact (missing (smooth_47880_12601 pp.pos base h)).elim
+    · exact (missing (smooth_47880_15121 pp.pos base h)).elim
+    · exact (missing (smooth_47880_17641 pp.pos base h)).elim
+    · exact (missing (smooth_47880_20161 pp.pos base h)).elim
+    · exact (missing (smooth_47880_22681 pp.pos base h)).elim
+    · exact (missing (smooth_47880_25201 pp.pos base h)).elim
+    · exact (missing (smooth_47880_30241 pp.pos base h)).elim
+    · exact (missing (smooth_47880_32761 pp.pos base h)).elim
+    · exact (missing (smooth_47880_35281 pp.pos base h)).elim
+    · exact (missing (smooth_47880_37801 pp.pos base h)).elim
+    · exact (missing (smooth_47880_40321 pp.pos base h)).elim
+    · exact (missing (smooth_47880_42841 pp.pos base h)).elim
+    · exact (missing (smooth_47880_45361 pp.pos base h)).elim
+  have form2 : b%526680=1+47880*((b/47880)%11) := by omega
+  have nz2 : b%11≠0 := by
+    intro z
+    have eq := (Nat.prime_dvd_prime_iff_eq (by decide : Nat.Prime 11) pb).mp (Nat.dvd_of_mod_eq_zero z)
+    omega
+  have mem2 : b%526680 ∈ [1,47881,95761,143641,239401,287281,335161,383041,430921,478801] := by
+    have tab : ∀ t ∈ List.range 11, (1+47880*t)%11≠0 → 1+47880*t ∈ [1,47881,95761,143641,239401,287281,335161,383041,430921,478801] := by decide +kernel
+    have z : b%526680%11≠0 := by rwa [Nat.mod_mod_of_dvd _ (by decide : 11∣526680)]
+    rw [form2] at z ⊢
+    exact tab _ (List.mem_range.mpr (Nat.mod_lt _ (by decide))) z
+  have stage2 : b%526680=1 := by
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem2
+    rcases mem2 with h|h|h|h|h|h|h|h|h|h
+    · exact h
+    · exact (missing (smooth_526680_47881 pp.pos base h)).elim
+    · exact (missing (smooth_526680_95761 pp.pos base h)).elim
+    · exact (missing (smooth_526680_143641 pp.pos base h)).elim
+    · exact (missing (smooth_526680_239401 pp.pos base h)).elim
+    · exact (missing (smooth_526680_287281 pp.pos base h)).elim
+    · exact (missing (smooth_526680_335161 pp.pos base h)).elim
+    · exact (missing (smooth_526680_383041 pp.pos base h)).elim
+    · exact (missing (smooth_526680_430921 pp.pos base h)).elim
+    · exact (missing (smooth_526680_478801 pp.pos base h)).elim
+  have form3 : b%6846840=1+526680*((b/526680)%13) := by omega
+  have nz3 : b%13≠0 := by
+    intro z
+    have eq := (Nat.prime_dvd_prime_iff_eq (by decide : Nat.Prime 13) pb).mp (Nat.dvd_of_mod_eq_zero z)
+    omega
+  have mem3 : b%6846840 ∈ [1,526681,1053361,1580041,2106721,2633401,3160081,4213441,4740121,5266801,5793481,6320161] := by
+    have tab : ∀ t ∈ List.range 13, (1+526680*t)%13≠0 → 1+526680*t ∈ [1,526681,1053361,1580041,2106721,2633401,3160081,4213441,4740121,5266801,5793481,6320161] := by decide +kernel
+    have z : b%6846840%13≠0 := by rwa [Nat.mod_mod_of_dvd _ (by decide : 13∣6846840)]
+    rw [form3] at z ⊢
+    exact tab _ (List.mem_range.mpr (Nat.mod_lt _ (by decide))) z
+  have stage3 : b%6846840=1 := by
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at mem3
+    rcases mem3 with h|h|h|h|h|h|h|h|h|h|h|h
+    · exact h
+    · exact (missing (smooth_6846840_526681 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_1053361 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_1580041 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_2106721 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_2633401 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_3160081 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_4213441 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_4740121 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_5266801 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_5793481 pp.pos base h)).elim
+    · exact (missing (smooth_6846840_6320161 pp.pos base h)).elim
+  exact stage3
+
+
+
+private theorem nineteen_root_exclusion {p b q o w : ℕ}
+    (pq : q.Prime) (lo : 2 < q) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : q∣p^19+524288) (nd : ¬q∣p+2)
+    (per : 2^o%q=1) (w19 : w^19%q=1) (wn : w%q≠1)
+    (reject : ∀ i ∈ List.range 18,
+      let y := (q+1-(2*w^(i+1))%q)%q
+      y^(o/o.gcd 6846840)%q≠2^(o/o.gcd 6846840)%q) : False := by
+  let _ : Fact q.Prime := ⟨pq⟩
+  let _ : Fact (Nat.Prime 19) := ⟨by decide⟩
+  have mod1 (v : ℕ) : (v:ZMod q)=1 ↔ v%q=1 := by
+    simpa only [Nat.cast_one,Nat.mod_eq_of_lt pq.one_lt] using ZMod.natCast_eq_natCast_iff' v 1 q
+  have two : (2:ZMod q)≠0 := by
+    intro h
+    have d := (ZMod.natCast_eq_zero_iff 2 q).mp h
+    have := Nat.le_of_dvd (by decide : 0<2) d
+    omega
+  let z := -(p:ZMod q)/2
+  have zero := (ZMod.natCast_eq_zero_iff _ _).mpr mult
+  push_cast at zero
+  have z19 : z^19=1 := by dsimp [z]; rw [div_pow,div_eq_iff (pow_ne_zero _ two)]; linear_combination -zero
+  have primitive : IsPrimitiveRoot (w:ZMod q) 19 := IsPrimitiveRoot.iff_orderOf.mpr (orderOf_eq_prime
+    (by simpa only [Nat.cast_pow] using (mod1 _).mpr w19) (fun h => wn ((mod1 _).mp h)))
+  obtain ⟨i,hi,iw⟩ := primitive.eq_pow_of_pow_eq_one z19
+  have wv : (w:ZMod q)^i * 2 = -(p:ZMod q) := (eq_div_iff two).mp iw
+  have i0 : i≠0 := by
+    rintro rfl
+    rw [pow_zero,one_mul] at wv
+    apply nd
+    apply (ZMod.natCast_eq_zero_iff (p+2) q).mp
+    push_cast
+    linear_combination wv
+  let y := (q+1-(2*w^i)%q)%q
+  have bound : (2*w^i)%q ≤ q+1 := by have := Nat.mod_lt (2*w^i) pq.pos; omega
+  have cast : (y:ZMod q)=(2:ZMod q)^b := by
+    dsimp [y]
+    rw [ZMod.natCast_mod,Nat.cast_sub bound,Nat.cast_add,ZMod.natCast_self,Nat.cast_one,ZMod.natCast_mod,Nat.cast_mul,Nat.cast_pow]
+    have bp := congrArg (fun n : ℕ => (n:ZMod q)) base
+    push_cast at bp ⊢
+    linear_combination bp - wv
+  have cycle : (2:ZMod q)^o=1 := by simpa only [Nat.cast_pow,Nat.cast_ofNat] using (mod1 _).mpr per
+  have projected := seventeen_compact_coset idx cycle
+  rw [←cast] at projected
+  have bad := reject (i-1) (List.mem_range.mpr (show i-1<18 by omega))
+  rw [show i-1+1=i by omega] at bad
+  apply bad
+  apply (ZMod.natCast_eq_natCast_iff' _ _ q).mp
+  push_cast
+  exact projected
+
+set_option maxRecDepth 12000 in
+private theorem nineteen_interval {i start p b : ℕ} {N : ℤ} (cells : List ℕ)
+    (pm : ℕ → ℕ → ℕ → ℕ) (eq : ∀ a e m, pm a e m=a^e%m)
+    (checked : (cells.zipIdx start).all (fun entry =>
+      let tok := entry.1
+      let q := 38*entry.2+1
+      if tok=0 then decide (q < 2)
+      else if tok < 1024 then decide (1 < tok ∧ tok < q ∧ q%tok=0)
+      else if tok=1024 then
+        let a := (N%(q:ℤ)).toNat
+        decide (a%q≠0 ∧ pm (a%q) (q/2) q=1)
+      else
+        let o := (tok-1025)/524288
+        let w := (tok-1025)%524288
+        decide (pm 2 o q=1 ∧ w^19%q=1 ∧ w%q≠1) &&
+          (List.range 18).all (fun k =>
+            let y := (q+1-(2*w^(k+1))%q)%q
+            decide (pm y (o/o.gcd 6846840) q≠pm 2 (o/o.gcd 6846840) q)))=true)
+    (low : start ≤ i) (high : i < start+cells.length)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) : jacobiSym N (38*i+1)=1 := by
+  let q := 38*i+1
+  have qlo : 2 < q := by dsimp [q]; have := pq.two_le; omega
+  have inside : i-start < cells.length := by omega
+  let tok := cells[i-start]
+  have mem : (tok,i) ∈ cells.zipIdx start := List.mk_mem_zipIdx_iff_le_and_getElem?_sub.mpr
+    ⟨low, List.getElem?_eq_getElem inside⟩
+  have h := List.all_eq_true.mp checked (tok,i) mem
+  dsimp only at h
+  by_cases z : tok=0
+  · rw [if_pos z] at h
+    have := of_decide_eq_true h
+    omega
+  rw [if_neg z] at h
+  by_cases sm : tok<1024
+  · rw [if_pos sm] at h
+    obtain ⟨a,l,d⟩ := of_decide_eq_true h
+    have := (Nat.dvd_prime pq).mp (Nat.dvd_iff_mod_eq_zero.mpr d)
+    omega
+  rw [if_neg sm] at h
+  by_cases pos : tok=1024
+  · rw [if_pos pos] at h
+    obtain ⟨nz,pow1⟩ := of_decide_eq_true h
+    let a := (N%(q:ℤ)).toNat
+    have cast : (a:ℤ)=N%(q:ℤ) := Int.toNat_of_nonneg (Int.emod_nonneg N (by exact_mod_cast (show q≠0 by omega)))
+    let _ : Fact q.Prime := ⟨pq⟩
+    change jacobiSym N q=1
+    rw [jacobiSym.mod_left N q,←cast,←jacobiSym.legendreSym.to_jacobiSym,seventeen_smooth_legendre q a qlo,
+      if_neg nz,if_pos (by simpa only [←eq] using pow1)]
+  rw [if_neg pos] at h
+  obtain ⟨head,tail⟩ := Bool.and_eq_true_iff.mp h
+  obtain ⟨period,root,nontriv⟩ := of_decide_eq_true head
+  exfalso
+  rw [eq] at period
+  apply nineteen_root_exclusion (o:=(tok-1025)/524288) (w:=(tok-1025)%524288) pq qlo base idx mult nd period root nontriv
+  intro k hk
+  have reject := of_decide_eq_true (List.all_eq_true.mp tail k hk)
+  simpa only [eq] using reject
+
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_0 {i p b : ℕ} (ix : i/128=0) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=0)
+    (cells:=[0,3,7,5,3,1024,39847116,3,5,7,3,1024,39847202,3,13,1024,3,1024,5,3,199231101,17,3,5,11,3,23,13,3,1024,7,3,79693657,5,3,11,37,3,5,776997278,3,1024,1024,3,7,29,3,1024,5,3,996149458,7,3,5,1024,3,278922906,11,3,1024,99617104,3,1235225435,5,3,7,13,3,5,43,3,1024,7,3,29,1024,3,767037046,5,3,796919843,1024,3,5,31,3,7,1733300223,3,17,11,3,13,5,3,23,41,3,5,53,3,11,2032144152,3,59,13,3,7,5,3,37,2211449683,3,5,7,3,1024,1165494685,3,139463353,1024,3,2430602300,5,3,249038366,2510296353,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<128; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_1 {i p b : ℕ} (ix : i/128=1) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=128)
+    (cells:=[5,1024,3,13,29,3,11,7,3,41,5,3,17,23,3,5,13,3,31,37,3,7,1024,3,53,5,3,43,7,3,5,1024,3,29,47,3,23,1024,3,11,5,3,7,67,3,5,17,3,1024,7,3,3566214084,896533829,3,3625980897,5,3,79,3705673509,3,5,11,3,7,1024,3,73,3884975522,3,1024,5,3,11,667427013,3,5,169348625,3,4104129528,1024,3,13,23,3,7,5,3,4283442093,1075840478,3,5,7,3,37,11,3,2231373426,17,3,4522516885,5,3,1024,1024,3,5,1553993956,3,1024,2360878170,3,31,7,3,17,5,3,1024,4901049672,3,5,826809473,3,5000667248,61,3,7,11]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<256; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_2 {i p b : ℕ} (ix : i/128=2) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=256)
+    (cells:=[3,2560101863,5,3,41,7,3,5,79,3,11,73,3,1024,31,3,1024,5,3,7,17,3,5,23,3,59,7,3,43,2839029367,3,13,5,3,103,1932529920,3,5,1024,3,7,328740588,3,11,13,3,23,5,3,67,29,3,5,3078102000,3,53,71,3,6255815359,1024,3,7,5,3,1593839434,11,3,5,7,3,13,17,3,172495335,1314926603,3,11,5,3,29,113,3,5,13,3,1024,41,3,17,7,3,6913268322,5,3,47,1024,3,5,11,3,83,3556258114,3,7,3586131962,3,7212114090,5,3,11,7,3,5,37,3,23,67,3,61,1494223643,3,288887739,5,3,7,1265122338,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<384; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_3 {i p b : ℕ} (ix : i/128=3) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=384)
+    (cells:=[637537486,3,1024,7,3,1024,7769959877,3,488119843,5,3,17,101,3,5,59,3,7,2669688836,3,13,1024,3,1024,5,3,8168415364,1024,3,5,1024,3,129511046,13,3,1024,11,3,7,5,3,31,8487189007,3,5,7,3,11,1075843883,3,1024,61,3,1024,5,3,23,4393019306,3,5,47,3,17,1024,3,113,7,3,89,5,3,1813006101,13,3,5,1024,3,4592253052,97,3,7,41,3,1024,5,3,53,7,3,5,1024,3,1024,1583890831,3,109,17,3,13,5,3,7,11,3,5,1024,3,47,7,3,9841947524,13,3,11,5,3,1024,79,3,5,107,3,7,777011160,3,23,1024,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<512; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_4 {i p b : ℕ} (ix : i/128=4) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=512)
+    (cells:=[2550149602,5,3,10260326161,5140138862,3,5,11,3,13,83,3,1024,71,3,7,5,3,11,17,3,5,7,3,1024,1024,3,1534086625,1024,3,43,5,3,139,1024,3,5,31,3,10977553656,11,3,37,7,3,61,5,3,13,5588399290,3,5,1024,3,137,29,3,7,11356092492,3,5697984303,5,3,1024,7,3,5,1024,3,5787637386,17,3,1024,11,3,1024,5,3,7,37,3,5,622856224,3,11,7,3,13,151,3,11993614755,5,3,83,1024,3,5,1024,3,7,13,3,1024,12252619399,3,1024,5,3,3088078261,687348762,3,5,23,3,12471781237,1024,3,11,89,3,7,5,3,59,1024,3,5,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<640; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_5 {i p b : ℕ} (ix : i/128=5) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=640)
+    (cells:=[3,1024,31,3,1603809680,127,3,23,5,3,17,11,3,5,29,3,97,6544689003,3,79,7,3,11,5,3,37,358630231,3,5,1024,3,43,1024,3,7,113,3,13,5,3,1024,7,3,5,11,3,131,13687088766,3,1024,13,3,1024,5,3,7,6933201697,3,5,101,3,17,7,3,31,73,3,67,5,3,2829061017,41,3,5,43,3,7,11,3,89,1024,3,14384368453,5,3,1024,47,3,5,13,3,14563679219,1024,3,14623456577,17,3,7,5,3,61,29,3,5,7,3,1024,1024,3,7461161509,11,3,17,5,3,13,1024,3,5,15121533641,3,11,23,3,1902657071,7,3,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<768; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_6 {i p b : ℕ} (ix : i/128=6) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=768)
+    (cells:=[5,3,29,83,3,5,67,3,37,1024,3,7,7769957979,3,1024,5,3,23,7,3,5,1024,3,1024,7889491534,3,11,1024,3,31,5,3,7,61,3,5,8009027301,3,109,7,3,71,16137601022,3,59,5,3,1024,11,3,5,1024,3,7,1024,3,173,107,3,11,5,3,3307216912,23,3,5,41,3,1024,17,3,1024,137,3,7,5,3,163,13,3,5,7,3,73,1024,3,17,1024,3,29,5,3,11,8576860740,3,5,1024,3,17253286102,47,3,1024,7,3,13,5,3,41,1024,3,5,307260134,3,8776073156,11,3,7,13,3,37,5,3,31,7,3,5,53,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<896; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_7 {i p b : ℕ} (ix : i/128=7) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=896)
+    (cells:=[79,89,3,127,23,3,151,5,3,7,1024,3,5,9054998932,3,13,7,3,47,11,3,1304969911,5,3,1145578796,31,3,5,13,3,7,1024,3,43,59,3,107,5,3,1024,3108009078,3,5,17,3,9373764079,18767426780,3,29,1024,3,7,5,3,13,71,3,5,7,3,17,41,3,11,191,3,139,5,3,1024,1024,3,5,23,3,1024,43,3,19404983105,7,3,137,5,3,167,11,3,5,61,3,89,6554677915,3,7,17,3,11,5,3,1024,7,3,5,1024,3,906520416,13,3,1024,181,3,17,5,3,7,103,3,5,11,3,10120881190,7,3,1024,83,3,71,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1024; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_8 {i p b : ℕ} (ix : i/128=8) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1024)
+    (cells:=[3,11,127,3,5,10250389749,3,7,1024,3,20600343437,37,3,157,5,3,1024,13,3,5,97,3,1024,11,3,1024,1024,3,7,5,3,47,10519348441,3,5,7,3,23,7052748565,3,1024,707287232,3,13,5,3,73,1024,3,5,1024,3,31,3576178261,3,131,7,3,1024,5,3,10808201344,1024,3,5,29,3,11,17,3,7,1024,3,1024,5,3,1024,7,3,5,10997501853,3,13,23,3,17,7371508395,3,1024,5,3,7,11117024264,3,5,13,3,41,7,3,11,1024,3,113,5,3,23,1024,3,5,1024,3,7,1024,3,22692254005,1024,3,1024,5,3,13,11,3,5,47,3,191]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1152; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_9 {i p b : ℕ} (ix : i/128=9) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1152)
+    (cells:=[1912609356,3,22991084350,1534094650,3,7,5,3,17,11565291597,3,5,7,3,59,61,3,31,173,3,1024,5,3,23409483681,23,3,5,11,3,1024,7849646528,3,13,7,3,43,5,3,11,1024,3,5,17,3,47,13,3,7,31,3,1024,5,3,29,7,3,5,1024,3,17,11,3,24186494363,8068836375,3,103,5,3,7,1024,3,5,193,3,1024,7,3,1024,43,3,6136292996,5,3,71,13,3,5,197,3,7,109,3,41,11,3,24843940813,5,3,1024,137,3,5,1024,3,11,37,3,25083007513,3137869985,3,7,5,3,53,1024,3,5,7,3,25322079536,1024,3,1024,13,3,12720847449,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1280; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_10 {i p b : ℕ} (ix : i/128=10) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1280)
+    (cells:=[127,1024,3,5,59,3,1024,1024,3,11,7,3,29,5,3,25800262197,17,3,5,1024,3,13,65060973,3,7,101,3,1024,5,3,67,7,3,5,13,3,43,1024,3,26278375262,103,3,11,5,3,7,41,3,5,13238808608,3,37,7,3,163,97,3,23,5,3,13,131,3,5,11,3,7,17,3,1024,29,3,83,5,3,11,227,3,5,43,3,1024,73,3,17,4532504894,3,7,5,3,79,53,3,5,7,3,3426789299,11,3,13,229,3,1024,5,3,1024,31,3,5,1024,3,2131798242,13,3,1024,7,3,13916183933,5,3,1024,4652032161,3,5,1024,3,23,127]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1408; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_11 {i p b : ℕ} (ix : i/128=11) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1408)
+    (cells:=[3,7,11,3,7032804002,5,3,17,7,3,5,1024,3,11,1024,3,53,1024,3,211,5,3,7,13,3,5,1024,3,197,7,3,149,199278824,3,37,5,3,43,28808632121,3,5,17,3,7,23,3,11,1024,3,13,5,3,109,59,3,5,95978913,3,17,107,3,14633418822,13,3,7,5,3,23,11,3,5,7,3,167,199,3,14782871857,2958569397,3,11,5,3,41,29705121815,3,5,1024,3,13,163,3,1024,7,3,1024,5,3,1024,151,3,5,11,3,67,269004854,3,7,6036675257,3,17,5,3,11,7,3,5,29,3,103,30422388592,3,97,53,3,15261030730,5,3,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1536; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_12 {i p b : ℕ} (ix : i/128=12) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1536)
+    (cells:=[7650423924,3,5,233,3,31,7,3,23,15390532492,3,30820824184,5,3,1024,17,3,5,1024,3,7,15510070143,3,31059891693,1942542899,3,1024,5,3,1024,10399802180,3,5,109,3,31298963493,31,3,13,11,3,7,5,3,3147874027,73,3,5,7,3,11,13,3,15828834035,23,3,15858677025,5,3,2888867278,1024,3,5,10618981170,3,83,17,3,1024,7,3,79,5,3,193,29,3,5,32155639501,3,16097752589,43,3,7,5379208082,3,1024,5,3,1024,7,3,5,103,3,1024,1024,3,31,1024,3,1024,5,3,7,11,3,5,1364764009,3,32793185807,7,3,223,1024,3,11,5,3,61,1024,3,5,23,3,7,137,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1664; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_13 {i p b : ℕ} (ix : i/128=13) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1664)
+    (cells:=[37,13,3,1024,5,3,17,11097115619,3,5,11,3,878766063,16705394921,3,1024,418438655,3,7,5,3,11,79,3,5,7,3,13,113,3,1024,41,3,59,5,3,1024,37,3,5,13,3,241,11,3,101,7,3,67,5,3,34167892033,61,3,5,34247574181,3,17,1633717491,3,7,5727864376,3,29,5,3,13,7,3,5,131,3,41,149,3,1024,11,3,53,5,3,7,43,3,5,1024,3,11,7,3,34944868407,17,3,179,5,3,47,1024,3,5,1024,3,7,83,3,13,1024,3,17,5,3,37,2211496751,3,5,67,3,17741434310,13,3,11,29,3,7,5,3,251,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1792; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_14 {i p b : ℕ} (ix : i/128=14) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1792)
+    (cells:=[3,5,7,3,139,23,3,137,73,3,1024,5,3,113,11,3,5,1024,3,1024,37,3,29,7,3,11,5,3,23,13,3,5,1024,3,1024,36399281340,3,7,197,3,43,5,3,103,7,3,5,11,3,1024,1024,3,79,1024,3,13,5,3,7,31,3,5,47,3,1024,7,3,41,13,3,173,5,3,131,23,3,5,1024,3,7,11,3,17,43,3,1024,5,3,199,18737575684,3,5,1024,3,13,37594642539,3,23,1024,3,7,5,3,107,109,3,5,7,3,29,1024,3,18966683486,11,3,1024,5,3,181,101,3,5,38132561871,3,11,97,3,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<1920; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_15 {i p b : ℕ} (ix : i/128=15) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=1920)
+    (cells:=[7,3,1024,5,3,13,1024,3,5,19215743171,3,1024,1024,3,7,23,3,1024,5,3,1024,7,3,5,31,3,73,241,3,11,38849780291,3,1024,5,3,7,239,3,5,17,3,43,7,3,13,89,3,1024,5,3,1024,11,3,5,1024,3,7,13,3,157,67,3,11,5,3,1024,163,3,5,1024,3,39666607396,59,3,39726359045,47,3,7,5,3,1048646232,1024,3,5,7,3,31,53,3,20012638402,17,3,101,5,3,11,13,3,5,73,3,61,13428132556,3,10081023128,7,3,17,5,3,8088729178,113,3,5,37,3,20281593252,11,3,7,1024,3,13,5,3,20371256308,7,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2048; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_16 {i p b : ℕ} (ix : i/128=16) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2048)
+    (cells:=[5,1024,3,59,1024,3,89,13,3,20490788601,5,3,7,17,3,5,41,3,1024,7,3,20610364720,11,3,1024,5,3,29,10340010470,3,5,199,3,7,61,3,5189978113,1024,3,71,5,3,43,181,3,5,13,3,23,1024,3,31,10459561030,3,7,5,3,41,191,3,5,7,3,97,17,3,11,179,3,1024,5,3,13,1024,3,5,21158232632,3,1024,131,3,17,7,3,1024,5,3,42535492418,11,3,5,1024,3,21327571877,23,3,7,37,3,11,5,3,1024,7,3,5,1024,3,1130412825,1024,3,13,79,3,29,5,3,7,53,3,5,11,3,1024,7,3,43312556201,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2176; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_17 {i p b : ℕ} (ix : i/128=17) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2176)
+    (cells:=[3,1024,5,3,11,67,3,5,149,3,7,41,3,193,1024,3,31,5,3,239,1024,3,5,1024,3,1024,11,3,61,209194314,3,7,5,3,137,13,3,5,7,3,107,1024,3,37,29,3,1024,5,3,4432887563,1024,3,5,71,3,17,89,3,23,7,3,13,5,3,1024,1024,3,5,269,3,11,103,3,7,13,3,5608372565,5,3,44926245512,7,3,5,1024,3,151,43,3,227,17,3,277,5,3,7,211,3,5,45304827826,3,13,7,3,11,23,3,17,5,3,31,1024,3,5,13,3,7,251,3,179,1024,3,191,5,3,71,11,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2304; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_18 {i p b : ℕ} (ix : i/128=18) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2304)
+    (cells:=[1024,3,1024,29,3,1024,41,3,7,5,3,13,17,3,5,7,3,89,46261149242,3,47,53,3,1024,5,3,37,283,3,5,11,3,29,23280038348,3,1024,7,3,1024,5,3,11,59,3,5,23,3,41,139,3,7,46918608266,3,1024,5,3,1024,7,3,5,3924903098,3,1024,11,3,23598790231,113,3,23,5,3,7,1024,3,5,1024,3,173,7,3,17,23758199244,3,61,5,3,1024,43,3,5,29,3,7,79,3,1024,11,3,97,5,3,59,13,3,5,31,3,11,151,3,1024,1024,3,7,5,3,253818097,197,3,5,7,3,1024,16117703059,3,241,107,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2432; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_19 {i p b : ℕ} (ix : i/128=19) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2432)
+    (cells:=[13,5,3,17,12133112368,3,5,5399164206,3,23,71,3,11,7,3,1024,5,3,157,48831229309,3,5,48890942865,3,643919199,73,3,7,8168412482,3,1024,5,3,47,7,3,5,17,3,13,1024,3,41,163,3,11,5,3,7,29,3,5,13,3,17,7,3,1024,1024,3,281,5,3,1024,327178179,3,5,11,3,7,31,3,1024,1024,3,1024,5,3,11,1024,3,5,83,3,67,101,3,50185963537,17,3,7,5,3,229,1024,3,5,7,3,50425026411,11,3,50484810236,2658188991,3,17,5,3,263,223,3,5,277,3,1024,50743805613,3,13,7,3,37,5,3,79,23,3,5,47]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2560; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_20 {i p b : ℕ} (ix : i/128=20) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2560)
+    (cells:=[3,307,13,3,7,11,3,1024,5,3,61,7,3,5,1024,3,11,1024,3,23,1024,3,59,5,3,7,51520739516,3,5,37,3,1024,7,3,51680205822,31,3,29,5,3,1024,13,3,5,1024,3,7,157,3,11,1155543698,3,1024,5,3,1024,8686484120,3,5,1024,3,137,17,3,26138966314,23,3,7,5,3,139,11,3,5,7,3,1024,26268416210,3,17,13,3,11,5,3,26348112061,1024,3,5,43,3,131,179,3,1024,7,3,31,5,3,26497561450,1024,3,5,11,3,13,1024,3,7,241,3,26617054948,5,3,11,7,3,5,13,3,26706734937,5937060193,3,29,1024,3,53533014310]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2688; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_21 {i p b : ℕ} (ix : i/128=21) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2688)
+    (cells:=[5,3,7,1024,3,5,23,3,53,7,3,1024,37,3,1024,5,3,13,53911536537,3,5,113,3,7,257,3,151,18030270484,3,23,5,3,41,1024,3,5,17,3,71,173,3,1024,11,3,7,5,3,43,6813715454,3,5,7,3,11,29,3,13,1024,3,47,5,3,31,107,3,5,229,3,518045731,13,3,59,7,3,103,5,3,27543529547,89,3,5,139,3,29,27613267975,3,7,17,3,27663031908,5,3,149,7,3,5,67,3,23,1024,3,27782651759,97,3,17,5,3,7,11,3,5,55764381822,3,163,7,3,127,133695398,3,11,5,3,55983498414,37,3,5,61,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2816; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_22 {i p b : ℕ} (ix : i/128=22) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2816)
+    (cells:=[7,167,3,1024,101,3,13,5,3,1024,17,3,5,11,3,179,23,3,56461706124,13,3,7,5,3,11,47,3,5,7,3,83,1024,3,28380277241,1024,3,28410135828,5,3,23,14225075719,3,5,1024,3,13,11,3,43,7,3,1024,5,3,191,79,3,5,13,3,293,17,3,7,1024,3,57417945989,5,3,37,7,3,5,311,3,57597242559,1024,3,17,11,3,283,5,3,7,23,3,5,211,3,11,7,3,1024,1024,3,239,5,3,58075427818,29,3,5,19385081118,3,7,37,3,23,41,3,58314522713,5,3,1024,127,3,5,1024,3,31,233,3,11,2440662867,3,7,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<2944; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_23 {i p b : ℕ} (ix : i/128=23) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=2944)
+    (cells:=[3,17,1024,3,5,7,3,58792631210,13,3,1024,11774540250,3,313,5,3,1024,11,3,5,163,3,41,31,3,257,7,3,11,5,3,1693559074,29645386685,3,5,17,3,1024,47,3,7,67,3,223,5,3,1024,7,3,5,11,3,17,61,3,1024,1024,3,59808721987,5,3,7,59888464982,3,5,29974104215,3,1024,7,3,53,1024,3,13,5,3,1024,1024,3,5,15061827567,3,7,11,3,31,13,3,29,5,3,1024,43,3,5,23,3,73,1024,3,131,251,3,7,5,3,60764995992,269,3,5,7,3,13,1024,3,1024,11,3,23,5,3,1024,263,3,5,13,3,11]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3072; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_24 {i p b : ℕ} (ix : i/128=24) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3072)
+    (cells:=[107,3,199,7,3,1024,5,3,7670374578,17,3,5,1024,3,1024,6833611204,3,7,29,3,1024,5,3,13,7,3,5,61741301878,3,1024,61800984216,3,11,30930379279,3,37,5,3,7,1024,3,5,73,3,1024,7,3,29,53,3,31,5,3,1024,11,3,5,31169536056,3,7,17,3,13,62458467552,3,11,5,3,1024,10429753495,3,5,37,3,1024,13,3,17,62757350861,3,7,5,3,1024,1024,3,5,7,3,113,1024,3,1024,43,3,151,5,3,11,41,3,5,103,3,31637737905,23,3,107,7,3,1024,5,3,127,13,3,5,179,3,63574216112,11,3,7,317,3,31846913059,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3200; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_25 {i p b : ℕ} (ix : i/128=25) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3200)
+    (cells:=[17,7,3,5,109,3,29,21297672152,3,197,223,3,13,5,3,7,1024,3,5,1024,3,32085916417,7,3,101,11,3,149,5,3,1024,59,3,5,17,3,7,32245375674,3,1024,1024,3,349,5,3,1024,23,3,5,331,3,13,191,3,1024,37,3,7,5,3,73,83,3,5,7,3,79,1024,3,11,313,3,1024,5,3,97,16316990183,3,5,53,3,1024,1024,3,32713571118,7,3,1024,5,3,13,11,3,5,41,3,251,1024,3,7,89,3,11,5,3,1024,7,3,5,1024,3,47,127,3,1024,23,3,33042308342,5,3,7,1024,3,5,11,3,211,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3328; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_26 {i p b : ℕ} (ix : i/128=26) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3328)
+    (cells:=[3,13,1024,3,53,5,3,11,17,3,5,31,3,7,13,3,83,79,3,193,5,3,66741954809,29,3,5,1024,3,1024,11,3,1024,440439397,3,7,5,3,71,37,3,5,7,3,1024,97,3,1024,277,3,33639935336,5,3,29,13,3,5,23,3,1024,17,3,89,7,3,157,5,3,1024,1024,3,5,227,3,11,67777931687,3,7,47,3,13,5,3,67937331020,7,3,5,1024,3,271,41,3,173,13,3,109,5,3,7,101,3,5,1024,3,1024,7,3,11,13687091187,3,131,5,3,37,229,3,5,4901076190,3,7,7630584940,3,34357130350,119637217,3,47,5,3,17]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3456; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_27 {i p b : ℕ} (ix : i/128=27) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3456)
+    (cells:=[11,3,5,13,3,1024,293,3,139,2301231247,3,7,5,3,69132721995,69152560105,3,5,7,3,23,37,3,73,1024,3,307,5,3,13,23150473158,3,5,11,3,53,1024,3,31,7,3,1024,5,3,11,1024,3,5,1024,3,17,71,3,7,83,3,317,5,3,1024,7,3,5,70108920211,3,67,11,3,13,29,3,101,5,3,7,109,3,5,3705763656,3,1024,7,3,181,17,3,1024,5,3,23,47,3,5,157,3,7,43,3,29,11,3,17,5,3,4432959376,1024,3,5,1024,3,11,89,3,1024,23708378101,3,7,5,3,71224576944,13,3,5,7,3,41,79,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3584; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_28 {i p b : ℕ} (ix : i/128=28) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3584)
+    (cells:=[1024,59,3,31,5,3,14304775009,17,3,5,71603154743,3,1024,53,3,11,7,3,13,5,3,1024,1024,3,5,1024,3,71941851455,29,3,7,13,3,1024,5,3,151,7,3,5,1024,3,227,24086936315,3,239,1024,3,11,5,3,7,233,3,5,72499659115,3,13,7,3,59,36309704018,3,1024,5,3,53,1024,3,5,11,3,7,36429181328,3,17,23,3,37,5,3,11,1024,3,5,36548723778,3,199,1024,3,149,359,3,7,5,3,13,43,3,5,7,3,1024,11,3,103,1024,3,9194450608,5,3,73615301137,18408883320,3,5,29,3,1024,73754754921,3,41,7,3,6714157543,5,3,17,31]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3712; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_29 {i p b : ℕ} (ix : i/128=29) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3712)
+    (cells:=[3,5,107,3,18508422019,137,3,7,11,3,67,5,3,37106508927,7,3,5,23,3,11,13,3,47,1024,3,1024,5,3,7,37265937618,3,5,17,3,283,7,3,109,4980763489,3,23,5,3,293,53,3,5,83,3,7,59,3,11,173,3,43,5,3,15022018922,13,3,5,75189199431,3,1024,1024,3,163,379,3,7,5,3,37704201211,11,3,5,7,3,71,103,3,75587729007,17,3,11,5,3,197,1024,3,5,31,3,75826726299,1024,3,53,7,3,17,5,3,29,12671051880,3,5,11,3,23,311,3,7,191,3,41,5,3,11,7,3,5,89,3,13,38222225967,3,113]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3840; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_30 {i p b : ℕ} (ix : i/128=30) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3840)
+    (cells:=[337,3,83,5,3,7,17,3,5,13,3,61,7,3,137,263,3,97,5,3,38451282984,38461248757,3,5,38491135164,3,7,23,3,233,199,3,1024,5,3,13,1024,3,5,223,3,139,1024,3,37,11,3,7,5,3,23,77520216349,3,5,7,3,11,17,3,229,1024,3,29,5,3,179,1024,3,5,41,3,331,61,3,13,7,3,73,5,3,1024,37,3,5,1024,3,193,13,3,7,1024,3,39168635218,5,3,4126195723,7,3,5,43,3,1024,163,3,19644079131,1024,3,127,5,3,7,11,3,5,97,3,39407667749,7,3,23,29,3,11,5,3,17,13,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<3968; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_31 {i p b : ℕ} (ix : i/128=31) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=3968)
+    (cells:=[5,47,3,7,149,3,79173881136,1024,3,79,5,3,3964735178,13218886166,3,5,11,3,167,1024,3,29,31,3,7,5,3,11,1024,3,5,7,3,39855974655,26577328094,3,71,13,3,1024,5,3,15978227466,79911046006,3,5,1024,3,17,11,3,1024,7,3,1024,5,3,43,1024,3,5,283,3,13,37,3,7,107,3,1024,5,3,1024,7,3,5,13,3,11515493167,29,3,251,11,3,31,5,3,7,79,3,5,1024,3,11,7,3,389,113,3,17,5,3,13,1024,3,5,23,3,7,1024,3,81265707058,227,3,181,5,3,40692722472,9045119690,3,5,40732525019,3,83,131,3,11,61]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4096; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_32 {i p b : ℕ} (ix : i/128=32) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4096)
+    (cells:=[3,7,5,3,1024,17,3,5,7,3,37,239,3,13,47,3,1024,5,3,81983012586,11,3,5,193,3,149,13,3,67,7,3,11,5,3,82281853344,9144687074,3,5,29,3,73,1024,3,7,13746985396,3,107,5,3,31,7,3,5,11,3,82700242926,17,3,43,41,3,47,5,3,7,13,3,5,1024,3,23,7,3,17,211,3,10389847993,5,3,59,31,3,5,1024,3,7,11,3,1024,109,3,13,5,3,89,67,3,5,197,3,41,43,3,1024,13,3,7,5,3,41888009782,277,3,5,7,3,83895604031,23,3,79,11,3,37,5,3,17,29,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4224; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_33 {i p b : ℕ} (ix : i/128=33) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4224)
+    (cells:=[151,3,11,1024,3,271,7,3,42156953029,5,3,23,119578666,3,5,13,3,1024,331,3,7,97,3,84612866600,5,3,29,7,3,5,17,3,1024,83,3,11,1024,3,1024,5,3,7,1024,3,5,31,3,17,7,3,1024,1024,3,42605231905,5,3,10658779667,11,3,5,173,3,7,1024,3,349,4498400776,3,11,5,3,1024,1024,3,5,85648892819,3,353,1024,3,13,17,3,7,5,3,1024,1024,3,5,7,3,401,13,3,41,167,3,17,5,3,11,43,3,5,43123247272,3,31,7192221464,3,157,7,3,29,5,3,83,293,3,5,383,3,239,11,3,7,23,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4352; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_34 {i p b : ℕ} (ix : i/128=34) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4352)
+    (cells:=[59,5,3,73,7,3,5,71,3,1024,31,3,10868068226,37,3,87003635542,5,3,7,1024,3,5,347,3,1024,7,3,87242694030,11,3,13,5,3,43681170163,1024,3,5,43720904683,3,7,47,3,87541444808,13,3,1024,5,3,61,41,3,5,113,3,1024,17,3,1024,103,3,7,5,3,87959848730,14663365133,3,5,7,3,13,1024,3,11,1024,3,1024,5,3,71,163,3,5,13,3,101,139,3,37,7,3,23,5,3,53,11,3,5,1024,3,79,1024,3,7,31,3,11,5,3,13,7,3,5,1024,3,12710845771,199,3,1024,59,3,1024,5,3,7,37,3,5,11]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4480; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_35 {i p b : ℕ} (ix : i/128=35) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4480)
+    (cells:=[3,1024,7,3,1024,131,3,167,5,3,11,157,3,5,89533793529,3,7,1024,3,13,271,3,1024,5,3,193,83,3,5,17,3,23,11,3,337,17990422097,3,7,5,3,1024,45035952113,3,5,7,3,17,1024,3,59,79,3,1024,5,3,1024,97,3,5,137,3,43,1024,3,1024,7,3,1024,5,3,37,13,3,5,1024,3,11,23,3,7,17,3,1024,5,3,41,7,3,5,29,3,91067900618,71,3,73,1024,3,13,5,3,7,1024,3,5,43,3,229,7,3,11,13,3,211,5,3,283,15261064912,3,5,1024,3,7,1024,3,53,1024,3,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4608; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_36 {i p b : ℕ} (ix : i/128=36) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4608)
+    (cells:=[5,3,31,11,3,5,1024,3,13,45992275360,3,92024227544,419,3,7,5,3,181,23,3,5,7,3,92263170240,1024,3,293,89,3,1024,5,3,1024,31,3,5,11,3,1024,41,3,23,7,3,1024,5,3,11,29,3,5,1024,3,37,17,3,7,269,3,92980550787,5,3,43,7,3,5,47,3,137,11,3,17,1024,3,1024,5,3,7,93358960993,3,5,1024,3,93458566410,7,3,13,23,3,1024,5,3,9363828577,1024,3,5,1024,3,7,13,3,127,11,3,1024,5,3,139,1024,3,5,103,3,11,1024,3,89,409,3,7,5,3,17,94255506545,3,5,7,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4736; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_37 {i p b : ℕ} (ix : i/128=37) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4736)
+    (cells:=[1024,15729306295,3,101,281,3,367,5,3,1024,13,3,5,1024,3,1024,359,3,11,7,3,163,5,3,277,227,3,5,17,3,61,79,3,7,41,3,13,5,3,421,7,3,5,1024,3,17,1024,3,107,13,3,11,5,3,7,1024,3,5,67,3,31,7,3,43,179,3,251,5,3,157,181,3,5,11,3,7,1024,3,95909235914,17,3,1024,5,3,11,167,3,5,13,3,96148226252,31,3,48104057448,29,3,7,5,3,313,127,3,5,7,3,1024,11,3,1024,9652685702,3,96566604600,5,3,13,337,3,5,139,3,23,1024,3,29,7,3,47,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4864; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_38 {i p b : ℕ} (ix : i/128=38) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4864)
+    (cells:=[3,199,17,3,5,53,3,1024,1673580607,3,7,11,3,1024,5,3,607710409,7,3,5,12163032897,3,11,1024,3,13,1024,3,12182940072,5,3,7,1024,3,5,1024,3,48821237789,7,3,331,1024,3,263,5,3,97821771627,1024,3,5,836789867,3,7,17,3,11,31,3,53,5,3,23,1024,3,5,1024,3,98240159792,646498300,3,17,14045839841,3,7,5,3,9842078708,11,3,5,7,3,29,1024,3,61,137,3,11,5,3,98718222957,47,3,5,1024,3,49419036868,157,3,1024,7,3,13,5,3,1024,23,3,5,11,3,173,1024,3,7,13,3,31,5,3,11,7,3,5,1024,3,89]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<4992; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_39 {i p b : ℕ} (ix : i/128=39) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=4992)
+    (cells:=[1024,3,23,67,3,49777648396,5,3,7,59,3,5,29,3,13,7,3,131,61,3,73,5,3,149,41,3,5,13,3,7,1024,3,25023338533,257,3,1024,5,3,1024,37,3,5,233,3,17,277,3,419,11,3,7,5,3,13,1024,3,5,7,3,11,25162755524,3,100690564629,1024,3,41,5,3,59,1024,3,5,199,3,311,1024,3,71,7,3,50524717042,5,3,31,1024,3,5,101188710042,3,53,113,3,7,73,3,17,5,3,127,7,3,5,101487561790,3,25381997135,13,3,1024,43,3,101646997688,5,3,7,11,3,5,23,3,359,7,3,373,101905977118,3,11,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5120; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_40 {i p b : ℕ} (ix : i/128=40) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5120)
+    (cells:=[29,17,3,5,1024,3,7,1024,3,67,151,3,23,5,3,20460870796,13,3,5,11,3,51211944162,37,3,47,1024,3,7,5,3,11,1024,3,5,7,3,51361488035,1902781761,3,1024,1024,3,13,5,3,1024,109,3,5,89,3,1024,11,3,1024,7,3,1024,5,3,41,1024,3,5,1024,3,43,53,3,7,1024,3,1024,5,3,113,7,3,5,31,3,13,1024,3,1024,11,3,29,5,3,7,71,3,5,13,3,11,7,3,1024,293,3,1024,5,3,211,1024,3,5,43,3,7,1024,3,103,331,3,59,5,3,13,79,3,5,101,3,163,23]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5248; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_41 {i p b : ℕ} (ix : i/128=41) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5248)
+    (cells:=[3,11,104595559844,3,7,5,3,397,1024,3,5,7,3,31,41,3,172573378,29,3,233,5,3,23,11,3,5,17,3,157,193,3,13,7,3,11,5,3,47,1024,3,5,1024,3,17,13,3,7,105492040879,3,1024,5,3,2639791308,7,3,5,11,3,105711150795,1024,3,1024,11754566013,3,97,5,3,7,23,3,5,107,3,241,7,3,307,17,3,37,5,3,67,13,3,5,1024,3,7,11,3,23,1024,3,17,5,3,101,53,3,5,181,3,106607714668,29,3,31,59,3,7,5,3,353,137,3,5,7,3,1024,106926514598,3,1024,11,3,1024,5,3,107085908378]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5376; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_42 {i p b : ℕ} (ix : i/128=42) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5376)
+    (cells:=[17,3,5,47,3,11,1024,3,109,7,3,1024,5,3,1024,1024,3,5,35821642502,3,13,67,3,7,53792099225,3,131,5,3,1024,7,3,5,13,3,107803121417,4901164457,3,11,347,3,1024,5,3,7,113,3,5,71,3,41,7,3,1024,108181631814,3,151,5,3,13,11,3,5,29,3,7,227,3,17,1024,3,11,5,3,73,108600027822,3,5,23,3,4940963248,54359755619,3,108759377317,1024,3,7,5,3,54439490017,108898955837,3,5,7,3,127,269,3,13,37,3,23,5,3,11,54598939746,3,5,18209603003,3,109297372210,13,3,167,7,3,1024,5,3,17,457,3,5,1024,3,1024,11,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5504; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_43 {i p b : ℕ} (ix : i/128=43) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5504)
+    (cells:=[7,53,3,1024,5,3,1024,7,3,5,1024,3,179,6106465797,3,401,47,3,1024,5,3,7,13,3,5,17,3,67,7,3,113,11,3,1024,5,3,31,239,3,5,191,3,7,101,3,37,110572500122,3,13,5,3,29,1024,3,5,61,3,55395929214,241,3,1024,13,3,7,5,3,110971003825,31,3,5,7,3,1024,55555203813,3,11,17,3,1024,5,3,83,37,3,5,55674818684,3,13,23,3,111449077050,7,3,17,5,3,1024,11,3,5,13,3,111688237993,1024,3,7,1024,3,11,5,3,23,7,3,5,1024,3,1024,112006925167,3,56023531788,1024,3,1024,5,3,7,17]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5632; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_44 {i p b : ℕ} (ix : i/128=44) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5632)
+    (cells:=[3,5,11,3,79,7,3,1024,107,3,29,5,3,11,103,3,5,56272561770,3,7,397,3,1024,37554907079,3,1024,5,3,37,23,3,5,31,3,112883449962,11,3,13,1024,3,7,5,3,379,1024,3,5,7,3,61,13,3,23,349,3,1024,5,3,463,37793887050,3,5,1024,3,263,37,3,17,7,3,43,5,3,1024,1024,3,5,59,3,11,56900087299,3,7,79,3,53,5,3,5180126239,7,3,5,443,3,31,283,3,29,23,3,67,5,3,7,57139091522,3,5,114337830683,3,269,7,3,11,43,3,13,5,3,17,83,3,5,41,3,7,31,3,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5760; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_45 {i p b : ℕ} (ix : i/128=45) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5760)
+    (cells:=[13,3,347,5,3,1024,11,3,5,1024,3,37,137,3,313,115055189622,3,7,5,3,239,1024,3,5,7,3,13,29,3,1024,6071437179,3,89,5,3,41,257,3,5,11,3,17,47,3,1024,7,3,1024,5,3,11,461,3,5,38610804110,3,29,1024,3,7,109,3,23,5,3,13,7,3,5,359,3,43,11,3,83,17,3,58145232363,5,3,7,173,3,5,1024,3,1024,7,3,47,31,3,17,5,3,271,193,3,5,116728698410,3,7,337,3,13,11,3,116888081272,5,3,1024,38989285095,3,5,29,3,11,13,3,1024,1024,3,7,5,3,151,17,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<5888; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_46 {i p b : ℕ} (ix : i/128=46) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=5888)
+    (cells:=[5,7,3,23,181,3,97,1024,3,331,5,3,29386351860,1024,3,5,157,3,117664976727,117684917252,3,11,7,3,31,5,3,95476046,13,3,5,37,3,71,117983879401,3,7,61,3,1024,5,3,118143086635,7,3,5,1024,3,1024,17,3,118322487207,1024,3,11,5,3,7,118461920194,3,5,59260815417,3,101,7,3,17,13,3,59340710958,5,3,23,29,3,5,11,3,7,197,3,1024,89,3,1024,5,3,11,1024,3,5,127,3,13,53,3,3137427193,1024,3,7,5,3,29,97,3,5,7,3,1024,11,3,311,41,3,119577703151,5,3,17,23,3,5,389,3,1024,1024,3,173,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6016; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_47 {i p b : ℕ} (ix : i/128=47) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6016)
+    (cells:=[3,59938208161,5,3,13,59978076942,3,5,1024,3,1024,1024,3,7,11,3,1024,5,3,53,7,3,5,17,3,11,439,3,241,1024,3,61,5,3,7,120553855086,3,5,379,3,17,7,3,13,60366540877,3,1024,5,3,1024,353,3,5,211,3,7,13,3,11,23,3,29,5,3,30282984257,1024,3,5,47,3,1024,313,3,43,17,3,7,5,3,1024,11,3,5,7,3,60775044403,1024,3,37,139,3,11,5,3,79,13,3,5,1024,3,1024,191,3,1024,7,3,59,5,3,1024,271,3,5,11,3,47,43,3,7,29,3,13,5,3,11,7,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6144; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_48 {i p b : ℕ} (ix : i/128=48) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6144)
+    (cells:=[23,3,122446520302,109,3,1024,13,3,1024,5,3,7,449,3,5,40901849461,3,103,7,3,29,12282619243,3,23,5,3,122924623126,40981666458,3,5,41001639895,3,7,1024,3,1024,73,3,123163663681,5,3,97,1024,3,5,13,3,31,17,3,53,11,3,7,5,3,61761136450,67,3,5,7,3,11,149,3,17,367,3,113,5,3,13,8845932557,3,5,1024,3,61970355494,29,3,163,7,3,1024,5,3,61,124139966475,3,5,124199719211,3,23,89,3,7,59,3,193,5,3,307,7,3,5,83,3,29,37,3,13,1024,3,1024,5,3,7,11,3,5,103,3,124837174669,7,3,1024,1024,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6272; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_49 {i p b : ℕ} (ix : i/128=49) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6272)
+    (cells:=[11,5,3,263271869,71,3,5,269,3,7,23,3,31,241,3,41,5,3,479,61,3,5,11,3,419,1024,3,59,53,3,7,5,3,11,13,3,5,7,3,17,1024,3,1024,31,3,1024,5,3,137,401,3,5,167,3,37,11,3,1024,7,3,13,5,3,67,1024,3,5,126291746370,3,63165793846,1024,3,7,13,3,43,5,3,227,7,3,5,126590463545,3,149,63325275195,3,1024,11,3,17,5,3,7,47,3,5,41,3,11,7,3,23,157,3,31,5,3,1024,1024,3,5,13,3,7,163,3,107,43,3,293,5,3,1024,17,3,5,73]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6400; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_50 {i p b : ℕ} (ix : i/128=50) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6400)
+    (cells:=[3,1024,67,3,11,1024,3,7,5,3,13,179,3,5,7,3,1024,59,3,353,23,3,277,5,3,29,11,3,5,1024,3,1024,233,3,128184251977,7,3,11,5,3,12830542260,21387441105,3,5,64191787246,3,397,17,3,7,131,3,32135953111,5,3,128602842423,7,3,5,11,3,1024,13,3,17,1024,3,128841720240,5,3,7,1024,3,5,37,3,43,7,3,129080783909,56850383,3,129140612980,5,3,263,129220233643,3,5,23,3,7,11,3,129379607333,43133176826,3,239,5,3,16187513075,13,3,5,89,3,1024,47,3,1024,597874432,3,7,5,3,17,1024,3,5,7,3,1024,139,3,16247377401,11,3,13]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6528; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_51 {i p b : ℕ} (ix : i/128=51) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6528)
+    (cells:=[5,3,26019556325,18588343064,3,5,1024,3,11,1024,3,1024,7,3,1024,5,3,73,1024,3,5,17,3,113,307,3,7,223,3,101,5,3,71,7,3,5,1024,3,13,257,3,11,29,3,1024,5,3,7,283,3,5,13,3,23,7,3,79,37,3,131232511209,5,3,179,11,3,5,31,3,7,65715866580,3,29,17,3,11,5,3,13,373,3,5,1024,3,131710710822,1024,3,127,41,3,7,5,3,1024,311,3,5,7,3,132009588463,23,3,66034717659,1024,3,1024,5,3,11,33052235099,3,5,44089525341,3,1024,383,3,13,7,3,229,5,3,23,17,3,5,149,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6656; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_52 {i p b : ℕ} (ix : i/128=52) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6656)
+    (cells:=[31,11,3,7,11057439524,3,1024,5,3,233,7,3,5,1024,3,53,1024,3,1024,26597260494,3,487,5,3,7,66552746664,3,5,66582731888,3,29,7,3,157,11,3,109,5,3,47,13,3,5,277,3,7,17,3,33390923557,66791725006,3,281,5,3,107,44567822185,3,5,14862596552,3,66901488626,1024,3,17,1024,3,7,5,3,1024,134001840039,3,5,7,3,137,349,3,11,13,3,67,5,3,13428281980,127,3,5,29,3,1024,83,3,31,7,3,16815013294,5,3,197,11,3,5,101,3,13,1024,3,7,23,3,11,5,3,17,7,3,5,13,3,6136390174,43,3,41,31,3,1024,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6784; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_53 {i p b : ℕ} (ix : i/128=53) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6784)
+    (cells:=[3,7,135197311501,3,5,11,3,151,7,3,1024,135376496676,3,181,5,3,11,109,3,5,17,3,7,37,3,1024,251,3,379,5,3,1024,1024,3,5,45284952947,3,17,11,3,257,167,3,7,5,3,53,29,3,5,7,3,47,73,3,13,61,3,31,5,3,68186465260,157,3,5,1024,3,136492343337,13,3,1024,7,3,23,5,3,29,41,3,5,97,3,11,457,3,7,1024,3,17,5,3,136970253627,7,3,5,173,3,37,103,3,1024,22861834333,3,1024,5,3,7,13,3,5,137348832346,3,1024,7,3,11,79,3,41,5,3,1024,17,3,5,22941449132,3,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<6912; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_54 {i p b : ℕ} (ix : i/128=54) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=6912)
+    (cells:=[14160095,3,1024,71,3,13,5,3,439,11,3,5,107,3,23,138006419063,3,1024,13,3,7,5,3,31,53,3,5,7,3,1024,151,3,367,23060968409,3,29,5,3,1024,1024,3,5,11,3,13,17,3,1024,7,3,61,5,3,11,31,3,5,13,3,1024,23,3,7,239,3,47,5,3,69531309742,7,3,5,41,3,71,11,3,53,139261521651,3,37,5,3,7,83,3,5,317,3,223,7,3,17442771722,29,3,59,5,3,1024,263,3,5,193,3,7,23300124308,3,109,11,3,1024,5,3,17,313,3,5,37,3,11,70049318309,3,13,43,3,7,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7040; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_55 {i p b : ℕ} (ix : i/128=55) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7040)
+    (cells:=[17532324464,23,3,5,7,3,1024,13,3,10031205706,1024,3,173,5,3,140556377113,73,3,5,17,3,251,101,3,11,7,3,1024,5,3,140855472789,47,3,5,140935087031,3,17,23499243279,3,7,1024,3,1024,5,3,1024,7,3,5,1024,3,467,29,3,1024,53,3,11,5,3,7,149,3,5,1024,3,1024,7,3,1024,17,3,13,5,3,1024,113,3,5,11,3,7,127,3,211,13,3,17,5,3,11,233,3,5,419,3,8885853837,79,3,67,37,3,7,5,3,61,1024,3,5,7,3,13,11,3,1024,97,3,1024,5,3,157,17,3,5,13,3,307,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7168; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_56 {i p b : ℕ} (ix : i/128=56) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7168)
+    (cells:=[3,1024,7,3,1024,5,3,1024,389,3,5,23,3,71533516677,1024,3,7,11,3,1024,5,3,13,7,3,5,461,3,11,491,3,71,23907773814,3,23,5,3,7,61,3,5,23937561141,3,143664565364,7,3,31,11057484821,3,139,5,3,1024,331,3,5,223,3,7,1024,3,11,41,3,2251368736,5,3,144142729986,131,3,5,144222451151,3,1024,13,3,151,31,3,7,5,3,43,11,3,5,7,3,36140243146,1024,3,47,1024,3,11,5,3,359,29,3,5,281,3,23,18110014113,3,263,7,3,1024,5,3,17,13,3,5,11,3,1024,1024,3,7,145238515953,3,1024,5,3,11]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7296; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_57 {i p b : ℕ} (ix : i/128=57) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7296)
+    (cells:=[7,3,5,1024,3,421,59,3,433,89,3,13,5,3,7,367,3,5,17,3,317,7,3,145816059647,13,3,1024,5,3,37,167,3,5,1024,3,7,73037783130,3,229,211,3,1024,5,3,23,71,3,5,1024,3,13,1024,3,97,11,3,7,5,3,269,139,3,5,7,3,11,37,3,233,17,3,131,5,3,146832266494,1024,3,5,79,3,127,24495499836,3,43,7,3,17,5,3,13,23,3,5,61,3,1024,1024,3,7,151,3,103,5,3,31,7,3,5,18438836054,3,1024,67,3,23,147629167728,3,71,5,3,7,11,3,5,49269701313,3,73,7,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7424; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_58 {i p b : ℕ} (ix : i/128=58) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7424)
+    (cells:=[13,283,3,11,5,3,349,31,3,5,1024,3,7,13,3,148206789082,29,3,148266752443,5,3,1024,97,3,5,11,3,1024,199,3,191,23,3,7,5,3,11,74322716005,3,5,7,3,53,17,3,29,1024,3,1024,5,3,148924116627,13,3,5,59,3,271,11,3,17,7,3,1024,5,3,241,1024,3,5,47,3,443,347,3,7,103,3,13,5,3,1024,7,3,5,1024,3,61,1024,3,149701010649,11,3,41,5,3,7,181,3,5,23,3,11,7,3,1024,277,3,79,5,3,17,1024,3,5,1024,3,7,463,3,1024,15031986785,3,23,5,3,281,43]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7552; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_59 {i p b : ℕ} (ix : i/128=59) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7552)
+    (cells:=[3,5,13,3,29,1024,3,11,1024,3,7,5,3,389,107,3,5,7,3,173,53,3,1024,1024,3,83,5,3,13,11,3,5,37,3,17,151155603838,3,1024,7,3,11,5,3,257,1024,3,5,41,3,75717376334,1024,3,7,1024,3,7976580275,5,3,1024,7,3,5,11,3,23,31,3,13,17,3,151852704353,5,3,7,50644253026,3,5,131,3,157,7,3,139,47,3,17,5,3,41,1024,3,5,1024,3,7,11,3,1024,1024,3,313,5,3,461,59,3,5,1024,3,89,23,3,179,76354906586,3,7,5,3,223,13,3,5,7,3,76464342311,76474430895,3,31]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7680; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_60 {i p b : ℕ} (ix : i/128=60) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7680)
+    (cells:=[11,3,47,5,3,23,1024,3,5,25531453790,3,11,239,3,61,7,3,13,5,3,1743290270,29,3,5,76743313550,3,103,153546333193,3,7,13,3,227,5,3,59,7,3,5,521,3,76912531973,17,3,11,373,3,479,5,3,7,23,3,5,154084147931,3,13,7,3,17,197,3,67,5,3,15430558310,11,3,5,13,3,7,271,3,23,61,3,11,5,3,131,77311161409,3,5,1024,3,43,71,3,37,503,3,7,5,3,13,47,3,5,7,3,457,109,3,53,8616932835,3,499,5,3,11,383,3,5,113,3,1024,1024,3,14125502822,7,3,1024,5,3,77749343578,37,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7808; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_61 {i p b : ℕ} (ix : i/128=61) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7808)
+    (cells:=[5,43,3,155618380725,11,3,7,51899311694,3,29,5,3,1024,7,3,5,17,3,83,13,3,77988521568,233,3,19504579163,5,3,7,191,3,5,89,3,17,7,3,347,11,3,1024,5,3,199,1024,3,5,163,3,7,293,3,73,39148807182,3,8244197318,5,3,31,13,3,5,23,3,156813506307,956588412,3,156873348880,17,3,7,5,3,37,1024,3,5,7,3,41,107,3,11,53,3,13,5,3,43,31,3,5,157371438216,3,1024,1024,3,29,7,3,113,5,3,1024,11,3,5,1024,3,1024,37,3,7,3586163410,3,11,5,3,401,7,3,5,1024,3,13,73,3,158068821703,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<7936; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_62 {i p b : ℕ} (ix : i/128=62) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=7936)
+    (cells:=[3,197,5,3,7,1024,3,5,11,3,1024,7,3,379,317,3,449,5,3,11,1024,3,5,1024,3,7,29,3,47,313,3,1024,5,3,13,101,3,5,158865600445,3,1024,11,3,193,71,3,7,5,3,1024,1024,3,5,7,3,29,83,3,17,149,3,409,5,3,109,1024,3,5,578029687,3,79,23,3,13,7,3,1024,5,3,103,525458307,3,5,8408729697,3,11,13,3,7,467,3,191,5,3,23,7,3,5,397,3,20012606584,1024,3,1024,1024,3,1024,5,3,7,1024,3,5,29,3,31,7,3,11,1024,3,1024,5,3,61,13,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8064; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_63 {i p b : ℕ} (ix : i/128=63) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8064)
+    (cells:=[181,3,7,43,3,59,1024,3,101,5,3,83,11,3,5,17,3,80498951699,31,3,277,79,3,7,5,3,173,41,3,5,7,3,17,1024,3,23,13,3,37,5,3,47,89,3,5,11,3,1024,281,3,1024,7,3,1024,5,3,11,61,3,5,40463614266,3,13,1024,3,7,17,3,41,5,3,162073329853,7,3,5,13,3,81096416993,11,3,31,23,3,17,5,3,7,73,3,5,162451965417,3,1024,7,3,1024,81285636626,3,269,5,3,13,227,3,5,1024,3,7,193,3,383,11,3,81455085362,5,3,163,17,3,5,353,3,11,59,3,1024,139,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8192; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_64 {i p b : ℕ} (ix : i/128=64) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8192)
+    (cells:=[7,5,3,89,43,3,5,7,3,179,163408257097,3,13,4302075141,3,8605678597,5,3,1024,67,3,5,23,3,1024,13,3,11,7,3,97,5,3,1743526797,54628780740,3,5,1024,3,163985836267,17,3,7,32813213462,3,23,5,3,521,7,3,5,82122657056,3,47,164304585075,3,17,37,3,11,5,3,7,13,3,5,157,3,53,7,3,71,127,3,317,5,3,164762943397,1024,3,5,11,3,7,1024,3,164942162275,9164632158,3,13,5,3,11,499,3,5,1024,3,165181365870,27533612180,3,271,13,3,7,5,3,17,151,3,5,7,3,23,11,3,11824356235,29,3,41399917915,5,3,107,251,3,5,97]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8320; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_65 {i p b : ℕ} (ix : i/128=65) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8320)
+    (cells:=[3,13,79,3,37,7,3,109,5,3,31,197,3,5,13,3,1024,41,3,7,11,3,359,5,3,67,7,3,5,83168564254,3,11,23,3,166436342805,8761016047,3,541,5,3,7,31,3,5,59,3,257,7,3,1024,73,3,1024,5,3,23,1024,3,5,1024,3,7,443,3,11,17,3,47,5,3,211,419,3,5,307,3,20909376769,29,3,13,20919272412,3,7,5,3,1024,11,3,5,7,3,43,13,3,1024,131,3,11,5,3,53,23,3,5,20978997327,3,29,103,3,1024,7,3,83995226874,5,3,37,17,3,5,11,3,1024,149,3,7,1024,3,199]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8448; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_66 {i p b : ℕ} (ix : i/128=66) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8448)
+    (cells:=[5,3,11,7,3,5,31,3,1024,1024,3,1024,41,3,89,5,3,7,168667741033,3,5,1024,3,373,7,3,1024,168847084352,3,13,5,3,79,47,3,5,29,3,7,17,3,1024,13,3,467,5,3,167,1024,3,5,169325121751,3,41,56461835936,3,17,11,3,7,5,3,169544438790,56521548817,3,5,7,3,11,1024,3,127,569,3,169783373608,5,3,1024,53,3,5,13,3,8945452487,1024,3,1024,7,3,353,5,3,43,59,3,5,1024,3,37,31,3,7,8965481019,3,1024,5,3,13,7,3,5,23,3,85280370111,223,3,421,271,3,251,5,3,7,11,3,5,170819625727,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8576; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_67 {i p b : ℕ} (ix : i/128=67) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8576)
+    (cells:=[42714993815,7,3,53,571,3,11,5,3,113,509,3,5,17,3,7,1024,3,13,1024,3,1024,5,3,29,211,3,5,11,3,17,13,3,31,97,3,7,5,3,11,1024,3,5,7,3,1024,47,3,41,487,3,171875552054,5,3,1024,1024,3,5,1024,3,107,11,3,1024,7,3,1024,5,3,86117234876,13,3,5,137,3,23,1024,3,7,1024,3,17,5,3,1024,7,3,5,43153420558,3,1024,1024,3,43,11,3,13,5,3,7,439,3,5,172911295268,3,11,7,3,86505527063,13,3,29,5,3,71,17,3,5,37,3,7,23,3,173309966900,269,3,31,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8704; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_68 {i p b : ℕ} (ix : i/128=68) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8704)
+    (cells:=[3,1024,41,3,5,1024,3,13,43,3,11,57876382651,3,7,5,3,23,1024,3,5,7,3,173847866873,401,3,89,157,3,389,5,3,73,11,3,5,83,3,1024,17,3,1024,7,3,11,5,3,13,193,3,5,151,3,1024,29077667342,3,7,43631459946,3,233,5,3,87312612106,7,3,5,11,3,1024,1024,3,29,3884987268,3,59,5,3,7,29157500570,3,5,1024,3,137,7,3,13,175122875323,3,61,5,3,31,79,3,5,1024,3,7,11,3,97,37,3,1024,5,3,17,113,3,5,67,3,1024,87830610840,3,1024,1024,3,7,5,3,443,31,3,5,7,3,175939601391]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8832; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_69 {i p b : ℕ} (ix : i/128=69) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8832)
+    (cells:=[29,3,1024,11,3,1024,5,3,283,13,3,5,17,3,11,227,3,1024,7,3,263,5,3,1024,88218966851,3,5,58832520039,3,17,176557404631,3,7,1024,3,13,5,3,41,7,3,5,6096732859,3,331,8039186682,3,11,13,3,176955635657,5,3,7,59011999884,3,5,149,3,1024,7,3,177194984841,17,3,53,5,3,127,11,3,5,23,3,7,89,3,1024,19723977570,3,11,5,3,277,37,3,5,13,3,1024,197,3,113,1024,3,7,5,3,177912197344,463,3,5,7,3,241,229,3,131,383,3,103,5,3,11,17,3,5,29715221895,3,47,41,3,59,7,3,107,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<8960; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_70 {i p b : ℕ} (ix : i/128=70) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=8960)
+    (cells:=[1024,1024,3,5,1024,3,1024,11,3,7,43,3,89374548049,5,3,61,7,3,5,1024,3,31,191,3,13,421,3,179047631081,5,3,7,59709376376,3,5,179186969908,3,23,7,3,179286672275,11,3,1024,5,3,17940615565,29,3,5,6903498760,3,7,31,3,17,67,3,1024,5,3,22463282301,1024,3,5,139,3,1024,37,3,293,1024,3,7,5,3,29,13,3,5,7,3,1024,23,3,11,47,3,1024,5,3,1024,1024,3,5,1024,3,43,30073918834,3,1024,7,3,13,5,3,17,11,3,5,251,3,83,59,3,7,13,3,11,5,3,1024,7,3,5,22622586514,3,379,4642206506]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9088; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_71 {i p b : ℕ} (ix : i/128=71) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9088)
+    (cells:=[3,569,109,3,47,5,3,7,179,3,5,11,3,13,7,3,1024,31,3,271,5,3,11,23,3,5,13,3,7,1024,3,197,5678157271,3,29,5,3,1024,239,3,5,1024,3,59,11,3,23,12133097187,3,7,5,3,13,1597813937,3,5,7,3,367,1024,3,67,17,3,457,5,3,182394688187,91207419460,3,5,60824876294,3,491,53,3,479,7,3,17,5,3,1024,107,3,5,89,3,11,241,3,7,23,3,182932531029,5,3,43,7,3,5,1024,3,79,13,3,1024,1024,3,137,5,3,7,17,3,5,1024,3,1024,7,3,11,183490558882,3,37,5,3,53]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9216; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_72 {i p b : ℕ} (ix : i/128=72) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9216)
+    (cells:=[67,3,5,61,3,7,1024,3,409,397,3,547,5,3,1024,11,3,5,211,3,281,83,3,41,4844738461,3,7,5,3,92094070230,73,3,5,7,3,103,17,3,1024,1024,3,13,5,3,31,4393149443,3,5,11,3,4502589390,29,3,17,7,3,23,5,3,11,15400563132,3,5,503,3,127,521,3,7,1024,3,1024,5,3,1024,7,3,5,1024,3,13,11,3,449,1024,3,139,5,3,7,185403191865,3,5,13,3,1024,7,3,43,307,3,1024,5,3,17,41,3,5,30960558675,3,7,47,3,71,11,3,131,5,3,13,149,3,5,1024,3,11,1024,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9344; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_73 {i p b : ℕ} (ix : i/128=73) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9344)
+    (cells:=[93080321173,1024,3,7,5,3,67,1024,3,5,7,3,4905306658,43,3,1024,37,3,41,5,3,239,186598430050,3,5,1024,3,17,1024,3,11,7,3,1024,5,3,93438898762,93448664129,3,5,31,3,97,13,3,7,12472055043,3,73,5,3,229,7,3,5,577,3,1024,61,3,1024,17,3,11,5,3,7,1024,3,5,187554604171,3,1024,7,3,359,311,3,17,5,3,557,13,3,5,11,3,7,1024,3,37,62657721589,3,1024,5,3,11,29,3,5,41,3,31,62737497948,3,94126200512,1024,3,7,5,3,1024,17,3,5,7,3,233,11,3,47137934261,13,3,188610627321,5,3,29,37]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9472; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_74 {i p b : ℕ} (ix : i/128=74) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9472)
+    (cells:=[3,5,173,3,1024,31,3,23,7,3,188909374910,5,3,41,43,3,5,113,3,13,107,3,7,11,3,167,5,3,1024,7,3,5,13,3,11,17,3,151,389,3,181,5,3,7,431,3,5,189646525197,3,4991801746,7,3,17,23,3,189805895843,5,3,13,587,3,5,63315355347,3,7,95002741081,3,11,2640018578,3,71,5,3,37,1024,3,5,10569320439,3,67,31717389659,3,439,191,3,7,5,3,103,11,3,5,7,3,593,41,3,13,31,3,11,5,3,17,1024,3,5,347,3,1024,13,3,1024,7,3,101,5,3,373,1024,3,5,11,3,353,13657246204,3,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9600; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_75 {i p b : ℕ} (ix : i/128=75) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9600)
+    (cells:=[1024,3,113,5,3,11,7,3,5,17,3,73,10639186967,3,1024,29,3,23,5,3,7,13,3,5,229,3,17,7,3,1024,1024,3,31,5,3,109,31996444862,3,5,53,3,7,192097059933,3,29,96078574509,3,13,5,3,192256452597,257,3,5,1024,3,37,10688739772,3,241,11,3,7,5,3,79,64191895316,3,5,7,3,11,157,3,27533781282,1024,3,17,5,3,96427394422,1024,3,5,71,3,13,1024,3,283,7,3,53,5,3,193153248584,607,3,5,13,3,43,29,3,7,1024,3,61,5,3,197,7,3,5,1024,3,193,1024,3,139,96825869427,3,571,5,3,7,11,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9728; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_76 {i p b : ℕ} (ix : i/128=76) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9728)
+    (cells:=[5,1024,3,29,7,3,1024,83,3,11,5,3,1024,5107360773,3,5,43,3,7,1024,3,97114726655,47,3,67,5,3,23,31,3,5,11,3,1024,17,3,13,19454910665,3,7,5,3,11,194667344859,3,5,7,3,269,13,3,17,59,3,503,5,3,97473030573,64988972114,3,5,29,3,1024,11,3,195125529229,7,3,47,5,3,1024,23,3,5,37,3,1024,65128398364,3,7,163,3,179,5,3,195544008278,7,3,5,67,3,97831816027,251,3,23,11,3,421,5,3,7,167,3,5,65307642214,3,11,7,3,59,199,3,13,5,3,1024,1024,3,5,31,3,7,317,3,41,13]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9856; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_77 {i p b : ℕ} (ix : i/128=77) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9856)
+    (cells:=[3,463,5,3,98220249490,1024,3,5,17,3,1024,211,3,11,23,3,7,5,3,196739230241,29,3,5,7,3,13,137,3,49229772880,1024,3,1024,5,3,61,11,3,5,13,3,1024,71,3,389,7,3,11,5,3,29,337,3,5,193,3,31,98738172585,3,7,17,3,1024,5,3,13,7,3,5,11,3,347,233,3,307,401,3,17,5,3,7,41,3,5,23,3,113,7,3,99056918735,1024,3,431,5,3,198233472643,61,3,5,1024,3,7,11,3,13,461,3,23,5,3,1024,17,3,5,33102012123,3,563,13,3,1024,89,3,7,5,3,541,79,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<9984; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_78 {i p b : ℕ} (ix : i/128=78) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=9984)
+    (cells:=[7,3,157,131,3,37,11,3,29,5,3,199129931115,33191711653,3,5,199209607378,3,11,43,3,31,7,3,1024,5,3,53,13,3,5,199508645417,3,59,17,3,7,67,3,199667963741,5,3,1024,7,3,5,1024,3,23,47,3,11,31,3,13,5,3,7,33341185797,3,5,1024,3,1024,7,3,73,13,3,100133043184,5,3,181,11,3,5,41,3,7,1713584050,3,89,97,3,11,5,3,200624389452,109,3,5,200704094378,3,13,23,3,29,1024,3,7,5,3,17,487,3,5,7,3,201042759417,101,3,1024,1024,3,31,5,3,11,1024,3,5,197,3,201341516779,67120729913,3,1024,7,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10112; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_79 {i p b : ℕ} (ix : i/128=79) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10112)
+    (cells:=[100730421064,5,3,13,53,3,5,17,3,1024,11,3,7,1024,3,1024,5,3,201819684495,7,3,5,59,3,17,29,3,79,1024,3,202058633991,5,3,7,23,3,5,1024,3,1024,7,3,13,11,3,1024,5,3,233,5327317143,3,5,101248497231,3,7,13,3,23,17,3,50664201796,5,3,202716057095,101368069529,3,5,613,3,71,41,3,1024,101457865980,3,7,5,3,31,271,3,5,7,3,1024,449,3,11,331,3,203254042100,5,3,101656920107,13,3,5,227,3,37,101726938011,3,1024,7,3,43,5,3,47,11,3,5,29,3,523,569,3,7,149,3,11,5,3,1024,7,3,5,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10240; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_80 {i p b : ℕ} (ix : i/128=80) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10240)
+    (cells:=[3,107,89,3,51022918921,13,3,367,5,3,7,204230100340,3,5,11,3,61,7,3,97,43,3,29207081774,5,3,11,1024,3,5,11366248800,3,7,17,3,1024,53,3,1024,5,3,113,103,3,5,13,3,1024,11,3,17,41001709592,3,7,5,3,193,102563567756,3,5,7,3,197,353,3,51321784283,41,3,23,5,3,13,29,3,5,31,3,83,61,3,191,7,3,37,5,3,1024,1024,3,5,102892141784,3,11,167,3,7,433,3,1024,5,3,17,7,3,5,1024,3,41,1024,3,13,206202481969,3,1024,5,3,7,97,3,5,37,3,47,7,3,11,6883672081,3,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10368; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_81 {i p b : ℕ} (ix : i/128=81) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10368)
+    (cells:=[5,3,59,206621071263,3,5,17,3,7,103370495231,3,149,131,3,241,5,3,1024,11,3,5,43,3,17,1024,3,71,101,3,7,5,3,2726426992,13,3,5,7,3,207318402538,31,3,1024,1024,3,103719209821,5,3,151,397,3,5,11,3,461,23,3,127,7,3,13,5,3,11,207816503479,3,5,53,3,227,199,3,7,13,3,17,5,3,23,7,3,5,1024,3,409,11,3,208274852417,47,3,157,5,3,7,34735945202,3,5,1024,3,13,7,3,31,37,3,383,5,3,43,17,3,5,13,3,7,83,3,26109165188,11,3,53,5,3,208991830095,23,3,5,293,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10496; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_82 {i p b : ℕ} (ix : i/128=82) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10496)
+    (cells:=[11,104565664691,3,167,31,3,7,5,3,13,113,3,5,7,3,131,173,3,23,1024,3,104764973101,5,3,52397658236,541,3,5,52417612810,3,209709079000,17,3,11,7,3,1024,5,3,1024,71,3,5,557,3,105004179276,1024,3,7,105043942768,3,59,5,3,97,7,3,5,1024,3,67,13,3,210366412252,23,3,11,5,3,7,151,3,5,223,3,349,7,3,210665323287,251,3,277,5,3,337,37,3,5,11,3,7,1024,3,105482141855,103,3,41,5,3,11,13,3,5,1024,3,29,379,3,43,35213841643,3,7,5,3,211382746179,211402588201,3,5,7,3,109,11,3,113,347,3,13,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10624; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_83 {i p b : ℕ} (ix : i/128=83) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10624)
+    (cells:=[3,163,233,3,5,17,3,211801171652,13238821065,3,491,7,3,619,5,3,1024,281,3,5,601,3,17,43,3,7,11,3,23,5,3,31,7,3,5,29,3,11,1024,3,311,59,3,212518266484,5,3,7,1024,3,5,13,3,1024,7,3,257,17,3,212816939038,5,3,173,31,3,5,1024,3,7,37,3,11,197,3,17,5,3,13,191,3,5,137,3,73,179,3,373,10160971023,3,7,5,3,41,11,3,5,7,3,23,71204779513,3,59,109,3,11,5,3,1024,17,3,5,1024,3,53473493647,47,3,13,7,3,214012604016,5,3,107036284597,29,3,5,11,3,214191848732]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10752; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_84 {i p b : ℕ} (ix : i/128=84) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10752)
+    (cells:=[13,3,7,214271444110,3,67,5,3,11,7,3,5,1024,3,37,23,3,229,214570313915,3,107305216146,5,3,7,43,3,5,31,3,499,7,3,47,35811860214,3,293,5,3,23,13,3,5,71682878963,3,7,41,3,17,2241670065,3,1024,5,3,53,71762464210,3,5,431,3,1024,1024,3,83,11,3,7,5,3,71,283,3,5,7,3,11,467,3,1024,13,3,107902960187,5,3,199,23,3,5,215944889750,3,31,59,3,1024,7,3,216104198791,5,3,17,216184175183,3,5,277,3,13,108152079883,3,7,409,3,29,5,3,89,7,3,5,13,3,439,31,3,193,216662283565,3,37,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<10880; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_85 {i p b : ℕ} (ix : i/128=85) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=10880)
+    (cells:=[7,11,3,5,17,3,179,7,3,1024,227,3,11,5,3,13,1024,3,5,103,3,7,1024,3,131,23,3,217299624393,5,3,607,53,3,5,11,3,108739736735,337,3,217538691166,29,3,7,5,3,11,217678154280,3,5,7,3,217777924558,127,3,13,17,3,1024,5,3,1024,1024,3,5,1024,3,218076835677,11,3,29,7,3,17,5,3,43651438592,263,3,5,218335718239,3,41,71,3,7,31,3,347,5,3,139,7,3,5,23,3,54668754917,1024,3,1024,11,3,218793780189,5,3,7,13,3,5,1024,3,11,7,3,1024,1024,3,23,5,3,167,101,3,5,271,3,7,29]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11008; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_86 {i p b : ℕ} (ix : i/128=86) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11008)
+    (cells:=[3,1024,43870658568,3,13,5,3,223,647,3,5,47,3,1024,1024,3,11,13,3,7,5,3,219750428042,173,3,5,7,3,29,17,3,1024,443,3,219989429862,5,3,22005124234,11,3,5,61,3,13,109,3,17,7,3,11,5,3,487,110183929136,3,5,13,3,23,193,3,7,53,3,1024,5,3,1024,7,3,5,11,3,1024,373,3,41,157,3,79,5,3,7,1024,3,5,29,3,557,7,3,37,36857859682,3,101,5,3,17,221264320644,3,5,139,3,7,11,3,163,137,3,227,5,3,31,269,3,5,149,3,221663044279,1024,3,13,577,3,7,5,3,23]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11136; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_87 {i p b : ℕ} (ix : i/128=87) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11136)
+    (cells:=[37,3,5,7,3,181,13,3,73,11,3,1024,5,3,641,31,3,5,1024,3,11,307,3,67,7,3,222379932488,5,3,22244057857,41,3,5,37086980101,3,61,37096642891,3,7,71,3,111339434161,5,3,1024,7,3,5,113,3,127,1024,3,11,17,3,1024,5,3,7,59,3,5,1024,3,433,7,3,23,1024,3,13,5,3,29,11,3,5,359,3,7,73,3,263,13,3,11,5,3,111817533254,67,3,5,53,3,223754810142,61,3,1024,44767238264,3,7,5,3,431,17,3,5,7,3,13,37,3,43,23,3,137,5,3,11,619,3,5,13,3,1024,224372468095,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11264; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_88 {i p b : ℕ} (ix : i/128=88) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11264)
+    (cells:=[1024,7,3,224471908688,5,3,109,1024,3,5,191,3,1024,11,3,7,499,3,53,5,3,13,7,3,5,41,3,503,17,3,467,225029812037,3,29,5,3,7,47,3,5,101,3,31,7,3,17,11,3,83,5,3,1024,37574909335,3,5,23,3,7,181,3,13,233,3,225667443443,5,3,41,1024,3,5,167,3,56461672882,13,3,1024,1024,3,7,5,3,593,241,3,5,7,3,1024,1024,3,11,29,3,1024,5,3,17,353,3,5,1024,3,521,1024,3,1024,7,3,1024,5,3,226623553898,11,3,5,109,3,1024,617,3,7,1024,3,11,5,3,269,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11392; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_89 {i p b : ℕ} (ix : i/128=89) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11392)
+    (cells:=[3,5,17,3,1024,1024,3,31,1024,3,13,5,3,7,227241199150,3,5,11,3,17,7,3,103,13,3,113730160147,5,3,11,43,3,5,1024,3,7,67,3,1024,31,3,37,5,3,571,73,3,5,227898819781,3,13,11,3,1024,17,3,7,5,3,257,1024,3,5,7,3,229,23,3,71,1024,3,17,5,3,191,10877976906,3,5,37,3,29,151,3,1024,7,3,114327949131,5,3,13,114367944645,3,5,281,3,11,1024,3,7,228914739845,3,31,5,3,45802856651,7,3,5,229094295080,3,167,229154101272,3,57298412157,22921775689,3,43,5,3,7,421,3,5,1024,3,239,7,3,11]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11520; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_90 {i p b : ℕ} (ix : i/128=90) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11520)
+    (cells:=[97,3,1024,5,3,107,23,3,5,29,3,7,13,3,401,41,3,61,5,3,1024,11,3,5,449,3,271,17,3,23,43,3,7,5,3,211,157,3,5,7,3,67,1024,3,17,1024,3,127,5,3,230508688804,13,3,5,11,3,41,89,3,251,7,3,73,5,3,11,1024,3,5,38481403950,3,337,2062262732,3,7,23,3,13,5,3,53,7,3,5,1024,3,231225870237,11,3,59,13,3,1024,5,3,7,29,3,5,1024,3,383,7,3,1024,1024,3,231644150704,5,3,47,199,3,5,433,3,7,38640737085,3,1024,11,3,1024,5,3,29,193,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11648; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_91 {i p b : ℕ} (ix : i/128=91) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11648)
+    (cells:=[5,13,3,11,29018129578,3,37,73,3,7,5,3,563,347,3,5,7,3,17,1024,3,1024,283,3,71,5,3,13,116310360144,3,5,43,3,1024,25860015775,3,11,7,3,23,5,3,131,37,3,5,127,3,1024,1024,3,7,17,3,233138498325,5,3,116599319732,7,3,5,31,3,1024,599,3,13,367,3,11,5,3,7,313,3,5,47,3,1024,7,3,1024,12300058063,3,29,5,3,1024,14613700564,3,5,11,3,7,1024,3,116987885137,263,3,1024,5,3,11,17,3,5,317,3,23,1024,3,53,39049213527,3,7,5,3,37,13,3,5,7,3,31,11,3,151,234592730408]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11776; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_92 {i p b : ℕ} (ix : i/128=92) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11776)
+    (cells:=[3,1024,5,3,1544104074,41,3,5,58693228280,3,59,234831866090,3,1024,7,3,13,5,3,523,1024,3,5,235071250903,3,73,17,3,7,11,3,1024,5,3,83,7,3,5,71,3,11,271,3,17,9812438452,3,41,5,3,7,103,3,5,67,3,13,7,3,235768363505,167,3,117914153878,5,3,58972081810,117954022827,3,5,13,3,7,191,3,11,1024,3,1024,5,3,331,19684237594,3,5,1024,3,4074374741,113,3,31,47,3,7,5,3,13,11,3,5,7,3,37,29,3,587,29585985960,3,11,5,3,71,236804534163,3,5,1024,3,1024,1024,3,23,7,3,1024,5,3,23708417265,1024,3,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<11904; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_93 {i p b : ℕ} (ix : i/128=93) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=11904)
+    (cells:=[11,3,29,223,3,7,101,3,47,5,3,11,7,3,5,1024,3,17,13,3,109,151,3,1024,5,3,7,1024,3,5,569,3,118900516945,7,3,237860366250,23,3,1024,5,3,41,1024,3,5,1024,3,7,131,3,238159324235,17,3,31,5,3,179,13,3,5,29,3,238398097776,349,3,1024,11,3,7,5,3,113,83,3,5,7,3,11,1024,3,119378727209,1024,3,13,5,3,673,1024,3,5,239,3,29874767263,643,3,617,7,3,167,5,3,97,17,3,5,23,3,101,3148888910,3,7,1024,3,1024,5,3,73,7,3,5,37,3,13,41,3,199,67,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12032; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_94 {i p b : ℕ} (ix : i/128=94) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12032)
+    (cells:=[23,5,3,7,11,3,5,13,3,1024,7,3,1024,1024,3,11,5,3,31,29,3,5,1024,3,7,17,3,83,107,3,240310987960,5,3,13,43,3,5,11,3,317,631,3,17,127,3,7,5,3,11,31,3,5,7,3,61,409,3,120424579358,6176172462,3,163,5,3,48193621232,1024,3,5,241048042335,3,23,11,3,13,7,3,491,5,3,1024,89,3,5,79,3,6352499355,13,3,7,1024,3,241506158582,5,3,17,7,3,5,1024,3,1024,1024,3,1024,11,3,1024,5,3,7,1024,3,5,541,3,11,7,3,509,41,3,43,5,3,1024,13,3,5,17]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12160; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_95 {i p b : ℕ} (ix : i/128=95) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12160)
+    (cells:=[3,7,419,3,67,40394104766,3,29,5,3,23,1024,3,5,31,3,17,4492824701,3,11,4333360155,3,7,5,3,1024,331,3,5,7,3,41,1024,3,47,13,3,269,5,3,89,11,3,5,20261732928,3,1024,81066653923,3,37,7,3,11,5,3,1024,23,3,5,311,3,13,12815944237,3,7,29,3,17,5,3,1024,7,3,5,11,3,31,121898892430,3,23,71,3,173,5,3,7,37,3,5,1024,3,109,7,3,29,163,3,233,5,3,13,17,3,5,122167713080,3,7,11,3,61,1024,3,79,5,3,244554175402,683,3,5,1024,3,43,1024,3,577,23,3,7]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12288; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_96 {i p b : ℕ} (ix : i/128=96) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12288)
+    (cells:=[5,3,1024,359,3,5,7,3,97,503,3,13,11,3,1024,5,3,1024,1024,3,5,1024,3,11,13,3,41,7,3,59,5,3,37,40912127842,3,5,43,3,1024,281,3,7,61,3,251,5,3,47,7,3,5,1024,3,29,53,3,11,131,3,313,5,3,7,13,3,5,23,3,123084309197,7,3,271,31,3,1024,5,3,67,11,3,5,443,3,7,229,3,1024,82182577622,3,11,5,3,17,107,3,5,41121161206,3,1024,383,3,1024,13,3,7,5,3,53,41,3,5,7,3,397,247084742556,3,1024,123572342255,3,1024,5,3,11,247263753376,3,5,17,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12416; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_97 {i p b : ℕ} (ix : i/128=97) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12416)
+    (cells:=[13,123691846874,3,247423389187,7,3,31,5,3,1024,1024,3,5,13,3,17,11,3,7,59,3,41,5,3,1024,7,3,5,103,3,23,601,3,367,248040747210,3,61,5,3,7,127,3,5,82740263664,3,1024,7,3,1024,11,3,89,5,3,248439554571,1024,3,5,83,3,7,1024,3,227,24864304482,3,17,5,3,137,29,3,5,1024,3,1024,23,3,13,248937648294,3,7,5,3,433,53,3,5,7,3,1024,13,3,11,1024,3,1024,5,3,23,17,3,5,41,3,487,1024,3,71,7,3,249574806684,5,3,311,11,3,5,263,3,1024,1024,3,7,113,3,11,5]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12544; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_98 {i p b : ℕ} (ix : i/128=98) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12544)
+    (cells:=[3,293,7,3,5,1024,3,241,1024,3,53,1024,3,83,5,3,7,23,3,5,11,3,67,7,3,1024,47,3,13,5,3,11,223,3,5,37,3,7,43,3,17,13,3,97,5,3,250830063074,1024,3,5,1024,3,653,11,3,1024,1024,3,7,5,3,1024,251148684556,3,5,7,3,13,59,3,149,1024,3,47,5,3,31428471901,41908190349,3,5,13,3,199,439,3,6621582231,7,3,62916889275,5,3,17,1024,3,5,31,3,11,41,3,7,89,3,251965915645,5,3,13,7,3,5,1024,3,1024,42027458393,3,252204749054,29,3,252264400623,5,3,7,71,3,5,17,3,59]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12672; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_99 {i p b : ℕ} (ix : i/128=99) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12672)
+    (cells:=[7,3,11,1024,3,73,5,3,151,42107501112,3,5,97,3,7,109,3,13,37,3,307,5,3,467,11,3,5,23,3,31,13,3,1024,317,3,7,5,3,127,43,3,5,7,3,6666939548,126680494019,3,36200348049,17,3,23,5,3,126759914839,461,3,5,11,3,607,31,3,89,7,3,17,5,3,11,13,3,5,163,3,79,29,3,7,73,3,63514610790,5,3,254117533887,7,3,5,137,3,173,11,3,37,41,3,13,5,3,7,17,3,5,421,3,29,7,3,254595553157,13,3,254655327053,5,3,1024,563,3,5,59,3,7,241,3,31,11,3,43,5,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12800; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_100 {i p b : ℕ} (ix : i/128=100) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12800)
+    (cells:=[503,37,3,5,193,3,11,1024,3,107,1024,3,7,5,3,1024,367,3,5,7,3,211,17,3,15968342685,31,3,1024,5,3,229,151,3,5,29,3,1024,23,3,11,7,3,255850848200,5,3,13,255930396358,3,5,1024,3,256029940737,47,3,7,179,3,128074868645,5,3,23,7,3,5,1024,3,256328842953,85449934635,3,131,85469616403,3,11,5,3,7,379,3,5,61,3,11665255168,7,3,13,1024,3,31,5,3,17,449,3,5,11,3,7,13,3,47,1024,3,1024,5,3,11,23,3,5,42864584027,3,1024,37,3,257285220319,28589493715,3,7,5,3,101,29,3,5,7,3,43,11]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<12928; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_101 {i p b : ℕ} (ix : i/128=101) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=12928)
+    (cells:=[3,23,1024,3,128822125993,5,3,257703314773,13,3,5,337,3,17,1024,3,1024,7,3,373,5,3,29,181,3,5,1024,3,233,647,3,7,11,3,13,5,3,1024,7,3,5,43,3,11,83,3,19883511802,13,3,1024,5,3,7,1024,3,5,1024,3,37,7,3,129389778359,258799243260,3,17,5,3,1024,479,3,5,307,3,7,1024,3,11,14394642277,3,1024,5,3,259197724129,31,3,5,13,3,1024,1024,3,259377142218,1024,3,7,5,3,59,11,3,5,7,3,53,211,3,179,67,3,11,5,3,13,14434402920,3,5,23,3,259914779675,1024,3,347,7,3,41,5,3,43]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13056; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_102 {i p b : ℕ} (ix : i/128=102) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=13056)
+    (cells:=[547,3,5,11,3,149,61,3,7,43382621713,3,23,5,3,11,7,3,5,1024,3,1024,17,3,13,43432243071,3,260632087861,5,3,7,28968013092,3,5,491,3,127,7,3,17,29,3,37,5,3,1024,1024,3,5,31,3,7,173,3,130585017670,1024,3,130614991312,5,3,73,1024,3,5,1024,3,1024,101,3,29,11,3,7,5,3,107,13,3,5,7,3,11,53,3,1024,1024,3,261827762209,5,3,17,261907248690,3,5,1024,3,262006774893,311,3,1024,7,3,13,5,3,227,1024,3,5,1024,3,31,509,3,7,13,3,271,5,3,41,7,3,5,17,3,47,23,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13184; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_103 {i p b : ℕ} (ix : i/128=103) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=13184)
+    (cells:=[43,2918781042,3,461,5,3,7,11,3,5,139,3,13,7,3,1024,2739582928,3,11,5,3,23,87700900811,3,5,13,3,7,1024,3,1024,263281842969,3,1024,5,3,79,83,3,5,11,3,541,43,3,131780802257,17,3,7,5,3,11,67,3,5,7,3,131900101508,263819728159,3,613,37,3,17,5,3,13893701172,23,3,5,88019978435,3,197,11,3,31,7,3,131,5,3,457,97,3,5,29,3,264397440927,331420719,3,7,47,3,1024,5,3,173,7,3,5,151,3,313,13,3,1024,11,3,66204315940,5,3,7,53,3,5,79,3,11,7,3,83,71,3,137,5,3,24107201407,88398199881]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13312; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_104 {i p b : ℕ} (ix : i/128=104) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=13312)
+    (cells:=[3,5,409,3,7,44219142602,3,37,23,3,47,5,3,132736781137,13,3,5,691,3,113,17,3,11,37953306513,3,7,5,3,449,109,3,5,7,3,1024,277,3,17,1024,3,13,5,3,14003916219,11,3,5,149,3,1024,1024,3,523,7,3,11,5,3,67,103,3,5,1024,3,71,1024,3,7,41,3,266609180776,5,3,29,7,3,5,11,3,13,179,3,1024,431,3,1024,5,3,7,133494034584,3,5,13,3,1024,7,3,133573863183,267166788913,3,23,5,3,709,47,3,5,419,3,7,11,3,293,101,3,267505519450,5,3,13,1024,3,5,17,3,1024,67,3,267744890462]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13440; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_105 {i p b : ℕ} (ix : i/128=105) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=13440)
+    (cells:=[157,3,7,5,3,31,89,3,5,7,3,17,1024,3,211,11,3,79,5,3,97,1024,3,5,1024,3,11,37,3,13,7,3,29,5,3,479,31,3,5,353,3,23,13,3,7,17,3,1024,5,3,1024,7,3,5,181,3,19205744686,59,3,11,1024,3,17,5,3,7,257,3,5,599,3,269179102961,7,3,269239038016,241,3,229,5,3,7088660974,11,3,5,131,3,7,23,3,1024,29,3,11,5,3,89,17,3,5,401,3,37,269,3,41,473507842,3,7,5,3,23,14209403412,3,5,7,3,59,47,3,29,13,3,1024,5,3,11,191,3]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13568; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_106 {i p b : ℕ} (ix : i/128=106) (_lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=13568)
+    (cells:=[5,31,3,43,518331783,3,270434539326,7,3,103,5,3,491,137,3,5,11276446697,3,13,11,3,7,1024,3,397,5,3,270852929391,7,3,5,13,3,135486464872,270992169598,3,17,135526107329,3,271091931352,5,3,7,61,3,5,43,3,421,7,3,23,11,3,14283733500,5,3,13,41,3,5,467,3,7,1024,3,379,1024,3,1024,5,3,587,569,3,5,135914760849,3,29,1024,3,601,197,3,7,5,3,17,317,3,5,7,3,1024,31,3,11,23,3,41,5,3,113,272366738432,3,5,59,3,509,13,3,1024,7,3,1024,5,3,1024,11,3,5,17,3,223,136392532758,3,7,272845125115]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13696; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_chunk_107 {i p b : ℕ} (ix : i/128=107) (lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) :
+    jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  apply nineteen_interval (start:=13696)
+    (cells:=[3,11,5,3,43,7,3,5,29,3,17,30342884866,3,136561864317,1024,3,349,5,3,7,13,3,5,11,3,1024,7,3,31,1024,3,359,5,3,11,71,3,5,23,3,7,151,3,273721766449,17,3,13,5,3,47,229,3,5,41,3,97,11,3,157,13,3,7,5,3,27414333604,1024,3,5,7,3,1024,541,3,193,1024,3,67,5,3,499,1024,3,5,1024,3,13,1024,3,137309015390,7,3,1024,5,3,41,17,3,5,13,3,11,1024]) _ seventeen_smooth_powMod_eq
+  · decide +kernel
+  · omega
+  · change i<13798; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12288 in
+set_option maxHeartbeats 10000000 in
+private theorem nineteen_catalog {i p b : ℕ} (lim : i<13798)
+    (pq : (38*i+1).Prime) (base : p+1=2^b) (idx : b%6846840=1)
+    (mult : 38*i+1∣p^19+524288) (nd : ¬38*i+1∣p+2) : jacobiSym (-391035178779996329449236816443734232647452603072641795948876077150975820130862595441922486498941071882816867824315388573225175768680893108421376378983372299943455330892950147235348631773604592604678447332237143113469720098242103281420055644856037785161736735425856157954560153850544888628977603398339456970530202860920630614947175033832797221034039435595695465592692344306825029207341588734266880888310448854670323096165600769522378433915480506702 : ℤ) (38*i+1)=1 := by
+  have range : i/128<108 := by omega
+  interval_cases h : i/128
+  · exact nineteen_chunk_0 h lim pq base idx mult nd
+  · exact nineteen_chunk_1 h lim pq base idx mult nd
+  · exact nineteen_chunk_2 h lim pq base idx mult nd
+  · exact nineteen_chunk_3 h lim pq base idx mult nd
+  · exact nineteen_chunk_4 h lim pq base idx mult nd
+  · exact nineteen_chunk_5 h lim pq base idx mult nd
+  · exact nineteen_chunk_6 h lim pq base idx mult nd
+  · exact nineteen_chunk_7 h lim pq base idx mult nd
+  · exact nineteen_chunk_8 h lim pq base idx mult nd
+  · exact nineteen_chunk_9 h lim pq base idx mult nd
+  · exact nineteen_chunk_10 h lim pq base idx mult nd
+  · exact nineteen_chunk_11 h lim pq base idx mult nd
+  · exact nineteen_chunk_12 h lim pq base idx mult nd
+  · exact nineteen_chunk_13 h lim pq base idx mult nd
+  · exact nineteen_chunk_14 h lim pq base idx mult nd
+  · exact nineteen_chunk_15 h lim pq base idx mult nd
+  · exact nineteen_chunk_16 h lim pq base idx mult nd
+  · exact nineteen_chunk_17 h lim pq base idx mult nd
+  · exact nineteen_chunk_18 h lim pq base idx mult nd
+  · exact nineteen_chunk_19 h lim pq base idx mult nd
+  · exact nineteen_chunk_20 h lim pq base idx mult nd
+  · exact nineteen_chunk_21 h lim pq base idx mult nd
+  · exact nineteen_chunk_22 h lim pq base idx mult nd
+  · exact nineteen_chunk_23 h lim pq base idx mult nd
+  · exact nineteen_chunk_24 h lim pq base idx mult nd
+  · exact nineteen_chunk_25 h lim pq base idx mult nd
+  · exact nineteen_chunk_26 h lim pq base idx mult nd
+  · exact nineteen_chunk_27 h lim pq base idx mult nd
+  · exact nineteen_chunk_28 h lim pq base idx mult nd
+  · exact nineteen_chunk_29 h lim pq base idx mult nd
+  · exact nineteen_chunk_30 h lim pq base idx mult nd
+  · exact nineteen_chunk_31 h lim pq base idx mult nd
+  · exact nineteen_chunk_32 h lim pq base idx mult nd
+  · exact nineteen_chunk_33 h lim pq base idx mult nd
+  · exact nineteen_chunk_34 h lim pq base idx mult nd
+  · exact nineteen_chunk_35 h lim pq base idx mult nd
+  · exact nineteen_chunk_36 h lim pq base idx mult nd
+  · exact nineteen_chunk_37 h lim pq base idx mult nd
+  · exact nineteen_chunk_38 h lim pq base idx mult nd
+  · exact nineteen_chunk_39 h lim pq base idx mult nd
+  · exact nineteen_chunk_40 h lim pq base idx mult nd
+  · exact nineteen_chunk_41 h lim pq base idx mult nd
+  · exact nineteen_chunk_42 h lim pq base idx mult nd
+  · exact nineteen_chunk_43 h lim pq base idx mult nd
+  · exact nineteen_chunk_44 h lim pq base idx mult nd
+  · exact nineteen_chunk_45 h lim pq base idx mult nd
+  · exact nineteen_chunk_46 h lim pq base idx mult nd
+  · exact nineteen_chunk_47 h lim pq base idx mult nd
+  · exact nineteen_chunk_48 h lim pq base idx mult nd
+  · exact nineteen_chunk_49 h lim pq base idx mult nd
+  · exact nineteen_chunk_50 h lim pq base idx mult nd
+  · exact nineteen_chunk_51 h lim pq base idx mult nd
+  · exact nineteen_chunk_52 h lim pq base idx mult nd
+  · exact nineteen_chunk_53 h lim pq base idx mult nd
+  · exact nineteen_chunk_54 h lim pq base idx mult nd
+  · exact nineteen_chunk_55 h lim pq base idx mult nd
+  · exact nineteen_chunk_56 h lim pq base idx mult nd
+  · exact nineteen_chunk_57 h lim pq base idx mult nd
+  · exact nineteen_chunk_58 h lim pq base idx mult nd
+  · exact nineteen_chunk_59 h lim pq base idx mult nd
+  · exact nineteen_chunk_60 h lim pq base idx mult nd
+  · exact nineteen_chunk_61 h lim pq base idx mult nd
+  · exact nineteen_chunk_62 h lim pq base idx mult nd
+  · exact nineteen_chunk_63 h lim pq base idx mult nd
+  · exact nineteen_chunk_64 h lim pq base idx mult nd
+  · exact nineteen_chunk_65 h lim pq base idx mult nd
+  · exact nineteen_chunk_66 h lim pq base idx mult nd
+  · exact nineteen_chunk_67 h lim pq base idx mult nd
+  · exact nineteen_chunk_68 h lim pq base idx mult nd
+  · exact nineteen_chunk_69 h lim pq base idx mult nd
+  · exact nineteen_chunk_70 h lim pq base idx mult nd
+  · exact nineteen_chunk_71 h lim pq base idx mult nd
+  · exact nineteen_chunk_72 h lim pq base idx mult nd
+  · exact nineteen_chunk_73 h lim pq base idx mult nd
+  · exact nineteen_chunk_74 h lim pq base idx mult nd
+  · exact nineteen_chunk_75 h lim pq base idx mult nd
+  · exact nineteen_chunk_76 h lim pq base idx mult nd
+  · exact nineteen_chunk_77 h lim pq base idx mult nd
+  · exact nineteen_chunk_78 h lim pq base idx mult nd
+  · exact nineteen_chunk_79 h lim pq base idx mult nd
+  · exact nineteen_chunk_80 h lim pq base idx mult nd
+  · exact nineteen_chunk_81 h lim pq base idx mult nd
+  · exact nineteen_chunk_82 h lim pq base idx mult nd
+  · exact nineteen_chunk_83 h lim pq base idx mult nd
+  · exact nineteen_chunk_84 h lim pq base idx mult nd
+  · exact nineteen_chunk_85 h lim pq base idx mult nd
+  · exact nineteen_chunk_86 h lim pq base idx mult nd
+  · exact nineteen_chunk_87 h lim pq base idx mult nd
+  · exact nineteen_chunk_88 h lim pq base idx mult nd
+  · exact nineteen_chunk_89 h lim pq base idx mult nd
+  · exact nineteen_chunk_90 h lim pq base idx mult nd
+  · exact nineteen_chunk_91 h lim pq base idx mult nd
+  · exact nineteen_chunk_92 h lim pq base idx mult nd
+  · exact nineteen_chunk_93 h lim pq base idx mult nd
+  · exact nineteen_chunk_94 h lim pq base idx mult nd
+  · exact nineteen_chunk_95 h lim pq base idx mult nd
+  · exact nineteen_chunk_96 h lim pq base idx mult nd
+  · exact nineteen_chunk_97 h lim pq base idx mult nd
+  · exact nineteen_chunk_98 h lim pq base idx mult nd
+  · exact nineteen_chunk_99 h lim pq base idx mult nd
+  · exact nineteen_chunk_100 h lim pq base idx mult nd
+  · exact nineteen_chunk_101 h lim pq base idx mult nd
+  · exact nineteen_chunk_102 h lim pq base idx mult nd
+  · exact nineteen_chunk_103 h lim pq base idx mult nd
+  · exact nineteen_chunk_104 h lim pq base idx mult nd
+  · exact nineteen_chunk_105 h lim pq base idx mult nd
+  · exact nineteen_chunk_106 h lim pq base idx mult nd
+  · exact nineteen_chunk_107 h lim pq base idx mult nd
+
+private theorem nineteen_last_order {q p : ℕ} (pq : q.Prime) (q2 : q≠2)
+    (d : q ∣ p^19+524288) (nd : ¬q ∣ p+2) : 19 ∣ q-1 := by
+  let _ : Fact q.Prime := ⟨pq⟩
+  have h2 : (2 : ZMod q) ≠ 0 := by
+    intro h
+    have eq := (Nat.prime_dvd_prime_iff_eq pq Nat.prime_two).mp ((ZMod.natCast_eq_zero_iff 2 q).mp h)
+    exact q2 eq
+  let t : ZMod q := -(p:ZMod q)/2
+  have zero := (ZMod.natCast_eq_zero_iff _ _).mpr d
+  push_cast at zero
+  have eq : t^19=1 := by
+    dsimp [t]
+    rw [div_pow,div_eq_iff (pow_ne_zero _ h2)]
+    linear_combination -zero
+  have t1 : t≠1 := by
+    intro h
+    dsimp [t] at h
+    rw [div_eq_iff h2] at h
+    apply nd
+    apply (ZMod.natCast_eq_zero_iff _ _).mp
+    push_cast
+    linear_combination -h
+  have t0 : t≠0 := by rintro h; rw [h] at eq; simp at eq
+  have ord : orderOf t = 19 := ((Nat.dvd_prime (by decide : Nat.Prime 19)).mp
+    (orderOf_dvd_of_pow_eq_one eq)).resolve_left (fun h => t1 (orderOf_eq_one_iff.mp h))
+  exact ord ▸ ZMod.orderOf_dvd_card_sub_one t0
+
+
+private theorem nineteen_scaled {p F m k : ℕ} (fac : p^19+524288=(p+2)*F)
+    (h : Nat.ModEq m p k) : Nat.ModEq m ((k+2)*F) (k^19+524288) := by
+  calc
+    (k+2)*F ≡ (p+2)*F [MOD m] := ((h.add_right 2).mul_right F).symm
+    _ = p^19+524288 := fac.symm
+    _ ≡ k^19+524288 [MOD m] := (h.pow 19).add_right _
+
+
+
+private theorem nineteen_common_prime {p F q : ℕ} (fac : p^19+524288=(p+2)*F) (fpos : F≠0)
+    (qp : q.Prime) (qlo : 2 < q) (left : q∣p+2) (right : q∣F) : q=19 := by
+  let _ : Fact q.Prime := ⟨qp⟩
+  have qnp : ¬q∣p := by intro dp; have := Nat.le_of_dvd (by decide : 0<2) ((Nat.dvd_add_iff_right dp).mpr left); omega
+  have val := padicValNat.pow_add_pow (x:=p) (y:=2) (qp.odd_of_ne_two (by omega)) left qnp (by decide : Odd 19)
+  change padicValNat q (p^19+524288)=_ at val
+  rw [fac,padicValNat.mul (by omega) fpos] at val
+  have nz := (dvd_iff_padicValNat_ne_zero fpos).mp right
+  have l : q∣19 := (dvd_iff_padicValNat_ne_zero (by decide : (19:ℕ)≠0)).mpr (by omega)
+  exact (Nat.prime_dvd_prime_iff_eq qp (by decide)).mp l
+
+private theorem nineteen_cofactor_negative {p b F D : ℕ}
+    (base : p+1=2^b) (hb : 524289 < b) (idx : b%6846840=1) (fac : p^19+524288=(p+2)*F)
+    (per : Nat.ModEq (3*D) (2^6846840) 1) (cop : Nat.Coprime 8 D) (big : 174763 < D)
+    (a8 : Nat.ModEq 8 7 (4*D+174763)) (ad : Nat.ModEq D 174763 (4*D+174763))
+    (jac : jacobiSym (-(2*(D:ℤ))) (4*D+174763) = -1) :
+    jacobiSym (-(2*(D:ℤ))) F = -1 := by
+  have div8 : 8∣2^b := pow_dvd_pow 2 (show 3 ≤ b by omega)
+  have p8 : Nat.ModEq 8 p 7 := by change p%8=7; omega
+  have f8 : Nat.ModEq 8 F 7 := by
+    calc
+      F = 1*F := (one_mul _).symm
+      _ ≡ (7+2)*F [MOD 8] := (show Nat.ModEq 8 1 (7+2) by decide).mul_right _
+      _ ≡ 7^19+524288 [MOD 8] := nineteen_scaled fac p8
+      _ ≡ 7 [MOD 8] := by decide
+  have fv : F%8=7 := f8
+  have fo : Odd F := Nat.odd_iff.mpr (by omega)
+  have pred : Nat.ModEq (3*D) p 1 := by
+    have z := seventeen_compact_last_cycle (b:=b) per
+    rw [idx,pow_one,←base] at z
+    exact Nat.ModEq.add_right_cancel' 1 z
+  have fd : Nat.ModEq D F 174763 := Nat.ModEq.mul_left_cancel' (by decide : (3:ℕ)≠0) (nineteen_scaled fac pred)
+  have total : Nat.ModEq (8*D) F (4*D+174763) := (Nat.modEq_and_modEq_iff_modEq_mul cop).mp ⟨f8.trans a8,fd.trans ad⟩
+  rw [jacobiSym.mod_right _ fo]
+  have abs : 4*(-(2*(D:ℤ))).natAbs=8*D := by simp; omega
+  rw [abs]
+  have rem : F%(8*D)=4*D+174763 := Eq.trans total (Nat.mod_eq_of_lt (by omega))
+  rwa [rem]
+
+
+private theorem nineteen_last_abstract {p b F : ℕ} {A : ℤ}
+    (pp : p.Prime) (base : p+1=2^b) (hb : 524289 < b) (idx : b%6846840=1)
+    (fac : p^19+524288=(p+2)*F) (minus : jacobiSym A F = -1)
+    (catalog : ∀ {i : ℕ}, i<13798 → (38*i+1).Prime → 38*i+1∣p^19+524288 → ¬38*i+1∣p+2 →
+      jacobiSym A (38*i+1)=1) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q∣p^19+d ∧ s∣p^19+d := by
+  have ep : p=2^b-1 := by omega
+  have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime (by omega) (ep ▸ pp)).2
+  have eight : 8∣2^b := pow_dvd_pow 2 (show 3 ≤ b by omega)
+  have p8 : Nat.ModEq 8 p 7 := by change p%8=7; omega
+  have z := nineteen_scaled fac p8
+  change (9*F)%8=7 at z
+  have fo : Odd F := Nat.odd_iff.mpr (by omega)
+  have fpos : F≠0 := by omega
+  obtain ⟨s,ps,ds,minusS⟩ := jacobiSym.eq_neg_one_at_prime_divisor_of_eq_neg_one minus
+  have slo : 2 < s := lt_of_le_of_ne ps.two_le (Ne.symm (fo.ne_two_of_dvd_nat ds))
+  obtain ⟨q,pq,qhi,qleft⟩ := seventeen_compact_last_left pb hb (show 3 < b by omega)
+  have dx : q∣p+2 := by convert qleft using 1; omega
+  have mult : s∣p^19+524288 := fac ▸ dvd_mul_of_dvd_right ds _
+  have nd : ¬s∣p+2 := by
+    intro h
+    have es := nineteen_common_prime fac fpos ps slo h ds
+    have dL : s∣2^b+1 := by convert h using 1; omega
+    have eq3 := seventeen_compact_last_fifth pb (pb.odd_of_ne_two (by omega)) ps dL (by omega)
+    omega
+  by_cases large : 524289 < s
+  · have ne : q≠s := by rintro rfl; have := nineteen_common_prime fac fpos pq (by omega) dx ds; omega
+    exact ⟨524288,q,s,pq,ps,ne,qhi,large,fac ▸ dvd_mul_of_dvd_left dx _,mult⟩
+  exfalso
+  obtain ⟨j,hj⟩ := nineteen_last_order ps (by omega) mult nd
+  obtain ⟨u,hu⟩ := ps.odd_of_ne_two (by omega)
+  let i := (s-1)/38
+  have es : 38*i+1=s := by dsimp [i]; omega
+  have bd : i<13798 := by dsimp [i]; omega
+  have posS : jacobiSym A s=1 := by
+    rw [←es]
+    exact catalog bd (es ▸ ps) (es ▸ mult) (es ▸ nd)
+  omega
+
+set_option maxRecDepth 32768 in
+private theorem nineteen_discriminant_period : Nat.ModEq (3*195517589389998164724618408221867116323726301536320897974438038575487910065431297720961243249470535941408433912157694286612587884340446554210688189491686149971727665446475073617674315886802296302339223666118571556734860049121051640710027822428018892580868367712928078977280076925272444314488801699169728485265101430460315307473587516916398610517019717797847732796346172153412514603670794367133440444155224427335161548082800384761189216957740253351) (2^6846840) 1 := by
+  change 2^6846840%(3*195517589389998164724618408221867116323726301536320897974438038575487910065431297720961243249470535941408433912157694286612587884340446554210688189491686149971727665446475073617674315886802296302339223666118571556734860049121051640710027822428018892580868367712928078977280076925272444314488801699169728485265101430460315307473587516916398610517019717797847732796346172153412514603670794367133440444155224427335161548082800384761189216957740253351)=1%(3*195517589389998164724618408221867116323726301536320897974438038575487910065431297720961243249470535941408433912157694286612587884340446554210688189491686149971727665446475073617674315886802296302339223666118571556734860049121051640710027822428018892580868367712928078977280076925272444314488801699169728485265101430460315307473587516916398610517019717797847732796346172153412514603670794367133440444155224427335161548082800384761189216957740253351)
+  rw [←seventeen_smooth_powMod_eq]
+  decide +kernel
+
+set_option maxRecDepth 32768 in
+private theorem nineteen_discriminant_value : jacobiSym (-(2*(195517589389998164724618408221867116323726301536320897974438038575487910065431297720961243249470535941408433912157694286612587884340446554210688189491686149971727665446475073617674315886802296302339223666118571556734860049121051640710027822428018892580868367712928078977280076925272444314488801699169728485265101430460315307473587516916398610517019717797847732796346172153412514603670794367133440444155224427335161548082800384761189216957740253351:ℤ))) (4*195517589389998164724618408221867116323726301536320897974438038575487910065431297720961243249470535941408433912157694286612587884340446554210688189491686149971727665446475073617674315886802296302339223666118571556734860049121051640710027822428018892580868367712928078977280076925272444314488801699169728485265101430460315307473587516916398610517019717797847732796346172153412514603670794367133440444155224427335161548082800384761189216957740253351+174763) = -1 := by norm_num1
+
+
+set_option maxRecDepth 32768 in
+/-- The projected nineteenth roots exclude the final Mersenne-index congruence class. -/
+theorem nineteen_last_uniform_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b)
+    (hb : 524289 < b) (idx : b%6846840=1) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧
+      q∣p^19+d ∧ s∣p^19+d := by
+  obtain ⟨F,fac⟩ : p+2∣p^19+524288 := (by decide : Odd 19).nat_add_dvd_pow_add_pow p 2
+  have bad := nineteen_cofactor_negative base hb idx fac nineteen_discriminant_period
+    (by decide +kernel) (by decide +kernel) (by decide +kernel) (by decide +kernel) nineteen_discriminant_value
+  apply nineteen_last_abstract pp base hb idx fac bad
+  intro i lim ps mult nd
+  exact nineteen_catalog lim ps base idx mult nd
+
+
+/-- All Mersenne prime bases admit a two-prime witness for exponent nineteen. -/
+theorem mersenne_nineteenth_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^19+d ∧ s ∣ p^19+d := by
+  have ep : p=2^b-1 := by omega
+  have hb1 : b≠1 := by rintro rfl; norm_num at base; have := pp.two_le; omega
+  have pb := (Nat.prime_of_pow_sub_one_prime hb1 (ep ▸ pp)).2
+  by_cases hb : 19 < b
+  · by_contra missing
+    have idx := nineteen_last_class pp base hb missing
+    exact missing (nineteen_last_uniform_witness pp base (by omega) idx)
+  · have table : ∀ j ∈ List.range 20, j.Prime → j=2 ∨ j=3 ∨ j=5 ∨ j=7 ∨ j=11 ∨ j=13 ∨ j=17 ∨ j=19 := by decide +kernel
+    have js := table b (List.mem_range.mpr (by omega)) pb
+    rcases js with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> subst p
+    · exact ⟨7,11,17,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨12,19,23,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨4,7,67,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨15,17,23,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨25,37,43,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨17,19,23,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨5,13,29,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+    · exact ⟨2,5,11,by decide,by decide,by decide,by decide,by decide,by decide +kernel,by decide +kernel⟩
+
+open Erdos889
+
+/-- No solution immediately precedes a nontrivial nineteenth power. -/
+theorem nineteenth_power_exclusion {n x : ℕ} (hx : 1 < x)
+    (eq : n+1=x^19) : v_l 1 n ≠ 1 := by
+  intro sol
+  have bound : 32 ≤ x^19 := by
+    have a := Nat.pow_le_pow_left (show 2 ≤ x by omega) 19
+    norm_num at a
+    omega
+  have ox : Odd x := by
+    apply Nat.not_even_iff_odd.mp
+    intro ex
+    have dd : 2 ∣ x^19 := (even_iff_two_dvd.mp ex).trans (dvd_pow_self x (by omega))
+    have on : Odd n := by rw [Nat.odd_iff]; omega
+    rcases (odd_classification on).mp sol with h|h|h|h <;> omega
+  obtain ⟨b,base⟩ := odd_power_root_neighbor ox hx (by decide : Odd 19) (by decide) eq sol
+  have pure := prime_power_succ (n:=n) (by omega) sol
+  rw [eq,isPrimePow_pow_iff (by omega : (19:ℕ)≠0)] at pure
+  obtain ⟨p,e,pp,pe,he⟩ := (isPrimePow_nat_iff _).mp pure
+  have op := pp.odd_of_ne_two (by
+    rintro rfl
+    have div := dvd_pow_self (2:ℕ) pe.ne'
+    rw [he] at div
+    exact (Nat.not_even_iff_odd.mpr ox) (even_iff_two_dvd.mpr div))
+  have one := mersenne_power_exponent op pp.one_lt pe (he.symm ▸ base)
+  rw [one,pow_one] at he
+  subst x
+  obtain ⟨d,q,s,pq,ps,ne,hq,hs,dq,ds⟩ := mersenne_nineteenth_witness pp base
+  have rearr : n+(d+1)=p^19+d := by omega
+  exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (rearr ▸ dq) (rearr ▸ ds) sol
+
 
 
 /-- The remaining prime exponents congruent to 1 modulo three, beyond any chosen cutoff. -/
