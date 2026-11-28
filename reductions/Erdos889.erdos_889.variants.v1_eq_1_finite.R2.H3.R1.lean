@@ -1,10 +1,452 @@
 import OMAReductions.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
+import Mathlib.NumberTheory.Fermat
+import Mathlib.NumberTheory.LegendreSymbol.JacobiSymbol
+import Mathlib.FieldTheory.Finite.Basic
+import Mathlib.RingTheory.RootsOfUnity.PrimitiveRoots
+import Mathlib.NumberTheory.PrimesCongruentOne
+import Mathlib.RingTheory.Polynomial.Cyclotomic.Expand
+import Mathlib.NumberTheory.Multiplicity
+import Mathlib.Tactic
+import Mathlib.Data.Nat.Factorization.Basic
+import Mathlib.NumberTheory.Divisors
+import Mathlib.NumberTheory.Pell
+import Mathlib.Data.Nat.Factorization.Induction
+import Mathlib.Data.ZMod.Basic
 
-/-! Exponent seventeen in the Mersenne prime branch of Erdős 889. -/
+/-! Smooth quadratic values and necessary divisibility of large exceptions to Erdős 889. -/
 
-namespace OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2_H3_R1
+namespace Erdos889.QuadraticSmooth
 
-open Erdos889 Finset
+private theorem split_factor_exponent (e : ℕ) :
+    ∃ i j : ℕ, e=i+j*2 ∧ i≤3 ∧ (0 < j → 2 ≤ i) := by
+  by_cases small : e≤3
+  · exact ⟨e,0,by omega,small,by omega⟩
+  · exact ⟨2+e%2,(e-2)/2,by omega,by omega,by omega⟩
+
+private theorem smooth_square_decomposition (T n : ℕ) (hn : 0 < n)
+    (smooth : ∀ q : ℕ, q.Prime → q∣n → q ≤ T) :
+    ∃ D y : ℕ, D≤(T+1).factorial^3 ∧ 0 < D ∧ 0 < y ∧ n=D*y^2 ∧
+      ∀ q : ℕ, q.Prime → q∣y → q^2∣D := by
+  induction T generalizing n with
+  | zero =>
+    have unit : n=1 := by
+      by_contra ne
+      obtain ⟨q,pq,dq⟩ := Nat.exists_prime_and_dvd ne
+      have := smooth q pq dq
+      have := pq.two_le
+      omega
+    refine ⟨1,1,by decide,by decide,by decide,by simpa only [one_pow,mul_one] using unit,?_⟩
+    intro q pq div
+    have := Nat.le_of_dvd (by decide : 0<1) div
+    have := pq.two_le
+    omega
+  | succ t ih =>
+    let p := t+1
+    let e := n.factorization p
+    let m := n/p^e
+    have fac : p^e*m=n := Nat.ordProj_mul_ordCompl_eq_self n p
+    have dm : m∣n := Nat.ordCompl_dvd n p
+    have pos : 0 < m := Nat.ordCompl_pos p hn.ne'
+    have smaller (q : ℕ) (pq : q.Prime) (dq : q∣m) : q ≤ t := by
+      have upper := smooth q pq (dq.trans dm)
+      by_contra! high
+      have equal : q=p := by dsimp [p]; omega
+      rw [equal] at pq dq
+      exact (Nat.not_dvd_ordCompl pq hn.ne') dq
+    obtain ⟨D,y,cap,hD,hy,form,divisors⟩ := ih m pos smaller
+    obtain ⟨i,j,ei,i3,ji⟩ := split_factor_exponent e
+    have small : p^i ≤ (t+2)^3 :=
+      (Nat.pow_le_pow_right (show 0 < p by dsimp [p]; omega) i3).trans
+        (Nat.pow_le_pow_left (show p ≤ t+2 by dsimp [p]; omega) 3)
+    have total : D*p^i ≤ (t+1+1).factorial^3 := by
+      have bound := Nat.mul_le_mul cap small
+      rw [Nat.factorial_succ (t+1),mul_pow,Nat.mul_comm ((t+1+1)^3)]
+      exact bound
+    refine ⟨D*p^i,y*p^j,total,Nat.mul_pos hD (pow_pos (by dsimp [p]; omega) _),
+      Nat.mul_pos hy (pow_pos (by dsimp [p]; omega) _),?_,?_⟩
+    · calc
+        n = p^e*m := fac.symm
+        _ = _ := by rw [form,ei,pow_add,pow_mul,mul_pow]; ring
+    · intro q pq dq
+      rcases pq.dvd_mul.mp dq with fromY|fromP
+      · exact dvd_mul_of_dvd_left (divisors q pq fromY) _
+      · have jp : 0 < j := by
+          by_contra! low
+          have zero : j=0 := by omega
+          rw [zero,pow_zero] at fromP
+          have := Nat.le_of_dvd (by decide : 0<1) fromP
+          have := pq.two_le
+          omega
+        have pp : p.Prime := by
+          by_contra np
+          have zero : e=0 := Nat.factorization_eq_zero_of_not_prime n np
+          omega
+        have same := (Nat.prime_dvd_prime_iff_eq pq pp).mp (pq.dvd_of_dvd_pow fromP)
+        rw [same]
+        exact dvd_mul_of_dvd_right (pow_dvd_pow p (ji jp)) _
+
+/-- Every square-plus-one supported on primes at most T gives a negative Pell
+equation with D in an explicit finite interval. Each prime dividing its
+positive y-coordinate has its square dividing D. -/
+theorem quadratic_smooth_decomposition (T x : ℕ)
+    (smooth : ∀ q : ℕ, q.Prime → q∣x^2+1 → q ≤ T) :
+    ∃ D ∈ Finset.Icc 1 ((T+1).factorial^3), ∃ y : ℕ, 0 < D ∧ 0 < y ∧
+      x^2+1=D*y^2 ∧ ∀ q : ℕ, q.Prime → q∣y → q^2∣D := by
+  obtain ⟨D,y,cap,hD,hy,form,divisors⟩ := smooth_square_decomposition T (x^2+1) (by omega) smooth
+  exact ⟨D,Finset.mem_Icc.mpr ⟨hD,cap⟩,y,hD,hy,form,divisors⟩
+
+end Erdos889.QuadraticSmooth
+
+namespace Erdos889.PellValuation
+
+-- BEGIN PELL VALUATION
+private theorem pell_expansion_remainder {d : ℤ} (z : Pell.Solution₁ d) (n : ℕ) :
+    ∃ L K : ℤ, (z^(n+1)).x=z.x^(n+1)+d*L ∧
+      (z^(n+1)).y=z.y*((n+1 : ℕ)*(z.x^n)+d*K) := by
+  induction n with
+  | zero => exact ⟨0,0,by simp,by simp⟩
+  | succ n ih =>
+    obtain ⟨L,K,hx,hy⟩ := ih
+    refine ⟨L*z.x+(z^(n+1)).y*z.y,L+K*z.x,?_,?_⟩
+    · change (z^(n+1)*z).x=z.x^(n+1+1)+d*(L*z.x+(z^(n+1)).y*z.y)
+      rw [Pell.Solution₁.x_mul,hx,pow_succ z.x (n+1)]
+      ring
+    · change (z^(n+1)*z).y=z.y*((n+1+1:ℕ)*z.x^(n+1)+d*(L+K*z.x))
+      rw [Pell.Solution₁.y_mul,hx,hy,pow_succ z.x n]
+      push_cast
+      ring
+
+private theorem pell_prime_multiplier {D l q : ℕ} (z : Pell.Solution₁ (D:ℤ))
+    (pl : l.Prime) (pq : q.Prime) (dq : q^2∣D) :
+    ∃ k : ℕ, (z^l).y.natAbs=z.y.natAbs*k ∧ k≠0 ∧ k.factorization q=l.factorization q := by
+  let _ : Fact q.Prime := ⟨pq⟩
+  obtain ⟨_,K,_,hy⟩ := pell_expansion_remainder z (l-1)
+  rw [Nat.sub_add_cancel pl.one_le] at hy
+  obtain ⟨h,dh⟩ := dq
+  have dint : (D:ℤ)=(q:ℤ)^2*h := by exact_mod_cast dh
+  have zd : (D:ZMod q)=0 := (ZMod.natCast_eq_zero_iff _ _).mpr (dh ▸ dvd_mul_of_dvd_left (dvd_pow_self q (by decide : (2:ℕ)≠0)) h)
+  have xz : (z.x:ZMod q)≠0 := by
+    intro zero
+    have f := congrArg (fun v:ℤ => (v:ZMod q)) z.prop
+    push_cast at f
+    rw [zd,zero,zero_pow two_ne_zero,zero_mul,sub_zero] at f
+    exact zero_ne_one f
+  let a := z.x^(l-1)
+  have an : (a:ZMod q)≠0 := by dsimp [a]; push_cast; exact pow_ne_zero _ xz
+  have no {c : ℤ} (hc : (c:ZMod q)≠0) : ¬q∣c.natAbs :=
+    fun dd => hc ((ZMod.intCast_zmod_eq_zero_iff_dvd _ _).mpr (Int.natCast_dvd.mpr dd))
+  by_cases same : l=q
+  · subst l
+    let c := a+(q:ℤ)*h*K
+    have cn : ¬q∣c.natAbs := no (by simpa [c] using an)
+    have nc : c.natAbs≠0 := fun e => cn (e ▸ dvd_zero q)
+    have yq : (z^q).y=z.y*((q:ℤ)*c) := by
+      rw [hy]
+      dsimp only [a,c]
+      linear_combination z.y*K*dint
+    refine ⟨q*c.natAbs,?_,mul_ne_zero pq.ne_zero nc,?_⟩
+    · rw [yq]; simp only [Int.natAbs_mul,Int.natAbs_natCast]
+    · rw [Nat.factorization_mul pq.ne_zero nc,Finsupp.add_apply,Nat.factorization_eq_zero_of_not_dvd cn,add_zero]
+  · have nl : ¬q∣l := fun h => same ((Nat.prime_dvd_prime_iff_eq pq pl).mp h).symm
+    have lv : (l:ZMod q)≠0 := fun h => nl ((ZMod.natCast_eq_zero_iff _ _).mp h)
+    let c := (l:ℤ)*a+(D:ℤ)*K
+    have cn : ¬q∣c.natAbs := no (by
+      dsimp only [c]
+      push_cast
+      rw [zd,zero_mul,add_zero]
+      exact mul_ne_zero lv an)
+    have nc : c.natAbs≠0 := fun e => cn (e ▸ dvd_zero q)
+    refine ⟨c.natAbs,?_,nc,?_⟩
+    · rw [hy,Int.natAbs_mul]
+    · rw [Nat.factorization_eq_zero_of_not_dvd cn,Nat.factorization_eq_zero_of_not_dvd nl]
+
+/-- At a prime whose square divides D, the imaginary coordinate of a Pell power gains exactly the exponent's valuation. -/
+theorem pell_factorization_y_pow {D q n : ℕ} (eps : Pell.Solution₁ (D : ℤ))
+    (pq : q.Prime) (dq : q^2∣D) (hn : 0 < n) :
+    (eps^n).y.natAbs.factorization q = (n*eps.y.natAbs).factorization q := by
+  by_cases hzero : eps.y=0
+  · obtain ⟨_,_,_,hy⟩ := pell_expansion_remainder eps (n-1)
+    rw [Nat.sub_add_cancel hn,hzero,zero_mul] at hy
+    simp [hy,hzero]
+  have base : eps.y.natAbs≠0 := fun h => hzero (Int.natAbs_eq_zero.mp h)
+  have all : ∀ j : ℕ, j≠0 → (eps^j).y.natAbs≠0 ∧
+      (eps^j).y.natAbs.factorization q=(j*eps.y.natAbs).factorization q := by
+    apply induction_on_primes
+    · simp
+    · simp [base]
+    · intro l a pl ih nz
+      have ap : a≠0 := fun e => nz (by rw [e,mul_zero])
+      obtain ⟨nonzero,ihv⟩ := ih ap
+      obtain ⟨k,mult,kpos,kv⟩ := pell_prime_multiplier (eps^a) pl pq dq
+      have e : eps^(l*a)=(eps^a)^l := by rw [←pow_mul,Nat.mul_comm]
+      rw [e,mult]
+      refine ⟨mul_ne_zero nonzero kpos,?_⟩
+      rw [Nat.factorization_mul nonzero kpos,Finsupp.add_apply,kv,ihv,Nat.mul_assoc,
+        Nat.factorization_mul pl.ne_zero (mul_ne_zero ap base),Finsupp.add_apply,Nat.add_comm]
+  exact (all n hn.ne').2
+-- END PELL VALUATION
+end Erdos889.PellValuation
+
+namespace Erdos889.QuadraticSmooth
+
+private theorem cube_le_two_pow {m : ℕ} (hm : 10 ≤ m) : m^3≤2^m := by
+  induction m,hm using Nat.le_induction with
+  | base => decide
+  | succ k hk ih =>
+    rw [pow_succ 2 k]
+    have step : (k+1)^3≤2*k^3 := by
+      have k2 : 5*k ≤ k^2 := by nlinarith [Nat.mul_le_mul_right k (show 5 ≤ k by omega)]
+      nlinarith [Nat.mul_le_mul_right (k^2) (show 5 ≤ k by omega)]
+    omega
+
+private theorem pell_growth {D : ℤ} (eps : Pell.Solution₁ D) (hx : 1 < eps.x)
+    (hy : 0 < eps.y) (n : ℕ) : (2:ℤ)^n*eps.y ≤ (eps^(n+1)).y := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    have sx := Pell.Solution₁.x_pow_pos (show 0 < eps.x by omega) (n+1)
+    have sy := Pell.Solution₁.y_pow_succ_pos (show 0 < eps.x by omega) hy n
+    have grow := mul_le_mul_of_nonneg_left (show (2:ℤ) ≤ eps.x by omega) sy.le
+    rw [pow_succ, show n+1+1=(n+1)+1 by rfl, pow_succ eps (n+1),Pell.Solution₁.y_mul]
+    nlinarith [mul_pos sx hy]
+
+private theorem quadratic_twist_bound (D : ℕ)
+    (valuation : ∀ (eps : Pell.Solution₁ (D:ℤ)) (q n : ℕ), q.Prime → q^2∣D →
+      0 < n → 1 < eps.x → 0 < eps.y →
+      ((eps^n).y.natAbs).factorization q=(n*eps.y.natAbs).factorization q) :
+    ∃ B : ℕ, ∀ x y : ℕ, 0 < y → x^2+1=D*y^2 →
+      (∀ q : ℕ, q.Prime → q∣y → q^2∣D) → x ≤ B := by
+  classical
+  by_cases has : ∃ e : Pell.Solution₁ (D:ℤ), Pell.IsFundamental e
+  · obtain ⟨eps,he⟩ := has
+    let Y := eps.y.natAbs
+    refine ⟨D*(10+4*D*Y)*Y,?_⟩
+    intro x y hy eq support
+    by_cases hx : x=0
+    · omega
+    have castEq : (x:ℤ)^2+1=(D:ℤ)*(y:ℤ)^2 := by exact_mod_cast eq
+    have id : ((2:ℤ)*x^2+1)^2-D*(2*(x:ℤ)*y)^2=1 := by
+      linear_combination -4*(x:ℤ)^2*(castEq.symm)
+    let sol : Pell.Solution₁ (D:ℤ) := Pell.Solution₁.mk _ _ id
+    have sx : sol.x=2*(x:ℤ)^2+1 := rfl
+    have sy : sol.y=2*(x:ℤ)*y := rfl
+    obtain ⟨n,hn⟩ := he.eq_pow_of_nonneg (a:=sol) (by rw [sx]; positivity) (by rw [sy]; positivity)
+    have nz : 0 < n := by
+      by_contra! h
+      have : n=0 := by omega
+      rw [this,pow_zero] at hn
+      have eqy := congrArg Pell.Solution₁.y hn
+      rw [sy,Pell.Solution₁.y_one] at eqy
+      have : 0<(x:ℤ) := by exact_mod_cast Nat.pos_of_ne_zero hx
+      have pos : 0<2*(x:ℤ)*y := by positivity
+      omega
+    have YY : 0 < Y := by dsimp [Y]; exact Int.natAbs_pos.mpr he.2.1.ne'
+    have imag : (eps^n).y.natAbs=2*x*y := by
+      rw [←hn,sy,Int.natAbs_mul,Int.natAbs_mul]
+      rfl
+    have ydiv : y∣n*Y := by
+      apply (Nat.factorization_le_iff_dvd hy.ne' (Nat.mul_pos nz YY).ne').mp
+      intro q
+      by_cases pq : q.Prime
+      · by_cases dy : q∣y
+        · have div : y∣2*x*y := dvd_mul_left _ _
+          have nonz : 2*x*y≠0 := by positivity
+          have le := (Nat.factorization_le_iff_dvd hy.ne' nonz).mpr div q
+          rw [←imag,valuation eps q n pq (support q pq dy) nz he.1 he.2.1] at le
+          exact le
+        · simp [Nat.factorization_eq_zero_of_not_dvd dy]
+      · simp [Nat.factorization_eq_zero_of_not_prime _ pq]
+    have ybound := Nat.le_of_dvd (Nat.mul_pos nz YY) ydiv
+    have Dx : x ≤ D*y := by
+      have hD : 0 < D := by exact_mod_cast he.d_pos
+      by_contra! large
+      have h := Nat.mul_le_mul (show 1 ≤ D by omega) (Nat.le_refl (D*y^2))
+      nlinarith [Nat.mul_self_lt_mul_self large]
+    have expBound : 2^n*Y ≤ 4*x*y := by
+      obtain ⟨j,rfl⟩ := Nat.exists_eq_succ_of_ne_zero nz.ne'
+      have low := pell_growth eps he.1 he.2.1 j
+      have eqy := congrArg Pell.Solution₁.y hn
+      rw [←eqy,sy] at low
+      have castY : (Y:ℤ)=eps.y := Int.natAbs_of_nonneg he.2.1.le
+      change (2:ℕ)^(j+1)*Y ≤ 4*x*y
+      zify
+      rw [castY,pow_succ]
+      linarith
+    have nbound : n≤10+4*D*Y := by
+      by_cases big : 10 ≤ n
+      · have cube := cube_le_two_pow big
+        have upper := Nat.mul_le_mul Dx ybound
+        have upper' := Nat.mul_le_mul (Nat.mul_le_mul_left D ybound) (Nat.le_refl (n*Y))
+        have all : n^3*Y≤(4*D*Y)*(n^2*Y) := by
+          nlinarith [Nat.mul_le_mul_right Y cube]
+        have eqN : n^3*Y=n*(n^2*Y) := by ring
+        rw [eqN] at all
+        have := Nat.le_of_mul_le_mul_right all (by positivity : 0 < n^2*Y)
+        omega
+      · omega
+    exact Dx.trans (by calc
+      D*y ≤ D*(n*Y) := Nat.mul_le_mul_left _ ybound
+      _ ≤ D*((10+4*D*Y)*Y) := Nat.mul_le_mul_left _ (Nat.mul_le_mul_right _ nbound)
+      _ = _ := by ring)
+  · refine ⟨0,?_⟩
+    intro x y hy eq _
+    by_contra! xbig
+    have castEq : (x:ℤ)^2+1=(D:ℤ)*(y:ℤ)^2 := by exact_mod_cast eq
+    have id : ((2:ℤ)*x^2+1)^2-D*(2*(x:ℤ)*y)^2=1 := by
+      linear_combination -4*(x:ℤ)^2*(castEq.symm)
+    let sol : Pell.Solution₁ (D:ℤ) := Pell.Solution₁.mk _ _ id
+    have sx : 1 < sol.x := by
+      change 1<2*(x:ℤ)^2+1
+      have hxZ : 0<(x:ℤ) := by exact_mod_cast xbig
+      nlinarith [sq_pos_of_pos hxZ]
+    exact has (Pell.IsFundamental.exists_of_not_isSquare
+      (Pell.Solution₁.d_pos_of_one_lt_x sx) (Pell.Solution₁.d_nonsquare_of_one_lt_x sx))
+
+
+/-- The greatest prime factor of x²+1 eventually exceeds each fixed bound. -/
+theorem large_prime_of_square_add_one (T : ℕ) : ∃ B : ℕ, ∀ x : ℕ, B < x →
+    ∃ q : ℕ, q.Prime ∧ T < q ∧ q∣x^2+1 := by
+  classical
+  have bounds (D : ℕ) := quadratic_twist_bound D (fun eps q n pr dv hn _ _ =>
+    Erdos889.PellValuation.pell_factorization_y_pow eps pr dv hn)
+  choose bound covers using bounds
+  let ds := Finset.Icc 1 ((T+1).factorial^3)
+  refine ⟨ds.sup bound,?_⟩
+  intro x hx
+  by_contra missing
+  have smooth (q : ℕ) (pr : q.Prime) (dv : q∣x^2+1) : q ≤ T := by
+    by_contra! big
+    exact missing ⟨q,pr,big,dv⟩
+  obtain ⟨D,hd,y,_,hy,eq,dv⟩ := quadratic_smooth_decomposition T x smooth
+  exact (not_lt_of_ge ((covers D x y hy eq dv).trans (Finset.le_sup (f:=bound) hd))) hx
+
+end Erdos889.QuadraticSmooth
+
+namespace Erdos889.EventualPrimeDivisibility
+
+open OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
+
+private theorem smooth_fourth_decomposition (T n : ℕ) (hn : 0 < n)
+    (smooth : ∀ q : ℕ, q.Prime → q∣n → q ≤ T) :
+    ∃ C z : ℕ, C ≤ T.factorial^3 ∧ 0 < C ∧ 0 < z ∧ n=C*z^4 := by
+  induction T generalizing n with
+  | zero =>
+    have unit : n=1 := by
+      by_contra ne
+      obtain ⟨q,pq,dq⟩ := Nat.exists_prime_and_dvd ne
+      have := smooth q pq dq
+      have := pq.two_le
+      omega
+    exact ⟨1,1,by decide,by decide,by decide,by simpa only [one_pow,mul_one] using unit⟩
+  | succ t ih =>
+    let p := t+1
+    let e := n.factorization p
+    let m := n/p^e
+    have fac : p^e*m=n := Nat.ordProj_mul_ordCompl_eq_self n p
+    have dm : m∣n := Nat.ordCompl_dvd n p
+    have pos : 0 < m := Nat.ordCompl_pos p hn.ne'
+    have smaller (q : ℕ) (pq : q.Prime) (dq : q∣m) : q ≤ t := by
+      have upper := smooth q pq (dq.trans dm)
+      by_contra! high
+      have equal : q=p := by dsimp [p]; omega
+      rw [equal] at pq dq
+      exact (Nat.not_dvd_ordCompl pq hn.ne') dq
+    obtain ⟨C,z,cap,hC,hz,form⟩ := ih m pos smaller
+    have ppos : 0 < p := by dsimp [p]; omega
+    have small : p^(e%4) ≤ p^3 := Nat.pow_le_pow_right ppos (by omega)
+    have total : C*p^(e%4)≤(t+1).factorial^3 := by
+      rw [Nat.factorial_succ,mul_pow,Nat.mul_comm ((t+1)^3)]
+      exact Nat.mul_le_mul cap small
+    refine ⟨C*p^(e%4),z*p^(e/4),total,Nat.mul_pos hC (pow_pos ppos _),
+      Nat.mul_pos hz (pow_pos ppos _),?_⟩
+    have ei : e=e%4+(e/4)*4 := by rw [Nat.mul_comm (e/4) 4,Nat.mod_add_div]
+    calc
+      n = p^e*m := fac.symm
+      _ = p^(e%4+(e/4)*4)*(C*z^4) := by rw [←ei,form]
+      _ = _ := by rw [pow_add,pow_mul,mul_pow]; ring
+
+private theorem two_quadratic_factors {T u : ℕ} (hT : 4 ≤ T)
+    (h₁ : ∃ q : ℕ, q.Prime ∧ T < q ∧ q∣u^2+1)
+    (h₂ : ∃ q : ℕ, q.Prime ∧ T < q ∧ q∣(u+2)^2+1) :
+    ∃ q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ T < q ∧ T < s ∧ q∣(u+1)^4+4 ∧ s∣(u+1)^4+4 := by
+  obtain ⟨q,pq,hq,dq⟩ := h₁
+  obtain ⟨s,ps,hs,ds⟩ := h₂
+  let z := u+1
+  let L := u^2+1
+  let R := (u+2)^2+1
+  change q∣L at dq
+  change s∣R at ds
+  have fac : (u+1)^4+4=L*R := by dsimp only [L,R]; ring
+  refine ⟨q,s,pq,ps,?_,hq,hs,fac ▸ dvd_mul_of_dvd_left dq _,fac ▸ dvd_mul_of_dvd_right ds _⟩
+  rintro rfl
+  have diff : R=L+4*z := by dsimp only [R,L,z]; ring
+  rw [diff] at ds
+  have d4 := (Nat.dvd_add_iff_right dq).mpr ds
+  have dz : q∣z := (pq.dvd_mul.mp d4).resolve_left (by
+    intro dv; have := Nat.le_of_dvd (by decide : 0<4) dv; omega)
+  have sum := dvd_add dq (dvd_mul_of_dvd_right dz 2)
+  rw [show L+2*z=z^2+2 by dsimp only [L,z]; ring] at sum
+  have sq : q∣z^2 := dz.trans (dvd_pow_self z (by decide : 2≠0))
+  have bad := (Nat.dvd_add_iff_right sq).mpr sum
+  have := Nat.le_of_dvd (by decide : 0<2) bad
+  omega
+
+/-- For any fixed prime q, if the largest prime factor of x²+1 tends to
+infinity, all sufficiently large lowercase Erdős 889 solutions are divisible by q. -/
+theorem eventual_prime_divisibility
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B < x → ∃ q : ℕ, q.Prime ∧ T < q ∧ q∣x^2+1)
+    (q : ℕ) (pq : q.Prime) :
+    ∃ B : ℕ, ∀ n : ℕ, B < n → Erdos889.v_l 1 n=1 → q∣n := by
+  let M := q.factorial^3
+  let T := q+4*M
+  have mp : 0 < M := pow_pos q.factorial_pos 3
+  have hT : 4 ≤ T := by dsimp only [T]; omega
+  obtain ⟨K,hK⟩ := quadratic T
+  refine ⟨M*(K+2)^4,?_⟩
+  intro n hn sol
+  by_contra avoid
+  let k := q-n%q
+  have rem := Nat.mod_lt n pq.pos
+  have nr : n%q≠0 := fun z => avoid (Nat.dvd_of_mod_eq_zero z)
+  have kp : 0 < k := by dsimp only [k]; omega
+  have kq : k < q := by dsimp only [k]; omega
+  have qd : q∣n+k := by
+    refine ⟨n/q+1,?_⟩
+    have h := Nat.mod_add_div n q
+    rw [Nat.mul_add,mul_one]
+    dsimp only [k]
+    omega
+  have smooth (r : ℕ) (pr : r.Prime) (dr : r∣n+k) : r ≤ q := by
+    by_contra! large
+    exact two_primes kp pq pr (by omega) kq (by omega) qd dr sol
+  obtain ⟨C,z,cap,_cp,_zp,form⟩ := smooth_fourth_decomposition q (n+k) (by omega) smooth
+  change C ≤ M at cap
+  have large : K+2 < z := by
+    by_contra! low
+    have cmp := Nat.mul_le_mul cap (Nat.pow_le_pow_left low 4)
+    omega
+  let u := z-1
+  have zu : z=u+1 := by dsimp only [u]; omega
+  have ku : K < u := by omega
+  obtain ⟨a,b,pa,pb,ne,ha,hb,da,db⟩ := two_quadratic_factors hT (hK u ku) (hK (u+2) (by omega))
+  have fac : n+(k+4*C)=C*((u+1)^4+4) := by
+    rw [zu] at form
+    calc
+      _ = (n+k)+4*C := by omega
+      _ = _ := by rw [form]; ring
+  have ub : k+4*C ≤ T := by dsimp only [T]; omega
+  exact two_primes (k:=k+4*C) (by omega) pa pb ne (by omega) (by omega)
+    (fac ▸ dvd_mul_of_dvd_right da C) (fac ▸ dvd_mul_of_dvd_right db C) sol
+
+
+/-- Each fixed prime divides every sufficiently large exceptional starting point. -/
+theorem eventually_divides_bad (q : ℕ) (pq : q.Prime) :
+    ∃ B : ℕ, ∀ n : ℕ, B < n → Erdos889.v_l 1 n=1 → q∣n :=
+  eventual_prime_divisibility Erdos889.QuadraticSmooth.large_prime_of_square_add_one q pq
+
+end Erdos889.EventualPrimeDivisibility
+
+namespace Erdos889.UniformPowers
 open OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
 
 private theorem fifth_order {b q : ℕ} (pb : b.Prime) (ob : Odd b) (pq : q.Prime)
@@ -64,15 +506,462 @@ private theorem mersenne_left_factor {b L : ℕ} (pb : b.Prime) (lb : L < b) (hb
 
 
 -- Reused when integrating into the reduction.
-private theorem eleven_period {b m o : ℕ} (hm : Nat.ModEq m (2^o) 1) :
-    Nat.ModEq m (2^b) (2^(b%o)) := by
+private theorem binary_plus_prime {s e : ℕ} (ps : s.Prime) (oe : Odd e) (dv : s∣2^e+1) :
+    s%8=1 ∨ s%8=3 := by
+  obtain ⟨j,hj⟩ := oe
+  have epos : 0 < e := by omega
+  have d2 := dvd_pow_self (2:ℕ) epos.ne'
+  have ne : s≠2 := by rintro rfl; omega
+  let _ : Fact s.Prime := ⟨ps⟩
+  apply (ZMod.exists_sq_eq_neg_two_iff (p:=s) ne).mp
+  refine ⟨(2:ZMod s)^(j+1),?_⟩
+  have zero := (ZMod.natCast_eq_zero_iff (2^e+1) s).mpr dv
+  push_cast at zero
+  rw [←pow_add,show j+1+(j+1)=e+1 by omega,pow_succ]
+  linear_combination -2*zero
+
+private theorem nonsplit_prime {N : ℕ} (seven : N%8=7) :
+    ∃ s : ℕ, s.Prime ∧ s∣N ∧ ¬(s%8=1 ∨ s%8=3) := by
+  by_contra missing
+  have ok (l : List ℕ) (h : ∀ s ∈ l, s%8=1 ∨ s%8=3) : l.prod%8=1 ∨ l.prod%8=3 := by
+    induction l with
+    | nil => decide
+    | cons a t ih =>
+      have ha := h a (by simp)
+      have ht := ih (fun u hu => h u (by simp [hu]))
+      rw [List.prod_cons,Nat.mul_mod]
+      rcases ha with h|h <;> rcases ht with w|w <;> rw [h,w] <;> decide
+  have result := ok N.primeFactorsList (by
+    intro s hs
+    by_contra bad
+    exact missing ⟨s,Nat.prime_of_mem_primeFactorsList hs,Nat.dvd_of_mem_primeFactorsList hs,bad⟩)
+  rw [Nat.prod_primeFactorsList (by omega)] at result
+  omega
+
+theorem finite_prime_threshold (L : ℕ) : ∃ B : ℕ, ∀ n : ℕ, B < n → Erdos889.v_l 1 n=1 →
+    ∀ s : ℕ, s ≤ L → s.Prime → s∣n := by
+  induction L with
+  | zero =>
+    refine ⟨0,?_⟩
+    intro n hn sol s low ps
+    have := ps.two_le
+    omega
+  | succ l ih =>
+    obtain ⟨A,hA⟩ := ih
+    by_cases prime : (l+1).Prime
+    · obtain ⟨B,hB⟩ := Erdos889.EventualPrimeDivisibility.eventually_divides_bad _ prime
+      refine ⟨max A B,?_⟩
+      intro n hn sol s le ps
+      by_cases same : s=l+1
+      · exact same ▸ hB n (lt_of_le_of_lt (Nat.le_max_right _ _) hn) sol
+      · exact hA n (lt_of_le_of_lt (Nat.le_max_left _ _) hn) sol s (by omega) ps
+    · refine ⟨A,?_⟩
+      intro n hn sol s le ps
+      have ne : s≠l+1 := by rintro rfl; exact prime ps
+      exact hA n hn sol s (by omega) ps
+
+/-- A single bound suffices for all odd exponents from three through any prescribed R. -/
+theorem bounded_odd_mersenne_exclusion (R : ℕ) : ∃ B : ℕ, ∀ n p b r : ℕ,
+    B < n → p.Prime → p+1=2^b → 3 ≤ r → Odd r → r ≤ R → n+1=p^r → Erdos889.v_l 1 n≠1 := by
+  let T := 2^R+1
+  obtain ⟨B,allpr⟩ := finite_prime_threshold T
+  refine ⟨max B ((2^(T+4))^R),?_⟩
+  intro n p b r large pp base rlo odd upper eq sol
+  have bigb : T+4 < b := by
+    by_contra! small
+    have hp := Nat.pow_le_pow_right (by decide : 0<2) small
+    have a := Nat.pow_le_pow_left (show p≤2^(T+4) by omega) r
+    have h := Nat.pow_le_pow_right (by positivity : 0<2^(T+4)) upper
+    have m := Nat.le_max_right B ((2^(T+4))^R)
+    omega
+  have hb4 : 4 < b := lt_of_le_of_lt (Nat.le_add_left 4 T) bigb
+  have ep : p=2^b-1 := by omega
+  have pb := (Nat.prime_of_pow_sub_one_prime (by omega) (ep ▸ pp)).2
+  have ob := pb.odd_of_ne_two (by omega)
+  let k := 2^r+1
+  have kT : k ≤ T := by dsimp [k,T]; exact Nat.add_le_add_right (Nat.pow_le_pow_right (by decide) upper) 1
+  have kp : 0 < k := by dsimp [k]; positivity
+  have shift : n+k=p^r+2^r := by dsimp [k]; omega
+  have db : 8∣2^b := pow_dvd_pow 2 (show 3 ≤ b by omega)
+  have dr : 8∣2^r := pow_dvd_pow 2 rlo
+  have pm : Nat.ModEq 8 p 7 := by change p%8=7%8; omega
+  have prm : Nat.ModEq 8 (p^r) 7 := by
+    obtain ⟨j,hj⟩ := odd
+    calc
+      p^r ≡ 7^r [MOD 8] := pm.pow _
+      _ = (7^2)^j*7 := by rw [hj,pow_succ,pow_mul]
+      _ ≡ 1^j*7 [MOD 8] := ((by decide : Nat.ModEq 8 (7^2) 1).pow j).mul_right 7
+      _ = 7 := by simp
+  have sev : (p^r+2^r)%8=7 := by change (p^r)%8=7%8 at prm; omega
+  obtain ⟨s,ps,ds,wrong⟩ := nonsplit_prime sev
+  have hs : k < s := by
+    by_contra! small
+    have dn := allpr n (lt_of_le_of_lt (Nat.le_max_left ..) large) sol s (small.trans kT) ps
+    have ds2 : s∣n+k := shift.symm ▸ ds
+    have dk : s∣k := (Nat.dvd_add_iff_right dn).mpr ds2
+    exact wrong (binary_plus_prime ps odd dk)
+  obtain ⟨q,pq,hq,dq⟩ := mersenne_left_factor pb (show k < b by omega) (by omega)
+  have diff : q≠s := by rintro rfl; exact wrong (binary_plus_prime pq ob dq)
+  have dbase : q∣p+2 := by convert dq using 1; omega
+  have together := dbase.trans (odd.nat_add_dvd_pow_add_pow p 2)
+  exact two_primes kp pq ps diff hq hs (shift ▸ together) (shift ▸ ds) sol
+
+/-- Any fixed finite range of exponents at least three admits a single bound, for arbitrary bases. -/
+theorem bounded_power_exclusion (R : ℕ) : ∃ B : ℕ, ∀ n x r : ℕ,
+    B < n → 1 < x → 3 ≤ r → r ≤ R → n+1=x^r → Erdos889.v_l 1 n≠1 := by
+  obtain ⟨B,hB⟩ := bounded_odd_mersenne_exclusion R
+  refine ⟨max B 81,?_⟩
+  intro n x r large hx hr upper eq sol
+  have lb := Nat.le_max_right B 81
+  have hB' := Nat.le_max_left B 81
+  have odd_base {y j : ℕ} (hj : 0 < j) (e : n+1=y^j) : Odd y := by
+    apply Nat.not_even_iff_odd.mp
+    intro even
+    have dd : 2∣n+1 := e ▸ (even_iff_two_dvd.mp even).trans (dvd_pow_self y hj.ne')
+    have on : Odd n := by rw [Nat.odd_iff]; omega
+    rcases (odd_classification on).mp sol with h|h|h|h <;> omega
+  have rule {y j : ℕ} (hy : 1 < y) (lo : 3 ≤ j) (hi : j ≤ R)
+      (oj : Odd j) (e : n+1=y^j) : False := by
+    have oy := odd_base (by omega) e
+    obtain ⟨b,base⟩ := odd_power_root_neighbor oy hy oj (by omega) e sol
+    have pure := prime_power_succ (n:=n) (by omega) sol
+    rw [e,isPrimePow_pow_iff (by omega : j≠0)] at pure
+    obtain ⟨p,a,pp,pa,he⟩ := (isPrimePow_nat_iff _).mp pure
+    have op := pp.odd_of_ne_two (by
+      rintro rfl
+      have div := dvd_pow_self (2:ℕ) pa.ne'
+      rw [he] at div
+      exact (Nat.not_even_iff_odd.mpr oy) (even_iff_two_dvd.mpr div))
+    have one := mersenne_power_exponent op pp.one_lt pa (he.symm ▸ base)
+    rw [one,pow_one] at he
+    subst y
+    exact hB n p b j (by omega) pp base lo oj hi e sol
+  by_cases o : Odd r
+  · exact rule hx hr upper o eq
+  · have even : r%2=0 := by rw [Nat.odd_iff] at o; omega
+    by_cases four : r%4=0
+    · let y := x^(r/4)
+      have ey : n+1=y^4 := by dsimp [y]; rw [←pow_mul,show r/4*4=r by omega,eq]
+      have bigy : 3 < y := by
+        by_contra! small
+        have ly := Nat.pow_le_pow_left small 4
+        norm_num at ly
+        omega
+      obtain ⟨p,q,pp,pq,ne,hp,hq,dp,dq⟩ := fourth_power_witness (odd_base (by decide) ey) bigy
+      have rearr : n+5=y^4+4 := by omega
+      exact two_primes (k:=5) (by decide) pp pq ne hp hq (rearr ▸ dp) (rearr ▸ dq) sol
+    · have e : n+1=(x^2)^(r/2) := by rw [←pow_mul, show 2*(r/2)=r by omega,eq]
+      exact rule (by nlinarith) (by omega) (by omega) (by rw [Nat.odd_iff]; omega) e
+
+end Erdos889.UniformPowers
+
+namespace Erdos889.PrimitivePowers
+open Polynomial
+
+
+private theorem power_cyclotomic_order {p n q : ℕ} (hn : 0 < n) (pq : q.Prime)
+    (hd : q ∣ ((cyclotomic n ℤ).eval (p : ℤ)).natAbs) :
+    orderOf (p : ZMod q) = n / q ^ n.factorization q ∧
+      n / q ^ n.factorization q ∣ q - 1 := by
+  let : Fact q.Prime := ⟨pq⟩
+  have hr : IsRoot (cyclotomic n (ZMod q)) (Nat.castRingHom (ZMod q) p) := by
+    have c : ((p : ℤ) : ZMod q) = ↑(Int.castRingHom (ZMod q) p) := by simp
+    rw [IsRoot.def, ← map_cyclotomic_int n (ZMod q), eval_map, Nat.coe_castRingHom,
+      ← Int.cast_natCast, c, eval₂_hom, Int.coe_castRingHom, ZMod.intCast_zmod_eq_zero_iff_dvd]
+    apply Int.dvd_natAbs.1
+    exact_mod_cast hd
+  have hc : ¬q ∣ p := pq.coprime_iff_not_dvd.mp (coprime_of_root_cyclotomic hn hr).symm
+  let m := n / q ^ n.factorization q
+  let : NeZero (m : ZMod q) := NeZero.of_not_dvd _ (Nat.not_dvd_ordCompl pq hn.ne')
+  have form : q ^ n.factorization q * m = n := Nat.ordProj_mul_ordCompl_eq_self n q
+  have hr' : (cyclotomic (q ^ n.factorization q * m) (ZMod q)).IsRoot (p : ZMod q) := by
+    rw [form]
+    exact hr
+  have eqn := (isRoot_cyclotomic_prime_pow_mul_iff_of_charP.mp hr').eq_orderOf
+  refine ⟨eqn.symm, ?_⟩
+  rw [show n / q ^ n.factorization q = orderOf (p : ZMod q) from eqn]
+  exact ZMod.orderOf_dvd_card_sub_one (mt (CharP.cast_eq_zero_iff _ _ _).1 hc)
+
+private theorem power_cyclotomic_div {p n d : ℕ} (hp : 1 ≤ p) (hd : d ∈ n.properDivisors) :
+    (p ^ d - 1) * ((cyclotomic n ℤ).eval (p : ℤ)).natAbs ∣ p ^ n - 1 := by
+  have h := eval_dvd (x := (p : ℤ))
+    (X_pow_sub_one_mul_cyclotomic_dvd_X_pow_sub_one_of_dvd ℤ hd)
+  simp only [eval_mul, eval_sub, eval_X_pow, eval_one] at h
+  have castpow (k : ℕ) : (p : ℤ)^k - 1 = ((p^k-1 : ℕ) : ℤ) := by
+    rw [Nat.cast_sub (Nat.one_le_pow _ _ hp), Nat.cast_pow, Nat.cast_one]
+  have h' := Int.natAbs_dvd_natAbs.mpr h
+  simpa only [castpow, Int.natAbs_mul, Int.natAbs_natCast] using h'
+
+private theorem power_cyclotomic_no_square {p n q : ℕ} (hp : 3 ≤ p) (oddp : Odd p)
+    (hn : 2 < n) (pq : q.Prime) (dn : q ∣ n)
+    (hF : q ∣ ((cyclotomic n ℤ).eval (p : ℤ)).natAbs) :
+    ¬ q^2 ∣ ((cyclotomic n ℤ).eval (p : ℤ)).natAbs := by
+  let : Fact q.Prime := ⟨pq⟩
+  let d := n / q
+  let a := p^d
+  have form : d*q=n := Nat.div_mul_cancel dn
+  have dpos : 0 < d := Nat.div_pos (Nat.le_of_dvd (by omega) dn) pq.pos
+  have apos : 1 < a := Nat.one_lt_pow dpos.ne' (by omega : 1 < p)
+  have dmem : d ∈ n.properDivisors := Nat.mem_properDivisors.mpr
+    ⟨⟨q,form.symm⟩, Nat.div_lt_self (by omega) pq.one_lt⟩
+  have divF := power_cyclotomic_div (p := p) (by omega) dmem
+  have power : a^q=p^n := by rw [show a = p ^ d by rfl, ← pow_mul, form]
+  rw [← power] at divF
+  change (a-1) * _ ∣ a^q-1 at divF
+  obtain ⟨ordp,orddiv⟩ := power_cyclotomic_order (by omega) pq hF
+  have total : q ^ n.factorization q * (n / q ^ n.factorization q) = n :=
+    Nat.ordProj_mul_ordCompl_eq_self n q
+  intro hs
+  have div2 : (a-1)*q^2 ∣ a^q-1 := (Nat.mul_dvd_mul_left _ hs).trans divF
+  by_cases qt : q=2
+  · subst q
+    have m1 : n / 2 ^ n.factorization 2 = 1 := Nat.dvd_one.mp orddiv
+    rw [m1, mul_one] at total
+    have ee : 2 ≤ n.factorization 2 := by
+      by_contra! h
+      interval_cases h' : n.factorization 2 <;> simp at total <;> omega
+    obtain ⟨k,hk⟩ : ∃ k, n.factorization 2 = k+2 := ⟨_, (Nat.sub_add_cancel ee).symm⟩
+    have dk : d = 2^k*2 := by rw [hk, pow_succ, pow_succ] at total; omega
+    have ak : a = (p^(2^k))^2 := by change p^d = _; rw [dk,pow_mul]
+    have neq : a^2-1=(a-1)*(a+1) := by
+      have hh : a-1+1=a := by omega
+      rw [← hh]
+      simp only [Nat.add_sub_cancel]
+      have e : (a-1+1)^2=(a-1)*(a-1+1+1)+1 := by ring
+      omega
+    rw [neq] at div2
+    have ff := Nat.dvd_of_mul_dvd_mul_left (by omega : 0 < a-1) div2
+    obtain ⟨j,hj⟩ := oddp.pow (n:=2^k)
+    rw [ak,hj] at ff
+    obtain ⟨z,hz⟩ := ff
+    have eh : (2*j+1)^2+1 = 4*(j*j+j)+2 := by ring
+    omega
+
+  · have md : orderOf (p : ZMod q) ∣ n := ⟨q^n.factorization q, by
+      rw [ordp,mul_comm,total]⟩
+    have ax : (a : ZMod q)^q = 1 := by
+      rw [show a = p^d from rfl, Nat.cast_pow, ← pow_mul, form]
+      exact orderOf_dvd_iff_pow_eq_one.mp md
+    rw [ZMod.pow_card] at ax
+    have hdiv : q ∣ a-1 := by
+      apply (ZMod.natCast_eq_zero_iff _ _).mp
+      rw [Nat.cast_sub (by omega : 1 ≤ a), Nat.cast_one, ax, sub_self]
+    have na : ¬ q ∣ a := by
+      intro h
+      have := (ZMod.natCast_eq_zero_iff _ _).mpr h
+      rw [ax] at this
+      exact one_ne_zero this
+    have vv := padicValNat.pow_sub_pow (p:=q) (x:=a) (y:=1)
+      (pq.odd_of_ne_two qt) apos hdiv na pq.ne_zero
+    simp only [one_pow,padicValNat_self] at vv
+    obtain ⟨u,hu⟩ := div2
+    have hpos := Nat.one_lt_pow pq.ne_zero apos
+    have u0 : u ≠ 0 := by intro e; rw [e,mul_zero] at hu; omega
+    rw [hu, padicValNat.mul (Nat.mul_ne_zero (by omega) (pow_ne_zero _ pq.ne_zero)) u0,
+      padicValNat.mul (by omega) (pow_ne_zero _ pq.ne_zero), padicValNat.pow,
+      padicValNat_self] at vv
+    omega
+
+private theorem power_primitive_prime {p n : ℕ} (hp : 3 ≤ p) (oddp : Odd p) (hn : 2 < n) :
+    ∃ q : ℕ, q.Prime ∧ orderOf (p : ZMod q) = n := by
+  let F := ((cyclotomic n ℤ).eval (p : ℤ)).natAbs
+  have hF : 1 < F := lt_of_le_of_lt (by omega : 1 ≤ p-1)
+    (sub_one_lt_natAbs_cyclotomic_eval (n:=n) (by omega) (by omega))
+  by_contra miss
+  have dividing {q : ℕ} (pq : q.Prime) (dv : q ∣ F) : q ∣ n := by
+    by_contra nd
+    have o := (power_cyclotomic_order (p:=p) (n:=n) (by omega) pq dv).1
+    simp [Nat.factorization_eq_zero_of_not_dvd nd] at o
+    exact miss ⟨q,pq,o⟩
+  have lesser {q s : ℕ} (pq : q.Prime) (ps : s.Prime) (hq : q ∣ F)
+      (hs : s ∣ F) (ne : s ≠ q) : s < q := by
+    have hd := dividing ps hs
+    have form := Nat.ordProj_mul_ordCompl_eq_self n q
+    change q^n.factorization q * (n/q^n.factorization q)=n at form
+    rw [← form] at hd
+    rcases ps.dvd_mul.mp hd with h | h
+    · exact (ne ((Nat.prime_dvd_prime_iff_eq ps pq).mp (ps.dvd_of_dvd_pow h))).elim
+    · have hlt := Nat.le_of_dvd (by have := pq.one_lt; omega : 0 < q-1)
+        (h.trans (power_cyclotomic_order (p:=p) (n:=n) (by omega) pq hq).2)
+      omega
+  obtain ⟨q,pq,hq⟩ := Nat.exists_prime_and_dvd (n:=F) (by omega)
+  have fpow := Nat.eq_prime_pow_of_unique_prime_dvd (by omega : F ≠ 0) (p:=q) (by
+    intro s ps hs
+    by_contra ne
+    have h := lesser pq ps hq hs ne
+    have h' := lesser ps pq hs hq (Ne.symm ne)
+    omega)
+  have dn := dividing pq hq
+  have tdiv := Nat.totient_dvd_of_dvd dn
+  rw [Nat.totient_prime pq] at tdiv
+  have tle := Nat.le_of_dvd (Nat.totient_pos.mpr (by omega : 0 < n)) tdiv
+  have qF : q < F := calc
+    q ≤ 2^(q-1) := by have h : q-1 < 2^(q-1) := Nat.lt_two_pow_self; omega
+    _ ≤ (p-1)^n.totient := by gcongr <;> omega
+    _ < F := sub_one_pow_totient_lt_natAbs_cyclotomic_eval (by omega) (by omega)
+  have len : 2 ≤ F.primeFactorsList.length := by
+    by_contra! h
+    interval_cases he : F.primeFactorsList.length <;> simp at fpow <;> omega
+  apply power_cyclotomic_no_square hp oddp hn pq dn hq
+  change q^2 ∣ F
+  conv_rhs => rw [fpow]
+  exact pow_dvd_pow q len
+
+private theorem power_primitive_plus {p k : ℕ} (hp : 3 ≤ p) (oddp : Odd p) (hk : 1 < k) :
+    ∃ q : ℕ, q.Prime ∧ orderOf (p : ZMod q) = 2*k ∧ 2*k < q ∧ q ∣ p^k+1 := by
+  obtain ⟨q,pq,eqo⟩ := power_primitive_prime hp oddp (n:=2*k) (by omega)
+  let : Fact q.Prime := ⟨pq⟩
+  have eq1 := pow_orderOf_eq_one (p : ZMod q)
+  rw [eqo] at eq1
+  have p0 : (p : ZMod q) ≠ 0 := by
+    intro h
+    rw [h, zero_pow (by omega : 2*k ≠ 0)] at eq1
+    exact zero_ne_one eq1
+  have dl := ZMod.orderOf_dvd_card_sub_one p0
+  rw [eqo] at dl
+  have small := Nat.le_of_dvd (by have := pq.one_lt; omega : 0 < q-1) dl
+  refine ⟨q,pq,eqo,by omega,?_⟩
+  have sq1 : ((p : ZMod q)^k)^2 = 1 := by rw [← pow_mul,Nat.mul_comm k 2]; exact eq1
+  rcases sq_eq_one_iff.mp sq1 with bad | good
+  · have dk := orderOf_dvd_of_pow_eq_one bad
+    rw [eqo] at dk
+    have := Nat.le_of_dvd (by omega : 0 < k) dk
+    omega
+  · apply (ZMod.natCast_eq_zero_iff _ _).mp
+    rw [Nat.cast_add,Nat.cast_one,Nat.cast_pow,good,neg_add_cancel]
+
+private theorem power_exponent_odd_witness {p k u t : ℕ} (hp : 3 ≤ p) (oddp : Odd p)
+    (ht : 1 < t) (oddt : Odd t) (hk : 1 < k) (gap : p^u < 2*k) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+      q ∣ p^(t*k+u)+d ∧ s ∣ p^(t*k+u)+d := by
+  have ltprod : k < t*k := by nlinarith
+  obtain ⟨q,pq,oq,hq,dq⟩ := power_primitive_plus hp oddp (k:=t*k) (by omega)
+  obtain ⟨s,ps,os,hs,ds⟩ := power_primitive_plus hp oddp hk
+  have differ : q ≠ s := by intro e; subst s; omega
+  have d3 : p^k+1 ∣ p^(t*k)+1 := by
+    rw [Nat.mul_comm t k, pow_mul]
+    simpa only [one_pow] using oddt.nat_add_dvd_pow_add_pow (p^k) 1
+  have factor : p^(t*k+u)+p^u=(p^(t*k)+1)*p^u := by rw [pow_add,add_mul,one_mul]
+  refine ⟨p^u,q,s,pq,ps,differ,by omega,by omega,?_,?_⟩ <;> rw [factor]
+  · exact dvd_mul_of_dvd_left dq _
+  · exact dvd_mul_of_dvd_left (ds.trans d3) _
+
+theorem power_missing_exponent_bound {p r : ℕ} (hp : 3 ≤ p) (oddp : Odd p)
+    (pr : r.Prime) (hr : 5 ≤ r)
+    (miss : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+      q ∣ p^r+d ∧ s ∣ p^r+d) :
+    2*(r-2) ≤ 3*p^2 := by
+  have nz : r%3 ≠ 0 := by
+    intro eqn
+    have dv := Nat.dvd_of_mod_eq_zero eqn
+    have eqr := (Nat.prime_dvd_prime_iff_eq (by decide : Nat.Prime 3) pr).mp dv
+    omega
+  by_contra! h
+  have pp : p ≤ p^2 := by nlinarith
+  let k := r/3
+  have hk : 1 < k := by dsimp [k]; omega
+  have eu := Nat.mod_add_div r 3
+  change r%3+3*k=r at eu
+  by_cases eqn : r%3=1
+  · have ww := power_exponent_odd_witness hp oddp (u:=1) (by decide : 1 < 3)
+      (by decide) hk (by simp; omega)
+    apply miss
+    rwa [show 3*k+1=r by omega] at ww
+  · have ww := power_exponent_odd_witness hp oddp (u:=2) (by decide : 1 < 3)
+      (by decide) hk (by omega)
+    apply miss
+    rwa [show 3*k+2=r by omega] at ww
+
+
+
+theorem power_missing_exponent_linear {p r : ℕ} (hp : 3 ≤ p) (oddp : Odd p)
+    (modr : r%3 = 1)
+    (miss : ¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+      q ∣ p^r+d ∧ s ∣ p^r+d) :
+    2*(r-1) ≤ 3*p := by
+  by_contra! h
+  let k := r/3
+  have eu := Nat.mod_add_div r 3
+  change r%3+3*k=r at eu
+  have ww := power_exponent_odd_witness hp oddp (u:=1) (by decide : 1 < 3)
+    (by decide) (k:=k) (by omega) (by simp; omega)
+  apply miss
+  rwa [show 3*k+1=r by omega] at ww
+
+
+
+end Erdos889.PrimitivePowers
+namespace Erdos889.Missing
+open Finset
+
+lemma fresh_iff {n k p : ℕ} (hp : 0 < p) (hd : p ∣ n+k) :
+    (∀ i ∈ range k, ¬p ∣ n+i) ↔ k < p := by
+  constructor
+  · intro h
+    by_contra! hle
+    have hdiff : n + (k-p) = n+k-p := by omega
+    exact h (k-p) (mem_range.mpr (by omega)) (hdiff ▸ Nat.dvd_sub hd (dvd_refl p))
+  · intro h i hi hdiv
+    have hi' := mem_range.mp hi
+    have hsub : n+k-(n+i) = k-i := by omega
+    have hd' : p ∣ k-i := hsub ▸ Nat.dvd_sub hd hdiv
+    have := Nat.le_of_dvd (by omega : 0 < k-i) hd'
+    omega
+
+theorem v_as_card (n k : ℕ) :
+    v n k = ((n+k).primeFactors.filter (k < ·)).card := by
+  unfold v
+  congr 1
+  ext p
+  simp only [mem_filter]
+  exact and_congr_right fun h => fresh_iff (Nat.prime_of_mem_primeFactors h).pos
+    (Nat.dvd_of_mem_primeFactors h)
+
+-- BEGIN MISSING WITNESS
+/-- Absence of a two-prime witness exactly bounds every count at the predecessor, and offset one attains the bound. -/
+theorem predecessor_solution_of_missing {N : ℕ} (big : 1 < N)
+    (none : ¬ ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q ≠ s ∧ d+1 < q ∧ d+1 < s ∧
+      q ∣ N+d ∧ s ∣ N+d) : v_l 1 (N-1)=1 := by
+  apply le_antisymm
+  · apply iSup_le
+    intro k
+    apply iSup_le
+    intro hk
+    have bound : v (N-1) k ≤ 1 := by
+      rw [v_as_card,Finset.card_le_one]
+      intro q hq s hs
+      obtain ⟨cq,bq⟩ := Finset.mem_filter.mp hq
+      obtain ⟨cs,bs⟩ := Finset.mem_filter.mp hs
+      have eq : N+(k-1)=(N-1)+k := by omega
+      by_contra ne
+      exact none ⟨k-1,q,s,Nat.prime_of_mem_primeFactors cq,Nat.prime_of_mem_primeFactors cs,ne,
+        by omega,by omega,eq ▸ Nat.dvd_of_mem_primeFactors cq,eq ▸ Nat.dvd_of_mem_primeFactors cs⟩
+    exact_mod_cast bound
+  · obtain ⟨q,pq,dq⟩ := Nat.exists_prime_and_dvd (show N≠1 by omega)
+    have eq : N-1+1=N := by omega
+    have first : 1 ≤ v (N-1) 1 := by
+      rw [v_as_card,eq]
+      exact Finset.card_pos.mpr ⟨q,Finset.mem_filter.mpr ⟨pq.mem_primeFactors dq (by omega),pq.one_lt⟩⟩
+    exact (show (1 : ℕ∞) ≤ (v (N-1) 1 : ℕ∞) by exact_mod_cast first).trans
+      (le_iSup_of_le 1 (le_iSup_of_le (by decide : 1≤1) le_rfl))
+-- END MISSING WITNESS
+
+end Erdos889.Missing
+
+namespace OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2_H3_R1
+open Erdos889
+open OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
+
+
+open Finset
+private theorem seventeen_smooth_cycle {x t m : ℕ} (h : Nat.ModEq m (x^t) 1) (b : ℕ) :
+    Nat.ModEq m (x^b) (x^(b%t)) := by
   calc
-    2^b = 2^(b%o)*(2^o)^(b/o) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
-    _ ≡ 2^(b%o)*1^(b/o) [MOD m] := (hm.pow _).mul_left _
+    x^b = x^(b%t)*(x^t)^(b/t) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+    _ ≡ x^(b%t)*1^(b/t) [MOD m] := (h.pow _).mul_left _
     _ = _ := by simp
 
-
-private theorem thirteen_legendre (m n : ℕ) [Fact m.Prime] (hm : 2 < m) :
+private theorem seventeen_smooth_legendre (m n : ℕ) [Fact m.Prime] (hm : 2 < m) :
     legendreSym m (n:ℤ) = if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1 := by
   have cast : ((n:ℤ):ZMod m)=(n:ZMod m) := by simp
   by_cases z : n%m=0
@@ -101,7 +990,7 @@ private theorem thirteen_legendre (m n : ℕ) [Fact m.Prime] (hm : 2 < m) :
     have le := Nat.le_of_dvd (by decide) dd
     omega
 
-private theorem thirteen_character_mul (m : ℕ) (ok : m=4 ∨ m=8 ∨ (m.Prime ∧ 2 < m)) :
+private theorem seventeen_smooth_character_mul (m : ℕ) (ok : m=4 ∨ m=8 ∨ (m.Prime ∧ 2 < m)) :
     let char (n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
     else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
     else if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1
@@ -120,10 +1009,10 @@ private theorem thirteen_character_mul (m : ℕ) (ok : m=4 ∨ m=8 ∨ (m.Prime 
     let _ : Fact m.Prime := ⟨pm⟩
     have n4 : m≠4 := by rintro rfl; norm_num at pm
     have n8 : m≠8 := by rintro rfl; norm_num at pm
-    simp only [n4,n8,if_false,←thirteen_legendre m _ hm,Nat.cast_mul,legendreSym.mul]
+    simp only [n4,n8,if_false,←seventeen_smooth_legendre m _ hm,Nat.cast_mul,legendreSym.mul]
 
 -- BEGIN SEVENTEEN
-private theorem seventeen_powMod_eq (a e m : ℕ) : (fun (a e m : ℕ) => Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m) (fun _ f n => (f (n/2))^2 * a^(n%2) % m) (e.log2+1) e) a e m = a^e % m := by
+private theorem seventeen_smooth_powMod_eq (a e m : ℕ) : (fun (a e m : ℕ) => Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m) (fun _ f n => (f (n/2))^2 * a^(n%2) % m) (e.log2+1) e) a e m = a^e % m := by
   let f (k : ℕ) := Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m)
     (fun _ g n => (g (n/2))^2 * a^(n%2) % m) k
   have aux (k n : ℕ) (bound : n<2^k) : f k n = a^n % m := by
@@ -149,7 +1038,996 @@ private theorem seventeen_powMod_eq (a e m : ℕ) : (fun (a e m : ℕ) => Nat.re
   · exact (Nat.log2_lt h).mp (Nat.lt_succ_self _)
 
 
-private theorem seventeen_order {q p : ℕ} (pq : q.Prime) (q2 : q≠2)
+private theorem seventeen_smooth_residue {p b T k m : ℕ} (base : p+1=2^b) (idx : b%T=k)
+    (hm : 1 < m) (per : 2^T%m=1) :
+    Nat.ModEq m p ((2^k%m+m-1)%m) := by
+  have period : Nat.ModEq m (2^T) 1 := by change 2^T%m=1%m; rwa [Nat.mod_eq_of_lt hm]
+  have c := seventeen_smooth_cycle period b
+  rw [idx,←base] at c
+  have h : Nat.ModEq m ((2^k%m+m-1)+1) (2^k) := by
+    rw [show 2^k%m+m-1+1=2^k%m+m by omega]
+    change (2^k%m+m)%m=2^k%m
+    simp
+  exact (Nat.ModEq.add_right_cancel' 1 (c.trans h.symm)).trans (Nat.mod_modEq _ _).symm
+
+private theorem seventeen_smooth_primes : ∀ s ∈ [3,5,7,11,17,19,29,37,71,73,103,137,239,307,337,409,433,613,919,953,1321,2521,10711,14449,34511], Nat.Prime s := by
+  intro s hs
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hs
+  rcases hs with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> norm_num1
+
+private theorem seventeen_smooth_row {p b T k : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%T=k)
+    (d q : ℕ) (S ms : List ℕ) (pm : ℕ → ℕ → ℕ → ℕ)
+    (hpm : ∀ a e m, pm a e m=a^e%m)
+    {pool : List ℕ} (facts : ∀ s ∈ pool, s.Prime)
+    (ok :
+      let V (m : ℕ) := ((pm 2 k m+m-1)%m)^17+d
+      let C (m n : ℕ) : ℤ := if n%m=0 then 0 else if pm (n%m) (m/2) m=1 then 1 else -1
+      q∈pool ∧ d+1 < q ∧ q∈S ∧ pm 2 T q=1 ∧ V q%q=0 ∧
+      (∀ s ∈ List.range (d+2), s.Prime → s∈S ∨ (pm 2 T s=1 ∧ V s%s≠0)) ∧
+      (∀ m ∈ ms, m∈pool ∧ 2 < m ∧ m≠4 ∧ m≠8 ∧ pm 2 T m=1) ∧
+      (∀ s ∈ S, (ms.map (fun m => C m s)).prod=1) ∧
+      (ms.map (fun m => C m (V m))).prod= -1) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d := by
+  let V (m : ℕ) := ((pm 2 k m+m-1)%m)^17+d
+  let C (m n : ℕ) : ℤ := if n%m=0 then 0 else if pm (n%m) (m/2) m=1 then 1 else -1
+  obtain ⟨qm,large,qmem,qper,qzero,small,mods,good,bad⟩ := ok
+  have pq := facts q qm
+  have red {m : ℕ} (hm : 1 < m) (per : pm 2 T m=1) : Nat.ModEq m (p^17+d) (V m) := by
+    dsimp only [V]; rw [hpm]
+    exact ((seventeen_smooth_residue base idx hm ((hpm ..) ▸ per)).pow 17).add_right d
+  have dq : q ∣ p^17+d := Nat.modEq_zero_iff_dvd.mp ((red pq.one_lt qper).trans qzero)
+  by_contra missing
+  have support (s : ℕ) (ps : s.Prime) (ds : s ∣ p^17+d) : s∈S := by
+    by_cases h : s=q
+    · exact h ▸ qmem
+    by_cases high : d+1 < s
+    · exact (missing ⟨d,q,s,pq,ps,Ne.symm h,large,high,dq,ds⟩).elim
+    rcases small s (List.mem_range.mpr (by omega)) ps with mem|⟨per,nonzero⟩
+    · exact mem
+    exact (nonzero ((red ps.one_lt per).symm.trans (Nat.modEq_zero_iff_dvd.mpr ds))).elim
+  let chi (n : ℕ) := (ms.map (fun m => C m n)).prod
+  have mul (u v : ℕ) : chi (u*v)=chi u*chi v := by
+    have gm (m) (hm : m∈ms) : C m (u*v)=C m u*C m v := by
+      obtain ⟨known,lt,h4,h8,_⟩ := mods m hm
+      have prim := facts m known
+      simpa only [C,hpm,h4,h8,if_false] using
+        (seventeen_smooth_character_mul m (Or.inr (Or.inr ⟨prim,lt⟩)) u v)
+    have gen (l : List ℕ) (h : ∀ m ∈ l, C m (u*v)=C m u*C m v) :
+        (l.map (fun m => C m (u*v))).prod=(l.map (fun m => C m u)).prod*(l.map (fun m => C m v)).prod := by
+      induction l with
+      | nil => simp
+      | cons m tail ih =>
+        simp only [List.map_cons,List.prod_cons]
+        rw [h m (by simp),ih (fun j hj => h j (by simp [hj]))]
+        ring
+    exact gen ms gm
+  have neg : chi (p^17+d)= -1 := by
+    apply Eq.trans (congrArg List.prod (List.map_congr_left (l:=ms) (f:=fun m => C m (p^17+d)) (g:=fun m => C m (V m)) ?_)) bad
+    intro m hm
+    obtain ⟨_,lt,_,_,per⟩ := mods m hm
+    have eq : (p^17+d)%m=V m%m := red (by omega) per
+    simp only [C,eq]
+  have one : chi 1=1 := by
+    have h := mul 1 (p^17+d)
+    rw [one_mul,neg] at h
+    omega
+  have gen (l : List ℕ) (h : ∀ s ∈ l,s ∈ S) : chi l.prod=1 := by
+    induction l with
+    | nil => exact one
+    | cons s tail ih =>
+      rw [List.prod_cons,mul,show chi s=1 from good s (h s (by simp)),one_mul]
+      exact ih (fun j hj => h j (by simp [hj]))
+  have pos := gen (p^17+d).primeFactorsList (fun s h => support s (Nat.prime_of_mem_primeFactorsList h) (Nat.dvd_of_mem_primeFactorsList h))
+  rw [Nat.prod_primeFactorsList (by positivity),neg] at pos
+  contradiction
+
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_361 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=361) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 14 29 [2,3,5,29] [71] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_673 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=673) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_841 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=841) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 8 37 [2,3,37] [433] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_1201 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1201) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 8 37 [2,3,37] [337] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_1321 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1321) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_1513 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1513) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 5 11 [2,3,11] [1321] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_1681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 2 37 [2,3,37] [73] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_1793 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1793) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 2 7 [2,3,7] [2521] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_1873 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=1873) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 5 11 [2,3,11] [1321] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_2520_2161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%2520=2161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 8 29 [2,3,29] [14449] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_2521 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=2521) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 1 34511 [2,34511] [953] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_5041 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=5041) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 10 239 [2,11,239] [10711] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_7561 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=7561) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 21 613 [2,11,613] [137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_12601 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=12601) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 10 137 [2,11,137] [3,5,103] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_15121 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=15121) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 33 307 [2,17,23,307] [409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_17641 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=17641) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 47 103 [2,3,23,47,103] [34511] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_20161 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=20161) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 1 103 [2,103] [137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_22681 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=22681) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 7 409 [2,409] [103] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_25201 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=25201) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 1 103 [2,103] [409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_27721 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=27721) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 1 613 [2,613] [103] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_30241 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=30241) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 38 239 [2,3,13,23,239] [7,11,17,19,137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_32761 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=32761) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 53 307 [2,3,23,47,53,307] [7,11,17,19,137] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_35281 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=35281) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 17 307 [2,3,307] [409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_37801 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=37801) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 46 103 [2,23,47,103] [919] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+set_option maxRecDepth 2048 in
+set_option maxHeartbeats 4000000 in
+private theorem case17_42840_40321 {p b : ℕ} (hp : 0 < p) (base : p+1=2^b) (idx : b%42840=40321) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d :=
+  seventeen_smooth_row hp base idx 57 103 [2,23,29,47,53,103] [3,5,7,409] _ seventeen_smooth_powMod_eq seventeen_smooth_primes (by decide +kernel)
+
+private theorem seventeen_compact_coset {G : Type*} [Monoid G] {v : G} {M b o : ℕ}
+    (idx : b%M=1) (per : v^o=1) :
+    (v^b)^(o/o.gcd M)=v^(o/o.gcd M) := by
+  have form : b = 1+M*(b/M) := by have h := Nat.mod_add_div b M; rw [idx] at h; exact h.symm
+  have dm : o∣M*(o/o.gcd M) := by
+    rw [←Nat.mul_div_assoc M (Nat.gcd_dvd_left o M),Nat.mul_comm M o,←Nat.lcm_eq_mul_div]
+    exact Nat.dvd_lcm_left o M
+  obtain ⟨s,hs⟩ := dm
+  let h := o/o.gcd M
+  have exp : b*h=h+o*(s*(b/M)) := by
+    calc
+      b*h=(1+M*(b/M))*h := congrArg (·*h) form
+      _ = h+(M*h)*(b/M) := by ring
+      _ = h+o*(s*(b/M)) := by rw [show M*h=o*s from hs]; ring
+  change (v^b)^h = v^h
+  rw [←pow_mul,exp,pow_add,pow_mul,per,one_pow,mul_one]
+
+private theorem seventeen_compact_root_exclusion {p b q o w : ℕ}
+    (pq : q.Prime) (lo : 2 < q) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : q∣p^17+131072) (nd : ¬q∣p+2)
+    (per : 2^o%q=1) (w19 : w^17%q=1) (wn : w%q≠1)
+    (reject : ∀ i ∈ List.range 16,
+      let y := (q+1-(2*w^(i+1))%q)%q
+      y^(o/o.gcd 42840)%q≠2^(o/o.gcd 42840)%q) : False := by
+  let _ : Fact q.Prime := ⟨pq⟩
+  let _ : Fact (Nat.Prime 17) := ⟨by decide⟩
+  have mod1 (v : ℕ) : (v:ZMod q)=1 ↔ v%q=1 := by
+    simpa only [Nat.cast_one,Nat.mod_eq_of_lt pq.one_lt] using ZMod.natCast_eq_natCast_iff' v 1 q
+  have two : (2:ZMod q)≠0 := by
+    intro h
+    have d := (ZMod.natCast_eq_zero_iff 2 q).mp h
+    have := Nat.le_of_dvd (by decide : 0<2) d
+    omega
+  let z := -(p:ZMod q)/2
+  have zero := (ZMod.natCast_eq_zero_iff _ _).mpr mult
+  push_cast at zero
+  have z19 : z^17=1 := by dsimp [z]; rw [div_pow,div_eq_iff (pow_ne_zero _ two)]; linear_combination -zero
+  have primitive : IsPrimitiveRoot (w:ZMod q) 17 := IsPrimitiveRoot.iff_orderOf.mpr (orderOf_eq_prime
+    (by simpa only [Nat.cast_pow] using (mod1 _).mpr w19) (fun h => wn ((mod1 _).mp h)))
+  obtain ⟨i,hi,iw⟩ := primitive.eq_pow_of_pow_eq_one z19
+  have wv : (w:ZMod q)^i * 2 = -(p:ZMod q) := (eq_div_iff two).mp iw
+  have i0 : i≠0 := by
+    rintro rfl
+    rw [pow_zero,one_mul] at wv
+    apply nd
+    apply (ZMod.natCast_eq_zero_iff (p+2) q).mp
+    push_cast
+    linear_combination wv
+  let y := (q+1-(2*w^i)%q)%q
+  have bound : (2*w^i)%q ≤ q+1 := by have := Nat.mod_lt (2*w^i) pq.pos; omega
+  have cast : (y:ZMod q)=(2:ZMod q)^b := by
+    dsimp [y]
+    rw [ZMod.natCast_mod,Nat.cast_sub bound,Nat.cast_add,ZMod.natCast_self,Nat.cast_one,ZMod.natCast_mod,Nat.cast_mul,Nat.cast_pow]
+    have bp := congrArg (fun n : ℕ => (n:ZMod q)) base
+    push_cast at bp ⊢
+    linear_combination bp - wv
+  have cycle : (2:ZMod q)^o=1 := by simpa only [Nat.cast_pow,Nat.cast_ofNat] using (mod1 _).mpr per
+  have projected := seventeen_compact_coset idx cycle
+  rw [←cast] at projected
+  have bad := reject (i-1) (List.mem_range.mpr (show i-1<16 by omega))
+  rw [show i-1+1=i by omega] at bad
+  apply bad
+  apply (ZMod.natCast_eq_natCast_iff' _ _ q).mp
+  push_cast
+  exact projected
+
+private theorem seventeen_compact_pow_eq (a e m : ℕ) : (fun (a e m : ℕ) => Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m) (fun _ f n => (f (n/2))^2 * a^(n%2) % m) (e.log2+1) e) a e m = a^e % m := by
+  let f (k : ℕ) := Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m)
+    (fun _ g n => (g (n/2))^2 * a^(n%2) % m) k
+  have aux (k n : ℕ) (bound : n<2^k) : f k n = a^n % m := by
+    induction k generalizing n with
+    | zero =>
+      have h : n=0 := by simpa using bound
+      subst n
+      simp [f]
+    | succ k ih =>
+      have half : n/2 < 2^k := by rw [pow_succ] at bound; omega
+      change (f k (n/2))^2 * a^(n%2) % m = a^n % m
+      rw [ih _ half]
+      calc
+        _ = ((a^(n/2))^2 * a^(n%2))%m :=
+          ((Nat.mod_modEq _ _).pow 2).mul_right _
+        _ = a^n % m := by
+          rw [← pow_mul,← pow_add,show n/2*2+n%2=n by omega]
+  change f (e.log2+1) e = a^e % m
+  apply aux (e.log2+1) e
+  by_cases h : e=0
+  · subst e
+    decide
+  · exact (Nat.log2_lt h).mp (Nat.lt_succ_self _)
+
+private theorem seventeen_compact_legendre (m n : ℕ) [Fact m.Prime] (hm : 2 < m) :
+    legendreSym m (n:ℤ) = if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1 := by
+  have cast : ((n:ℤ):ZMod m)=(n:ZMod m) := by simp
+  by_cases z : n%m=0
+  · rw [if_pos z,legendreSym.eq_zero_iff,cast,ZMod.natCast_eq_zero_iff]
+    exact Nat.dvd_of_mod_eq_zero z
+  rw [if_neg z]
+  have nz : ((n:ℤ):ZMod m)≠0 := by
+    intro h
+    rw [cast] at h
+    exact z (Nat.mod_eq_zero_of_dvd ((ZMod.natCast_eq_zero_iff n m).mp h))
+  have power : ((n%m)^(m/2))%m=1 ↔ (n:ZMod m)^(m/2)=1 := by
+    have eq := ZMod.natCast_eq_natCast_iff' ((n%m)^(m/2)) 1 m
+    rw [Nat.mod_eq_of_lt (by omega : 1 < m)] at eq
+    simpa only [Nat.cast_pow,ZMod.natCast_mod,Nat.cast_one] using eq.symm
+  have sign := legendreSym.eq_pow m (n:ℤ)
+  rw [cast] at sign
+  rcases legendreSym.eq_one_or_neg_one m nz with h|h
+  · rw [h,Int.cast_one] at sign
+    rw [h,if_pos (power.mpr sign.symm)]
+  · rw [h,Int.cast_neg,Int.cast_one] at sign
+    rw [h,if_neg]
+    intro bad
+    have eq : (-1:ZMod m)=1 := sign.trans (power.mp bad)
+    have zero : ((2:ℕ):ZMod m)=0 := by push_cast; linear_combination -eq
+    have dd := (ZMod.natCast_eq_zero_iff _ _).mp zero
+    have le := Nat.le_of_dvd (by decide) dd
+    omega
+
+set_option maxRecDepth 12000 in
+private theorem seventeen_compact_interval {i start p b : ℕ} {N : ℤ} (cells : List ℕ)
+    (pm : ℕ → ℕ → ℕ → ℕ) (eq : ∀ a e m, pm a e m=a^e%m)
+    (checked : (cells.zipIdx start).all (fun entry =>
+      let tok := entry.1
+      let q := 34*entry.2+1
+      if tok=0 then decide (q < 2)
+      else if tok < 1024 then decide (1 < tok ∧ tok < q ∧ q%tok=0)
+      else if tok=1024 then
+        let a := (N%(q:ℤ)).toNat
+        decide (a%q≠0 ∧ pm (a%q) (q/2) q=1)
+      else
+        let o := (tok-1025)/131072
+        let w := (tok-1025)%131072
+        decide (pm 2 o q=1 ∧ w^17%q=1 ∧ w%q≠1) &&
+          (List.range 16).all (fun k =>
+            let y := (q+1-(2*w^(k+1))%q)%q
+            decide (pm y (o/o.gcd 42840) q≠pm 2 (o/o.gcd 42840) q)))=true)
+    (low : start ≤ i) (high : i < start+cells.length)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym N (34*i+1)=1 := by
+  let q := 34*i+1
+  have qlo : 2 < q := by dsimp [q]; have := pq.two_le; omega
+  have inside : i-start < cells.length := by omega
+  let tok := cells[i-start]
+  have mem : (tok,i) ∈ cells.zipIdx start := List.mk_mem_zipIdx_iff_le_and_getElem?_sub.mpr
+    ⟨low, List.getElem?_eq_getElem inside⟩
+  have h := List.all_eq_true.mp checked (tok,i) mem
+  dsimp only at h
+  by_cases z : tok=0
+  · rw [if_pos z] at h
+    have := of_decide_eq_true h
+    omega
+  rw [if_neg z] at h
+  by_cases sm : tok<1024
+  · rw [if_pos sm] at h
+    obtain ⟨a,l,d⟩ := of_decide_eq_true h
+    have := (Nat.dvd_prime pq).mp (Nat.dvd_iff_mod_eq_zero.mpr d)
+    omega
+  rw [if_neg sm] at h
+  by_cases pos : tok=1024
+  · rw [if_pos pos] at h
+    obtain ⟨nz,pow1⟩ := of_decide_eq_true h
+    let a := (N%(q:ℤ)).toNat
+    have cast : (a:ℤ)=N%(q:ℤ) := Int.toNat_of_nonneg (Int.emod_nonneg N (by exact_mod_cast (show q≠0 by omega)))
+    let _ : Fact q.Prime := ⟨pq⟩
+    change jacobiSym N q=1
+    rw [jacobiSym.mod_left N q,←cast,←jacobiSym.legendreSym.to_jacobiSym,seventeen_compact_legendre q a qlo,
+      if_neg nz,if_pos (by simpa only [←eq] using pow1)]
+  rw [if_neg pos] at h
+  obtain ⟨head,tail⟩ := Bool.and_eq_true_iff.mp h
+  obtain ⟨period,root,nontriv⟩ := of_decide_eq_true head
+  exfalso
+  rw [eq] at period
+  apply seventeen_compact_root_exclusion (o:=(tok-1025)/131072) (w:=(tok-1025)%131072) pq qlo base idx mult nd period root nontriv
+  intro k hk
+  have reject := of_decide_eq_true (List.all_eq_true.mp tail k hk)
+  simpa only [eq] using reject
+
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_0 {i p b : ℕ} (ix : i/128=0) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=0) (cells:=[0,5,3,6685761,8914040,3,5,15598725,3,1024,11,3,26739749,1024,3,7,5,3,80217675,1024,3,5,7,3,19,23,3,20055457,8914723,3,1024,5,3,1024,13,3,5,1024,3,1024,89130301,3,11012367,7,3,1024,5,3,23,1024,3,5,29,3,11,122553354,3,7,1024,3,13,5,3,6687509,7,3,5,43,3,102500113,1024,3,31,13,3,167119914,5,3,7,1024,3,5,1024,3,1024,7,3,11,41,3,26740717,5,3,138153842,23,3,5,1024,3,7,19,3,454559816,31,3,467929912,5,3,1024,11,3,5,13,3,508037136,1024,3,23,1024,3,7,5,3,47,1024,3,5,7])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<128; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_1 {i p b : ℕ} (ix : i/128=1) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=128) (cells:=[3,41,44565988,3,67,34870458,3,1024,5,3,13,29,3,5,11,3,59,129240931,3,1024,7,3,222823791,5,3,11,1024,3,5,19,3,354290873,71304879,3,7,23,3,31,5,3,29,7,3,5,1024,3,61,11,3,13,1024,3,200543423,5,3,7,1024,3,5,416679046,3,1024,7,3,13375823,50596767,3,19,5,3,1024,67,3,5,900207641,3,7,1024,3,1024,11,3,37,5,3,949225349,19,3,5,47,3,11,245109333,3,989333279,1024,3,7,5,3,1024,13,3,5,7,3,73,61,3,1024,1060638123,3,1024,5,3,541464612,543688160,3,5,37,3,1024,1024,3,11,7,3,13])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<256; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_2 {i p b : ℕ} (ix : i/128=2) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=256) (cells:=[5,3,31,1024,3,5,59,3,47,1024,3,7,13,3,1203244513,5,3,1216619480,7,3,5,1234442290,3,53,1024,3,43,1024,3,11,5,3,7,31,3,5,38280336,3,13,7,3,1024,1024,3,101,5,3,225056183,1024,3,5,11,3,7,83,3,103,29,3,140380497,5,3,11,1024,3,5,1434982194,3,23,43,3,6688151,19,3,7,5,3,13,41,3,5,7,3,755373466,11,3,29,107,3,1024,5,3,1024,1024,3,5,392171157,3,92801583,1024,3,61,7,3,1024,5,3,1024,1024,3,5,1024,3,1024,23,3,7,11,3,41,5,3,187179916,7,3,5,31,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<384; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_3 {i p b : ℕ} (ix : i/128=3) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=384) (cells:=[11,13,3,1024,79,3,89,5,3,7,1755845330,3,5,104079248,3,1024,7,3,1024,71,3,47,5,3,1024,1822691321,3,5,1024,3,7,103,3,11,61,3,311959578,5,3,19,13,3,5,1024,3,29,1916287403,3,37,1024,3,7,5,3,53,11,3,5,7,3,31,1024,3,332008962,1024,3,11,5,3,73,43,3,5,41,3,1024,1024,3,23,7,3,97,5,3,347617118,37,3,5,11,3,71,31,3,7,1024,3,19,5,3,11,7,3,5,29,3,13,436743873,3,1024,1024,3,1024,5,3,7,19,3,5,13,3,280772866,7,3,1129712158,23,3,757607994,5])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<512; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_4 {i p b : ℕ} (ix : i/128=4) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=512) (cells:=[3,2286172062,1024,3,5,1024,3,7,231737113,3,1024,1165373841,3,2339641833,5,3,13,1024,3,5,1185426265,3,67,1192116603,3,19,11,3,7,5,3,37,53,3,5,7,3,11,1024,3,137,1024,3,113,5,3,2486699371,83,3,5,97,3,127,1024,3,13,7,3,508036830,5,3,2553554247,29,3,5,23,3,430060784,13,3,7,43,3,2607035237,5,3,1024,7,3,5,1024,3,19,15598721,3,53,1024,3,23,5,3,7,11,3,5,1352533098,3,904664707,7,3,1024,19,3,11,5,3,2754092032,13,3,5,163057287,3,7,79,3,1024,131,3,31,5,3,2820943362,1024,3,5,11,3,474620101])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<640; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_5 {i p b : ℕ} (ix : i/128=5) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=640) (cells:=[47,3,83,1432768942,3,7,5,3,11,2892246689,3,5,7,3,37,1024,3,89,13,3,245111397,5,3,1477325326,107,3,5,1024,3,23,11,3,73,7,3,59,5,3,3021490191,1024,3,5,1024,3,13,1024,3,7,149,3,29,5,3,1024,7,3,5,13,3,1024,389954768,3,1024,11,3,1024,5,3,7,3159628503,3,5,43,3,11,7,3,1024,3199737409,3,1024,5,3,13,103,3,5,19,3,7,3253219612,3,543689308,1024,3,67,5,3,23,1646672347,3,5,3306691027,3,41,73,3,11,29,3,7,5,3,3355721274,31,3,5,7,3,131,1024,3,13,1700143273,3,19,5,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<768; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_6 {i p b : ℕ} (ix : i/128=6) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=768) (cells:=[1024,11,3,5,1024,3,1024,13,3,29,7,3,11,5,3,79,19,3,5,1024,3,139,1024,3,7,59,3,354302420,5,3,43,7,3,5,11,3,1791502740,101,3,23,83,3,240663079,5,3,7,13,3,5,1024,3,1024,7,3,19,1024,3,1024,5,3,47,71,3,5,1853890537,3,7,11,3,149,1024,3,13,5,3,1024,1024,3,5,31,3,1261195916,757602939,3,59,13,3,7,5,3,3823658025,1024,3,5,7,3,29,1024,3,41,11,3,45625164,5,3,1024,3894940331,3,5,229922239,3,11,1960848324,3,3930595611,7,3,788795747,5,3,109,167,3,5,13,3,113,1024])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<896; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_7 {i p b : ℕ} (ix : i/128=7) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=896) (cells:=[3,7,19,3,71,5,3,2012111589,7,3,5,1024,3,31,4055383989,3,11,37,3,53,5,3,7,1024,3,5,23,3,89,7,3,43,139,3,103,5,3,1385968746,11,3,5,1024,3,7,31,3,1024,1024,3,11,5,3,1056204190,41,3,5,2121294970,3,163,19,3,13,4269297944,3,7,5,3,137,73,3,5,7,3,47,13,3,1024,4336151995,3,724202169,5,3,11,1024,3,5,173,3,2192601555,107,3,37,7,3,41,5,3,19,260579971,3,5,109,3,1024,11,3,7,67,3,4478735991,5,3,132123814,7,3,5,19,3,23,77993457,3,151,1024,3,79,5,3,7])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1024; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_8 {i p b : ℕ} (ix : i/128=8) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1024) (cells:=[37,3,5,1024,3,59,7,3,1149785893,11,3,13,5,3,29,1024,3,5,71,3,7,931427378,3,97,13,3,19,5,3,521414526,1024,3,5,83,3,2359698738,23,3,4732760842,47,3,7,5,3,1024,19,3,5,7,3,13,1024,3,11,1024,3,1024,5,3,23,1207700594,3,5,13,3,61,1024,3,107,7,3,31,5,3,37,11,3,5,89,3,1024,4924383575,3,7,101,3,11,5,3,13,7,3,5,163,3,1024,113,3,1024,1024,3,29,5,3,7,23,3,5,11,3,5053632181,7,3,67,5071449094,3,83,5,3,11,97,3,5,59,3,7,61,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1152; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_9 {i p b : ℕ} (ix : i/128=9) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1152) (cells:=[13,197,3,173,5,3,1024,157,3,5,1024,3,19,11,3,2600342848,151,3,7,5,3,1742509994,179,3,5,7,3,1024,53,3,5267528785,19,3,43,5,3,31,1024,3,5,1328036347,3,1024,41,3,1024,7,3,1024,5,3,893537701,13,3,5,1024,3,11,5392321551,3,7,1024,3,109,5,3,1024,7,3,5,418944236,3,1024,5459166085,3,1024,43,3,13,5,3,7,1024,3,5,137,3,103,7,3,11,13,3,1024,5,3,1390446204,1024,3,5,164114653,3,7,71,3,79,329799908,3,62430215,5,3,2814268961,11,3,5,23,3,13,29,3,61,1024,3,7,5,3,19,1024])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1280; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_10 {i p b : ℕ} (ix : i/128=10) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1280) (cells:=[3,5,7,3,149,1024,3,1024,717520930,3,23,5,3,338977312,5766675647,3,5,11,3,29,289675662,3,1024,7,3,5815675899,5,3,11,1024,3,5,31,3,43,1024,3,7,41,3,37,5,3,1024,7,3,5,2956876228,3,73,11,3,1024,61,3,19,5,3,7,53,3,5,103,3,187203319,7,3,13,1024,3,197,5,3,179,19,3,5,29,3,7,13,3,6069728189,11,3,2027720120,5,3,193,89,3,5,1024,3,11,1024,3,6136566840,6140993444,3,7,5,3,59,1024,3,5,7,3,83,167,3,19,6207858281,3,3108375870,5,3,1024,13,3,5,73,3,1024,23,3,11])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1408; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_11 {i p b : ℕ} (ix : i/128=11) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1408) (cells:=[7,3,191,5,3,107,131,3,5,1024,3,3161898714,1024,3,7,3170804667,3,13,5,3,23,7,3,5,181,3,6390586812,97,3,6403924511,13,3,11,5,3,7,29,3,5,1024,3,19,7,3,808867821,127,3,61,5,3,89,113,3,5,11,3,7,1024,3,31,19,3,151,5,3,11,23,3,5,13,3,1024,824470129,3,41,3304491296,3,7,5,3,552607033,1024,3,5,7,3,79,11,3,23,31,3,1024,5,3,13,418942393,3,5,1024,3,1024,6729282279,3,101,7,3,1024,5,3,1024,1024,3,5,6782763496,3,3395848503,19,3,7,11,3,6818402524,5,3,47,7,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1536; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_12 {i p b : ℕ} (ix : i/128=12) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1536) (cells:=[5,1024,3,11,1024,3,13,23,3,131,5,3,7,1024,3,5,1024,3,6925364854,7,3,167,6943189259,3,29,5,3,19,41,3,5,1024,3,7,1024,3,11,79,3,3509503749,5,3,7032322583,37,3,5,19,3,1024,1024,3,3536201138,1024,3,7,5,3,1024,11,3,5,7,3,1024,891334142,3,1024,3571861119,3,11,5,3,1194341934,227,3,5,23,3,7192756703,43,3,2402062164,7,3,13,5,3,139,1024,3,5,11,3,97,157,3,7,13,3,23,5,3,11,7,3,5,1024,3,3663233647,1024,3,29,137,3,294160313,5,3,7,1024,3,5,53,3,13,7,3,1024,3705580983])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1664; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_13 {i p b : ℕ} (ix : i/128=13) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1664) (cells:=[3,824453941,5,3,929223750,7437821289,3,5,13,3,7,3732300797,3,19,59,3,239,5,3,1024,31,3,5,41,3,1024,37,3,1024,11,3,7,5,3,13,61,3,5,7,3,11,29,3,127,951500042,3,53,5,3,1024,101,3,5,1024,3,211,3832569001,3,7674021770,7,3,89,5,3,41,7705201675,3,5,1024,3,19,1024,3,7,1024,3,67,5,3,3883815785,7,3,5,1024,3,7794340224,13,3,71,19,3,3910584982,5,3,7,11,3,5,139,3,37,7,3,73,47,3,11,5,3,23,7905768229,3,5,31,3,7,1024,3,1024,1024,3,137,5,3,3984065846,13,3,5])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1792; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_14 {i p b : ℕ} (ix : i/128=14) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1792) (cells:=[11,3,181,3999717266,3,1024,113,3,7,5,3,11,83,3,5,7,3,8061725723,19,3,1009398324,1024,3,13,5,3,8101883376,23,3,5,8119693457,3,4064300161,11,3,1357025992,7,3,43,5,3,8168680599,127,3,5,481600333,3,31,73,3,7,223,3,1024,5,3,19,7,3,5,1024,3,13,59,3,103,11,3,345414558,5,3,7,4153445781,3,5,13,3,11,7,3,1390434304,43,3,37,5,3,1024,29,3,5,61,3,7,1024,3,83,23,3,179,5,3,13,71,3,5,8453937572,3,1024,1024,3,11,89,3,7,5,3,29,47,3,5,7,3,59,4267089940,3,1024,1024,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<1920; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_15 {i p b : ℕ} (ix : i/128=15) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=1920) (cells:=[97,5,3,151,11,3,5,1024,3,1024,211,3,13,7,3,11,5,3,131,1024,3,5,8654438623,3,157,13,3,7,107,3,1024,5,3,1024,7,3,5,11,3,43,103,3,19,31,3,71,5,3,7,1024,3,5,1098538282,3,41,7,3,1024,109,3,23,5,3,191,13,3,5,260452186,3,7,11,3,89,1024,3,29,5,3,8904009945,1024,3,5,43,3,61,8935236587,3,4472113313,67,3,7,5,3,527762754,1024,3,5,7,3,19,173,3,1024,11,3,31,5,3,53,149,3,5,59,3,11,1024,3,9077815136,7,3,139,5,3,4552273286,325358328,3,5,79])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2048; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_16 {i p b : ℕ} (ix : i/128=16) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2048) (cells:=[3,13,47,3,7,29,3,107,5,3,167,7,3,5,13,3,1024,61,3,11,1024,3,401099184,5,3,7,151,3,5,9256079940,3,1024,7,3,29,1024,3,1024,5,3,13,11,3,5,1024,3,7,19,3,37,1024,3,11,5,3,4685988815,1024,3,5,71,3,1024,1024,3,1024,1024,3,7,5,3,23,4721610941,3,5,7,3,257,75789045,3,13,4741673334,3,3164121597,5,3,11,37,3,5,113,3,1588796710,13,3,67,7,3,3186374819,5,3,199,31,3,5,19,3,1024,11,3,7,239,3,271,5,3,251,7,3,5,1024,3,29,89,3,1613308224,1024,3,4846406085])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2176; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_17 {i p b : ℕ} (ix : i/128=17) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2176) (cells:=[5,3,7,13,3,5,1024,3,1024,7,3,23,11,3,19,5,3,173,1024,3,5,9790889824,3,7,131,3,1024,1024,3,13,5,3,37,19,3,5,2464462777,3,9866591588,127,3,43,13,3,7,5,3,1024,1024,3,5,7,3,1024,9937928573,3,11,23,3,332039874,5,3,47,269,3,5,31,3,13,37,3,19,7,3,113,5,3,1024,11,3,5,13,3,89,43,3,7,1024,3,11,5,3,59,7,3,5,1024,3,1024,1024,3,10147371355,73,3,5080382614,5,3,7,79,3,5,11,3,223,7,3,1024,53,3,1024,5,3,11,5122728626,3,5,23,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2304; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_18 {i p b : ℕ} (ix : i/128=18) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2304) (cells:=[7,109,3,1024,97,3,1024,5,3,3435991995,29,3,5,1024,3,37,11,3,13,19,3,7,5,3,1024,75772614,3,5,7,3,1024,13,3,181,1488497563,3,1738091529,5,3,29,1024,3,5,199,3,1024,10472725673,3,211,7,3,5247544734,5,3,1024,1024,3,5,10526179622,3,11,191,3,7,1024,3,61,5,3,3525052407,7,3,5,1024,3,47,19,3,10615262098,1024,3,83,5,3,7,43,3,5,167,3,23,7,3,11,971565832,3,13,5,3,1024,5356670017,3,5,1024,3,7,67,3,1024,13,3,157,5,3,19,11,3,5,1024,3,73,41,3,179,31,3,7,5])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2432; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_19 {i p b : ℕ} (ix : i/128=19) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2432) (cells:=[3,10842605163,10847042703,3,5,7,3,13,23,3,79,5443597427,3,59,5,3,454581988,1024,3,5,11,3,10936195953,1024,3,139,7,3,1827167075,5,3,11,1024,3,5,37,3,127,137,3,7,47,3,19,5,3,13,7,3,5,1024,3,1024,11,3,1024,29,3,31,5,3,7,19,3,5,73,3,1024,7,3,97,1024,3,53,5,3,269,23,3,5,223,3,7,233,3,13,11,3,47,5,3,109,5624043167,3,5,151,3,11,13,3,19,71,3,7,5,3,1024,173,3,5,7,3,67,11341683545,3,1024,41,3,277,5,3,61,1024,3,5,1024,3,167])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2560; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_20 {i p b : ℕ} (ix : i/128=20) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2560) (cells:=[1024,3,11,7,3,1024,5,3,1024,13,3,5,157,3,1024,29,3,7,23,3,1916283649,5,3,31,7,3,5,1024,3,19,107,3,320884125,131,3,11,5,3,7,97,3,5,1024,3,29,7,3,137,13,3,11631335504,5,3,11644753233,31,3,5,11,3,7,229,3,59,101,3,149,5,3,11,1024,3,5,109,3,13,1024,3,1024,257,3,7,5,3,73,1024,3,5,7,3,1024,11,3,37,1024,3,5915983586,5,3,3948428856,1024,3,5,29,3,53,19,3,5942716391,7,3,23,5,3,13,1024,3,5,1024,3,79,746519061,3,7,11,3,11965618278,5,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2688; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_21 {i p b : ℕ} (ix : i/128=21) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2688) (cells:=[1024,7,3,5,1024,3,11,6005104598,3,107,1024,3,1203297895,5,3,7,89,3,5,31,3,1024,7,3,13,1024,3,2016604328,5,3,12112698733,193,3,5,19,3,7,13,3,11,1024,3,1024,5,3,43,1024,3,5,12197299312,3,23,59,3,4073255286,1024,3,7,5,3,233,11,3,5,7,3,4091042358,47,3,1024,79,3,11,5,3,37,13,3,5,1024,3,31,53,3,307,7,3,6183365994,5,3,29,19,3,5,11,3,103,23,3,7,3106152768,3,13,5,3,11,7,3,5,61,3,59,31,3,47,13,3,283,5,3,7,1024,3,5,67,3,241,7])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2816; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_22 {i p b : ℕ} (ix : i/128=22) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2816) (cells:=[3,19,1024,3,1024,5,3,53,1024,3,5,277,3,7,12611762574,3,1024,12625166238,3,41,5,3,1024,6325949309,3,5,13,3,6337108211,1024,3,6343846863,11,3,7,5,3,1412766340,23,3,5,7,3,11,1024,3,31,311,3,29,5,3,13,12785626943,3,5,1024,3,19,239,3,23,7,3,181,5,3,83,3213114380,3,5,103,3,120361567,97,3,7,19,3,257,5,3,12914883792,7,3,5,12932693951,3,6470801904,43,3,13,1024,3,163,5,3,7,11,3,5,41,3,61,7,3,4340663222,23,3,11,5,3,113,53,3,5,1024,3,7,73,3,1024,191,3,1024,5,3,47])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<2944; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_23 {i p b : ℕ} (ix : i/128=23) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=2944) (cells:=[199,3,5,11,3,4380709542,19,3,29,13159929502,3,7,5,3,11,13,3,5,7,3,179,1024,3,281,1024,3,1024,5,3,271,13253531993,3,5,127,3,1024,11,3,53,7,3,13,5,3,19,1024,3,5,23,3,1024,79,3,7,13,3,1114116055,5,3,6691421146,7,3,5,19,3,263,29,3,3355782968,11,3,23,5,3,7,6727096110,3,5,37,3,11,7,3,101,1024,3,71,5,3,4505564371,43,3,5,13,3,7,41,3,293,157,3,19,5,3,31,83,3,5,3400306074,3,1024,241,3,11,173,3,7,5,3,13,19,3,5,7,3,1024,13681387952,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3072; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_24 {i p b : ℕ} (ix : i/128=24) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3072) (cells:=[149,163,3,1024,5,3,229,11,3,5,1024,3,23,1024,3,1024,7,3,11,5,3,103,59,3,5,29,3,1024,3453765437,3,7,1024,3,193,5,3,1731356610,7,3,5,11,3,239,13,3,131,1024,3,43,5,3,7,1740301373,3,5,6967734555,3,191,7,3,83,37,3,33467767,5,3,13984349892,1024,3,5,317,3,7,11,3,67,1024,3,668522822,5,3,23,13,3,5,1024,3,19,880211547,3,4697197837,41,3,7,5,3,1024,1024,3,5,7,3,311,7074680995,3,109,11,3,13,5,3,1024,29,3,5,1024,3,11,14216090501,3,1024,7,3,7119242479,5,3,227,23])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3200; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_25 {i p b : ℕ} (ix : i/128=25) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3200) (cells:=[3,5,1024,3,41,1024,3,7,420543727,3,1024,5,3,29,7,3,5,1024,3,13,256299583,3,11,1024,3,47,5,3,7,101,3,5,13,3,31,7,3,1024,89,3,1024,5,3,71,11,3,5,53,3,7,1024,3,603947239,1024,3,11,5,3,13,1024,3,5,1024,3,1024,31,3,113,23,3,7,5,3,19,1024,3,5,7,3,143347736,3654304152,3,151,7315354636,3,61,5,3,11,14657351854,3,5,19,3,14679644289,1024,3,13,7,3,29,5,3,7359841892,1024,3,5,229,3,14746488812,11,3,7,1024,3,269,5,3,37,7,3,5,179,3,3703412018,423399573,3,31])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3328; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_26 {i p b : ℕ} (ix : i/128=26) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3328) (cells:=[7415559713,3,19,5,3,7,14857846397,3,5,23,3,107,7,3,199,11,3,4969012185,5,3,67,13,3,5,7469023530,3,7,37,3,157,29,3,23,5,3,1024,220548034,3,5,7502469920,3,1024,149,3,1024,73,3,7,5,3,43,131,3,5,7,3,7540377090,71,3,11,13,3,79,5,3,5040318015,167,3,5,15138611863,3,163,7575980884,3,103,7,3,15174210317,5,3,949285105,11,3,5,1024,3,13,67,3,7,251,3,11,5,3,181,7,3,5,13,3,23,139,3,2549121311,151,3,1024,5,3,7,1024,3,5,11,3,19,7,3,233,59,3,41,5,3,11,15392610458,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3456; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_27 {i p b : ℕ} (ix : i/128=27) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3456) (cells:=[5,15405942290,3,7,47,3,1024,19,3,1024,5,3,61,79,3,5,97,3,29,11,3,1024,1024,3,7,5,3,1024,1024,3,5,7,3,313,15553028519,3,13,113,3,1557566185,5,3,23,1024,3,5,918093535,3,109,13,3,43,7,3,131,5,3,31,157,3,5,197,3,11,19,3,7,1024,3,209488404,5,3,280839619,7,3,5,29,3,15749145560,263,3,241,15766919082,3,37,5,3,7,13,3,5,83,3,67,7,3,11,107,3,7921374773,5,3,19,1024,3,5,163,3,7,53,3,23,3975197009,3,13,5,3,41,11,3,5,19,3,1024,1024,3,313079226,13])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3584; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_28 {i p b : ℕ} (ix : i/128=28) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3584) (cells:=[3,7,5,3,1998793128,1024,3,5,7,3,89,1024,3,1024,71,3,1024,5,3,1024,181,3,5,11,3,13,16087843153,3,127,7,3,19,5,3,11,29,3,5,13,3,1024,59,3,7,293,3,83,5,3,101,7,3,5,31,3,1024,11,3,1024,1024,3,40127123,5,3,7,1024,3,5,227,3,283,7,3,1024,277,3,107,5,3,2720714789,1024,3,5,8171022001,3,7,3271117649,3,19,11,3,8188746704,5,3,1024,43,3,5,23,3,11,349,3,13,37,3,7,5,3,307,1024,3,5,7,3,31,13,3,191,137,3,23,5,3,139,1024,3,5])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3712; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_29 {i p b : ℕ} (ix : i/128=29) (_lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3712) (cells:=[61,3,197,1655628850,3,11,7,3,1024,5,3,8295776420,53,3,5,1024,3,19,31,3,7,1024,3,29,5,3,73,7,3,5,47,3,695221092,1024,3,8349251932,19,3,11,5,3,7,1024,3,5,16742963048,3,1024,7,3,37,97,3,13,5,3,8396070146,16796444127,3,5,11,3,7,1024,3,53,13,3,842285233,5,3,11,1024,3,5,331,3,47,1024,3,31,29,3,7,5,3,263,37,3,5,7,3,13,11,3,8482863651,43,3,281,5,3,16992460848,103,3,5,13,3,41,23,3,29,7,3,5682088558,5,3,157,211,3,5,113,3,61,101,3,7,11,3])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3840; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_chunk_30 {i p b : ℕ} (ix : i/128=30) (lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  apply seventeen_compact_interval (start:=3840) (cells:=[137,5,3,13,7,3,5,139,3,11,223,3,1024,269,3,2229761])
+    _ seventeen_compact_pow_eq
+  · decide +kernel
+  · omega
+  · change i<3856; omega
+  · exact pq
+  · exact base
+  · exact idx
+  · exact mult
+  · exact nd
+
+set_option maxRecDepth 12288 in
+set_option maxHeartbeats 10000000 in
+private theorem seventeen_compact_catalog {i p b : ℕ} (lim : i<3856)
+    (pq : (34*i+1).Prime) (base : p+1=2^b) (idx : b%42840=1)
+    (mult : 34*i+1∣p^17+131072) (nd : ¬34*i+1∣p+2) : jacobiSym (-331523021797516948245918293902945476068223575069568126905840687324892679298721515514419537318572697943073425149822945198110 : ℤ) (34*i+1)=1 := by
+  have range : i/128<31 := by omega
+  interval_cases h : i/128
+  · exact seventeen_compact_chunk_0 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_1 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_2 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_3 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_4 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_5 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_6 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_7 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_8 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_9 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_10 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_11 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_12 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_13 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_14 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_15 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_16 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_17 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_18 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_19 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_20 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_21 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_22 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_23 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_24 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_25 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_26 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_27 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_28 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_29 h lim pq base idx mult nd
+  · exact seventeen_compact_chunk_30 h lim pq base idx mult nd
+
+private theorem seventeen_compact_last_fifth {b q : ℕ} (pb : b.Prime) (ob : Odd b) (pq : q.Prime)
+    (dq : q ∣ 2^b+1) (small : q < b) : q=3 := by
+  -- The order of -2 divides both the prime b and q-1. It must be one.
+  let _ : Fact q.Prime := ⟨pq⟩
+  have zero := (ZMod.natCast_eq_zero_iff (2^b+1) q).mpr dq
+  push_cast at zero
+  have eq : (-2 : ZMod q)^b=1 := by rw [ob.neg_pow]; linear_combination -zero
+  have ne : (-2 : ZMod q) ≠ 0 := by
+    intro h
+    rw [h,zero_pow pb.ne_zero] at eq
+    exact zero_ne_one eq
+  have cases := (Nat.dvd_prime pb).mp (orderOf_dvd_of_pow_eq_one eq)
+  have one : orderOf (-2 : ZMod q)=1 := cases.resolve_right (by
+    intro same
+    have dd := ZMod.orderOf_dvd_card_sub_one ne
+    rw [same] at dd
+    have := Nat.le_of_dvd (show 0 < q-1 by have := pq.two_le; omega) dd
+    omega)
+  have nz := orderOf_eq_one_iff.mp one
+  have z : ((3 : ℕ) : ZMod q)=0 := by push_cast; linear_combination -nz
+  exact (Nat.prime_dvd_prime_iff_eq pq Nat.prime_three).mp ((ZMod.natCast_eq_zero_iff _ _).mp z)
+
+private theorem seventeen_compact_last_left {b L : ℕ} (pb : b.Prime) (lb : L < b) (hb : 3 < b) :
+    ∃ q : ℕ, q.Prime ∧ L < q ∧ q ∣ 2^b+1 := by
+  have ob := pb.odd_of_ne_two (by omega)
+  have no9 : ¬9 ∣ 2^b+1 := by
+    have b3 : ¬3 ∣ b := by
+      intro h
+      have := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pb).mp h
+      omega
+    obtain ⟨w,hw⟩ := ob
+    have rem : b%6=1 ∨ b%6=5 := by omega
+    have pow : Nat.ModEq 9 (2^b) (2^(b%6)) := by
+      have h : Nat.ModEq 9 (2^6) 1 := by decide
+      calc
+        2^b = 2^(b%6)*(2^6)^(b/6) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+        _ ≡ 2^(b%6)*1^(b/6) [MOD 9] := (h.pow _).mul_left _
+        _ = _ := by simp
+    change 2^b%9=2^(b%6)%9 at pow
+    rcases rem with h|h <;> rw [h] at pow <;> norm_num at pow <;> omega
+  by_contra! none
+  have big := Nat.pow_le_pow_right (by decide : 0<2) (show 3 ≤ b by omega)
+  norm_num at big
+  have eq : 2^b+1=3^(2^b+1).primeFactorsList.length :=
+    Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
+      intro q pq dq
+      have upper : q ≤ L := by by_contra! high; exact none q pq high dq
+      exact seventeen_compact_last_fifth pb ob pq dq (by omega))
+  generalize (2^b+1).primeFactorsList.length = e at eq
+  have e2 : 2 ≤ e := by
+    by_contra! bad
+    interval_cases e <;> norm_num at eq
+    all_goals omega
+  exact no9 (eq ▸ (pow_dvd_pow (3 : ℕ) e2))
+
+
+-- Reused when integrating into the reduction.
+private theorem seventeen_compact_last_cycle {b m o : ℕ} (hm : Nat.ModEq m (2^o) 1) :
+    Nat.ModEq m (2^b) (2^(b%o)) := by
+  calc
+    2^b = 2^(b%o)*(2^o)^(b/o) := by rw [←pow_mul,←pow_add,Nat.mod_add_div]
+    _ ≡ 2^(b%o)*1^(b/o) [MOD m] := (hm.pow _).mul_left _
+    _ = _ := by simp
+
+
+private theorem seventeen_compact_last_order {q p : ℕ} (pq : q.Prime) (q2 : q≠2)
     (d : q ∣ p^17+131072) (nd : ¬q ∣ p+2) : 17 ∣ q-1 := by
   let _ : Fact q.Prime := ⟨pq⟩
   have h2 : (2 : ZMod q) ≠ 0 := by
@@ -177,1336 +2055,175 @@ private theorem seventeen_order {q p : ℕ} (pq : q.Prime) (q2 : q≠2)
   exact ord ▸ ZMod.orderOf_dvd_card_sub_one t0
 
 
-private theorem seventeen_char_congr {m u v : ℕ} (h : Nat.ModEq m u v) :
-    let char (m n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
-    else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
-    else if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1
-    char m u = char m v := by
-  dsimp only
-  change u%m=v%m at h
-  by_cases a : m=4
-  · subst m
-    have two : u%2=v%2 := by omega
-    simp only [if_true,h,two]
-  by_cases z : m=8
-  · subst m
-    have two : u%2=v%2 := by omega
-    simp only [if_false,if_true,h,two,show (8:ℕ)≠4 by decide]
-  simp only [a,z,if_false,h]
+private theorem seventeen_compact_scaled {p F m k : ℕ} (fac : p^17+131072=(p+2)*F)
+    (h : Nat.ModEq m p k) : Nat.ModEq m ((k+2)*F) (k^17+131072) := by
+  calc
+    (k+2)*F ≡ (p+2)*F [MOD m] := ((h.add_right 2).mul_right F).symm
+    _ = p^17+131072 := fac.symm
+    _ ≡ k^17+131072 [MOD m] := (h.pow 17).add_right _
 
-private theorem seventeen_lift_congr {m b x k : ℕ} (bx : x+3=2^b) (rb : k=b%171360)
-    (hb : 3 ≤ b) (mods : m=4 ∨ m=8 ∨ (m.Prime ∧ 2 < m ∧ 2^171360%m=1)) :
-    Nat.ModEq m x ((2^(k+171360)-3)%m) := by
-  have large : 3≤2^(k+171360) := (show 3≤(2:ℕ)^2 by decide).trans
-    (Nat.pow_le_pow_right (by decide) (by omega))
-  apply Nat.ModEq.trans _ (Nat.mod_modEq _ _).symm
-  apply Nat.ModEq.add_right_cancel' 3
-  rw [bx,Nat.sub_add_cancel large]
-  rcases mods with rfl|rfl|⟨_,mb,per⟩
-  · have d : 4 ∣ 2^b := pow_dvd_pow (2:ℕ) (show 2≤b by omega)
-    have d' : 4 ∣ 2^(k+171360) := pow_dvd_pow (2:ℕ) (show 2≤k+171360 by omega)
-    exact (Nat.modEq_zero_iff_dvd.mpr d).trans (Nat.modEq_zero_iff_dvd.mpr d').symm
-  · have d : 8 ∣ 2^b := pow_dvd_pow (2:ℕ) hb
-    have d' : 8 ∣ 2^(k+171360) := pow_dvd_pow (2:ℕ) (show 3≤k+171360 by omega)
-    exact (Nat.modEq_zero_iff_dvd.mpr d).trans (Nat.modEq_zero_iff_dvd.mpr d').symm
-  · have mo : Nat.ModEq m (2^171360) 1 := by change 2^171360%m=1%m; rwa [Nat.mod_eq_of_lt (by omega : 1 < m)]
-    have red := eleven_period (b:=b) mo
-    rw [pow_add,rb]
-    have lift := mo.mul_left (2^(b%171360))
-    rw [mul_one] at lift
-    exact red.trans lift.symm
 
-private theorem seventeen_fold {m u v : ℕ} (h : Nat.ModEq m u v) (cs : List ℕ)
-    {a c : ℕ} (h0 : Nat.ModEq m a c) :
-    Nat.ModEq m (cs.foldl (fun z k => z*u+k) a) (cs.foldl (fun z k => z*v+k) c) := by
-  induction cs generalizing a c with
-  | nil => exact h0
-  | cons k cs ih => exact ih ((h0.mul h).add_right k)
 
-private theorem seventeen_prime_cover {α : Type*} (a : List α) (x : α → ℕ) (tiny : List ℕ)
-    (ok : a.map x = ((List.range 7711).filter (fun i =>
-      let n := 17*i+1
-      decide (2 ≤ n) && tiny.all (fun d => !decide (1 < d ∧ d < n ∧ n % d = 0)))).map
-      (fun i => 17*i+1)) :
-    ∀ i ∈ List.range 7711, (17*i+1).Prime → ∃ z ∈ a, x z = 17*i+1 := by
-  intro i hi pri
-  have keep : tiny.all (fun d => !decide (1 < d ∧ d < 17*i+1 ∧ (17*i+1) % d = 0)) = true := by
-    apply List.all_eq_true.mpr
-    intro d _
-    suffices h : ¬(1 < d ∧ d < 17*i+1 ∧ (17*i+1) % d = 0) by rw [decide_eq_false h]; rfl
-    rintro ⟨dl,du,dv⟩
-    have := (Nat.dvd_prime pri).mp (Nat.dvd_iff_mod_eq_zero.mpr dv)
+private theorem seventeen_compact_common_prime {p F q : ℕ} (fac : p^17+131072=(p+2)*F) (fpos : F≠0)
+    (qp : q.Prime) (qlo : 2 < q) (left : q∣p+2) (right : q∣F) : q=17 := by
+  let _ : Fact q.Prime := ⟨qp⟩
+  have qnp : ¬q∣p := by intro dp; have := Nat.le_of_dvd (by decide : 0<2) ((Nat.dvd_add_iff_right dp).mpr left); omega
+  have val := padicValNat.pow_add_pow (x:=p) (y:=2) (qp.odd_of_ne_two (by omega)) left qnp (by decide : Odd 17)
+  change padicValNat q (p^17+131072)=_ at val
+  rw [fac,padicValNat.mul (by omega) fpos] at val
+  have nz := (dvd_iff_padicValNat_ne_zero fpos).mp right
+  have l : q∣17 := (dvd_iff_padicValNat_ne_zero (by decide : (17:ℕ)≠0)).mpr (by omega)
+  exact (Nat.prime_dvd_prime_iff_eq qp (by decide)).mp l
+
+private theorem seventeen_compact_cofactor_negative {p b F D : ℕ}
+    (base : p+1=2^b) (hb : 131073 < b) (idx : b%42840=1) (fac : p^17+131072=(p+2)*F)
+    (per : Nat.ModEq (3*D) (2^42840) 1) (cop : Nat.Coprime 8 D) (big : 43691 < D)
+    (a8 : Nat.ModEq 8 7 (4*D+43691)) (ad : Nat.ModEq D 43691 (4*D+43691))
+    (jac : jacobiSym (-(2*(D:ℤ))) (4*D+43691) = -1) :
+    jacobiSym (-(2*(D:ℤ))) F = -1 := by
+  have div8 : 8∣2^b := pow_dvd_pow 2 (show 3 ≤ b by omega)
+  have p8 : Nat.ModEq 8 p 7 := by change p%8=7; omega
+  have f8 : Nat.ModEq 8 F 7 := by
+    calc
+      F = 1*F := (one_mul _).symm
+      _ ≡ (7+2)*F [MOD 8] := (show Nat.ModEq 8 1 (7+2) by decide).mul_right _
+      _ ≡ 7^17+131072 [MOD 8] := seventeen_compact_scaled fac p8
+      _ ≡ 7 [MOD 8] := by decide
+  have fv : F%8=7 := f8
+  have fo : Odd F := Nat.odd_iff.mpr (by omega)
+  have pred : Nat.ModEq (3*D) p 1 := by
+    have z := seventeen_compact_last_cycle (b:=b) per
+    rw [idx,pow_one,←base] at z
+    exact Nat.ModEq.add_right_cancel' 1 z
+  have fd : Nat.ModEq D F 43691 := Nat.ModEq.mul_left_cancel' (by decide : (3:ℕ)≠0) (seventeen_compact_scaled fac pred)
+  have total : Nat.ModEq (8*D) F (4*D+43691) := (Nat.modEq_and_modEq_iff_modEq_mul cop).mp ⟨f8.trans a8,fd.trans ad⟩
+  rw [jacobiSym.mod_right _ fo]
+  have abs : 4*(-(2*(D:ℤ))).natAbs=8*D := by simp; omega
+  rw [abs]
+  have rem : F%(8*D)=4*D+43691 := Eq.trans total (Nat.mod_eq_of_lt (by omega))
+  rwa [rem]
+
+
+private theorem seventeen_compact_last_abstract {p b F : ℕ} {A : ℤ}
+    (pp : p.Prime) (base : p+1=2^b) (hb : 131073 < b) (idx : b%42840=1)
+    (fac : p^17+131072=(p+2)*F) (minus : jacobiSym A F = -1)
+    (catalog : ∀ {i : ℕ}, i<3856 → (34*i+1).Prime → 34*i+1∣p^17+131072 → ¬34*i+1∣p+2 →
+      jacobiSym A (34*i+1)=1) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q∣p^17+d ∧ s∣p^17+d := by
+  have ep : p=2^b-1 := by omega
+  have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime (by omega) (ep ▸ pp)).2
+  have eight : 8∣2^b := pow_dvd_pow 2 (show 3 ≤ b by omega)
+  have p8 : Nat.ModEq 8 p 7 := by change p%8=7; omega
+  have z := seventeen_compact_scaled fac p8
+  change (9*F)%8=7 at z
+  have fo : Odd F := Nat.odd_iff.mpr (by omega)
+  have fpos : F≠0 := by omega
+  obtain ⟨s,ps,ds,minusS⟩ := jacobiSym.eq_neg_one_at_prime_divisor_of_eq_neg_one minus
+  have slo : 2 < s := lt_of_le_of_ne ps.two_le (Ne.symm (fo.ne_two_of_dvd_nat ds))
+  obtain ⟨q,pq,qhi,qleft⟩ := seventeen_compact_last_left pb hb (show 3 < b by omega)
+  have dx : q∣p+2 := by convert qleft using 1; omega
+  have mult : s∣p^17+131072 := fac ▸ dvd_mul_of_dvd_right ds _
+  have nd : ¬s∣p+2 := by
+    intro h
+    have es := seventeen_compact_common_prime fac fpos ps slo h ds
+    have dL : s∣2^b+1 := by convert h using 1; omega
+    have eq3 := seventeen_compact_last_fifth pb (pb.odd_of_ne_two (by omega)) ps dL (by omega)
     omega
-  apply List.mem_map.mp
-  rw [ok]
-  apply List.mem_map.mpr
-  refine ⟨i, List.mem_filter.mpr ⟨hi, ?_⟩, rfl⟩
-  exact Bool.and_eq_true_iff.mpr ⟨decide_eq_true pri.two_le, keep⟩
-
-private theorem seventeen_root_verify (l : List (ℕ × ℕ × List ℕ × ℕ × List ℕ))
-    (pm : ℕ → ℕ → ℕ → ℕ) (eq : ∀ a e m, pm a e m = a^e%m)
-    (h : l.all (fun e => decide (0 < e.2.1 ∧ e.2.1 ≤ 131073 ∧
-  pm 2 e.2.1 e.1=1 ∧ (∀ j ∈ e.2.1.primeFactors, pm 2 (e.2.1/j) e.1≠1) ∧
-  pm e.2.2.2.1 17 e.1=1 ∧ e.2.2.2.1%e.1≠1 ∧
-  ∀ i : Fin 17, let t := e.2.2.2.2.getD i.val e.2.1
-    let Y := (e.1+1-(2*e.2.2.2.1^i.val)%e.1)%e.1
-    if t < e.2.1 then pm 2 t e.1=Y ∧ (t.Coprime e.2.1 → t%(Nat.gcd e.2.1 171360)∈e.2.2.1)
-    else pm Y e.2.1 e.1≠1)) = true) : ∀ e ∈ l, 0 < e.2.1 ∧ e.2.1 ≤ 131073 ∧
-  2^e.2.1%e.1=1 ∧ (∀ j ∈ e.2.1.primeFactors, 2^(e.2.1/j)%e.1≠1) ∧
-  e.2.2.2.1^17%e.1=1 ∧ e.2.2.2.1%e.1≠1 ∧
-  ∀ i : Fin 17, let t := e.2.2.2.2.getD i.val e.2.1
-    let Y := (e.1+1-(2*e.2.2.2.1^i.val)%e.1)%e.1
-    if t < e.2.1 then 2^t%e.1=Y ∧ (t.Coprime e.2.1 → t%(Nat.gcd e.2.1 171360)∈e.2.2.1)
-    else Y^e.2.1%e.1≠1 := by
-  intro e he
-  have facts := of_decide_eq_true (List.all_eq_true.mp h e he)
-  simpa only [eq] using facts
-
-private theorem seventeen_shift_mod {v m : ℕ} (hv : 3≤v) (hm : 3≤ m) :
-    (v-3)%m=(v%m+m-3)%m := by
-  change Nat.ModEq m (v-3) (v%m+m-3)
-  apply Nat.ModEq.add_right_cancel' 3
-  rw [Nat.sub_add_cancel hv,Nat.sub_add_cancel (by omega : 3≤v%m+m)]
-  exact (Nat.mod_modEq v m).symm.trans (by simp [Nat.ModEq])
-
-private theorem seventeen_fast_row (r : ℕ × List ℕ × List ℕ) (pm : ℕ → ℕ → ℕ → ℕ)
-    (ep : ∀ a e m, pm a e m=a^e%m)
-    (check :
-      let F (y : ℕ) := ((((((((((((((((1*y+30)*y+424)*y+3744)*y+23104)*y+105600)*y+369664)*y+1010688)*y+2180608)*y+3724288)*y+5017600)*y+5275648)*y+4243456)*y+2523136)*y+1048576)*y+262144)*y+65536)
-      let fast (m n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
-        else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
-        else if n%m=0 then 0 else if pm (n%m) (m/2) m=1 then 1 else -1
-      (r.2.1.all (fun q => (r.2.2.map (fun m => fast m q)).prod == 1) &&
-        r.2.2.all (fun m => decide (3 ≤ m)) &&
-        ((r.2.2.map (fun m => fast m (F ((pm 2 (r.1+171360) m+m-3)%m)))).prod == -1))=true) :
-  let F (y : ℕ) := ((((((((((((((((1*y+30)*y+424)*y+3744)*y+23104)*y+105600)*y+369664)*y+1010688)*y+2180608)*y+3724288)*y+5017600)*y+5275648)*y+4243456)*y+2523136)*y+1048576)*y+262144)*y+65536)
-  let char (m n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
-    else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
-    else if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1
-  (∀ q ∈ r.2.1, (r.2.2.map (fun m => char m q)).prod=1) ∧
-      (r.2.2.map (fun m => char m (F ((2^(r.1+171360)-3)%m)))).prod= -1 := by
-  dsimp only at check ⊢
-  simp only [Bool.and_eq_true,beq_iff_eq] at check
-  constructor
-  · intro q hq
-    have fact := List.all_eq_true.mp check.1.1 q hq
-    simpa only [beq_iff_eq,ep] using fact
-  · have fact := check.2
-    simp only [ep] at fact
-    refine Eq.trans ?_ fact
-    apply congrArg List.prod
-    apply List.map_congr_left
-    intro m hm
-    have big : 3≤2^(r.1+171360) := (show 3≤(2:ℕ)^2 by decide).trans
-      (Nat.pow_le_pow_right (by decide) (by omega))
-    rw [seventeen_shift_mod big (of_decide_eq_true (List.all_eq_true.mp check.1.2 m hm))]
+  by_cases large : 131073 < s
+  · have ne : q≠s := by rintro rfl; have := seventeen_compact_common_prime fac fpos pq (by omega) dx ds; omega
+    exact ⟨131072,q,s,pq,ps,ne,qhi,large,fac ▸ dvd_mul_of_dvd_left dx _,mult⟩
+  exfalso
+  obtain ⟨j,hj⟩ := seventeen_compact_last_order ps (by omega) mult nd
+  obtain ⟨u,hu⟩ := ps.odd_of_ne_two (by omega)
+  let i := (s-1)/34
+  have es : 34*i+1=s := by dsimp [i]; omega
+  have bd : i<3856 := by dsimp [i]; omega
+  have posS : jacobiSym A s=1 := by
+    rw [←es]
+    exact catalog bd (es ▸ ps) (es ▸ mult) (es ▸ nd)
+  omega
 
 set_option maxRecDepth 32768 in
-private theorem seventeen_modprime {m : ℕ} (hm : m ∈ [3,5,7,11,13,19,29,31,37,41,43,61,71,73,97,103,109,113,127,137,151,181,193,211,239,241,257,281,307,331,337,409,421,433,449,577,613,631,673,919,953,1009,1021,1153,1321,1361,1429,1531,2017,2143,2381,2521,2689,2857,3061,3361,3571,4421,4481,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,10711,11119,12241,12853,13441,13669,14281,14449,16831,17137,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511,36721,37441,38737,42841,43691,45697,51001,54001,61681,65537,92737]) : m.Prime := by
-  simp only [List.mem_cons,List.not_mem_nil,or_false] at hm
-  rcases hm with rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl|rfl <;> norm_num1
+private theorem seventeen_compact_discriminant_period : Nat.ModEq (3*165761510898758474122959146951472738034111787534784063452920343662446339649360757757209768659286348971536712574911472599055) (2^42840) 1 := by
+  change 2^42840%(3*165761510898758474122959146951472738034111787534784063452920343662446339649360757757209768659286348971536712574911472599055)=1%(3*165761510898758474122959146951472738034111787534784063452920343662446339649360757757209768659286348971536712574911472599055)
+  rw [←seventeen_compact_pow_eq]
+  decide +kernel
 
 set_option maxRecDepth 32768 in
-private theorem seventeen_modulus {m : ℕ} (hm : m ∈ [3,4,5,7,8,11,13,19,29,31,37,41,43,61,71,73,97,103,109,113,127,137,151,181,193,211,239,241,257,281,307,331,337,409,421,433,449,577,613,631,673,919,953,1009,1021,1153,1321,1361,1429,1531,2017,2143,2381,2521,2689,2857,3061,3361,3571,4421,4481,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,10711,11119,12241,12853,13441,13669,14281,14449,16831,17137,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511,36721,37441,38737,42841,43691,45697,51001,54001,61681,65537,92737]) :
-    m=4 ∨ m=8 ∨ (m.Prime ∧ 2 < m ∧ 2^171360%m=1) := by
-  let pm := (fun (a e m : ℕ) => Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m) (fun _ f n => (f (n/2))^2 * a^(n%2) % m) (e.log2+1) e)
-  have table : ∀ j ∈ ([3,4,5,7,8,11,13,19,29,31,37,41,43,61,71,73,97,103,109,113,127,137,151,181,193,211,239,241,257,281,307,331,337,409,421,433,449,577,613,631,673,919,953,1009,1021,1153,1321,1361,1429,1531,2017,2143,2381,2521,2689,2857,3061,3361,3571,4421,4481,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,10711,11119,12241,12853,13441,13669,14281,14449,16831,17137,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511,36721,37441,38737,42841,43691,45697,51001,54001,61681,65537,92737] : List ℕ), j=4 ∨ j=8 ∨
-      (j ∈ [3,5,7,11,13,19,29,31,37,41,43,61,71,73,97,103,109,113,127,137,151,181,193,211,239,241,257,281,307,331,337,409,421,433,449,577,613,631,673,919,953,1009,1021,1153,1321,1361,1429,1531,2017,2143,2381,2521,2689,2857,3061,3361,3571,4421,4481,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,10711,11119,12241,12853,13441,13669,14281,14449,16831,17137,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511,36721,37441,38737,42841,43691,45697,51001,54001,61681,65537,92737] ∧ 2 < j ∧ pm 2 171360 j=1) := by decide +kernel
-  rcases table _ hm with r|r|⟨h,gt,hp⟩
-  · exact Or.inl r
-  · exact Or.inr (Or.inl r)
-  · exact Or.inr (Or.inr ⟨seventeen_modprime h,gt,(seventeen_powMod_eq 2 171360 m).symm.trans hp⟩)
+private theorem seventeen_compact_discriminant_value : jacobiSym (-(2*(165761510898758474122959146951472738034111787534784063452920343662446339649360757757209768659286348971536712574911472599055:ℤ))) (4*165761510898758474122959146951472738034111787534784063452920343662446339649360757757209768659286348971536712574911472599055+43691) = -1 := by norm_num1
 
-private theorem verify_cons {α : Type} {P : α → Prop} {a : α} {tail : List α}
-    (first : P a) (rest : ∀ b ∈ tail, P b) : ∀ b ∈ a::tail, P b := by
-  intro b hb
-  rcases List.mem_cons.mp hb with rfl|h
-  · exact first
-  · exact rest b h
 
 set_option maxRecDepth 32768 in
-set_option synthInstance.maxSize 512 in
-set_option maxHeartbeats 20000000 in
-/-- The complete divisor catalogue for the seventeenth cyclotomic factor. -/
-private theorem literal_root_catalogue :
-    let keys : List (ℕ × ℕ × List ℕ) := [
-      (103,51,[28,20,14,32,13,47]),(137,68,[37,41]),(239,119,[72,103,30,104,45]),(307,102,[]),(409,204,[155,121,65]),(443,34,[13,11,21,9,33,15,23]),(613,612,[65,185,167,67]),(647,17,[11,2,9,16,3,15,14,4,1]),(919,153,[101]),(953,68,[]),(1021,340,[111,91,3]),(1123,102,[67]),(1259,34,[13,3,7,19,15,27,1,9]),(1327,17,[7,12,10]),(1361,680,[567,349]),
-      (1429,84,[]),(1531,1530,[641,361,271,371,923]),(1667,238,[31,47,37,29,27]),(1871,85,[21,6,14,78]),(1973,68,[7,39,43,1,9,27,45]),(2143,51,[]),(2347,34,[5]),(2381,476,[55]),(2551,255,[44,32,169,23,199]),(2687,1,[]),(2789,68,[55,49,33,1,9,37,47]),(2857,102,[]),(3061,204,[]),(3163,34,[25]),(3299,34,[15,7,11,33,5,23,1]),
-      (3469,204,[127,179,149,113,191]),(3571,3570,[311,3263,1093,3119]),(3673,306,[265,257]),(3877,204,[37,79,35,103,121,95,167,67]),(3911,85,[9,36,43,1]),(4013,68,[5,29,31,67,15,43,35,61,49]),(4217,34,[3,15]),(4421,340,[]),(4523,14,[]),(4591,765,[688,518,422,529,389,584]),(4931,34,[]),(4999,357,[37]),(5101,340,[301,269]),(5237,68,[31]),(5407,51,[44,49,47,16,29,22]),
-      (5441,544,[45]),(5849,68,[67,45]),(6053,68,[65,23,61,7,29,27]),(6121,1530,[]),(6257,136,[115,89,31]),(6359,17,[11,4,13,15]),(6427,2142,[]),(6529,102,[]),(6563,2,[]),(6733,612,[355,349,379,407,317,167]),(6869,68,[37,5,15,19,7,35]),(6971,170,[27,91,9,59,161,117,123,103,133]),(7039,153,[7,2,31,43]),(7243,102,[25,79,35,19]),(7481,170,[]),
-      (7549,204,[139,43,103,7,113,143,133]),(7583,17,[7,12,14,11,5,16,1]),(7753,17,[]),(8059,34,[33,31]),(8093,476,[401,275,285,183,317,331]),(8161,408,[5]),(8263,153,[23,5,31,103,143]),(8297,68,[33,43,31,59,39]),(8467,102,[37,95,49,1,101]),(8501,340,[31,277]),(8807,119,[80,118,83,95,81,64,106,2]),(9011,170,[81,169,21,1]),(9181,3060,[2171,2993]),(9283,714,[233,263,37,79,449,377,299,605]),(9419,34,[15,5,29,7,3,27]),
-      (9521,476,[209]),(9623,1,[]),(9929,4,[]),(10099,306,[259,167,245]),(10133,68,[29,35,49]),(10303,17,[3,4]),(10337,68,[53,47]),(10711,1071,[]),(10847,17,[5,7,8,6,2]),(10949,476,[281,239,193,57,303,353,201]),(11119,51,[]),(11527,51,[13]),(11731,170,[147,37,93,29]),(11833,204,[71,163,65]),(11867,34,[23,9,7,21,1,3]),
-      (11969,272,[]),(12037,12,[]),(12071,85,[77,33,83,57,27,21]),(12241,510,[]),(12343,17,[9,13,6,3]),(12377,238,[237,137,61,195,227]),(12479,1,[]),(12547,306,[247,65,197]),(12853,1428,[1247]),(13159,153,[59,52,151,47,62,116]),(13397,68,[33,19,65,41,9,45,5,49]),(13499,2,[]),(13567,357,[304,52,227,284]),(13669,204,[]),(13873,408,[61]),
-      (13907,34,[7,27,33,31,13]),(14009,68,[15,49,25]),(14281,2380,[1363,1409]),(14519,119,[45,108,113,22]),(14621,340,[313,321,121,229,89,319]),(14723,34,[11,3,27,7,23,25]),(15131,170,[1,147,3,61,129]),(15199,17,[10,3]),(15233,544,[]),(15607,153,[67,23,89,59]),(15641,340,[97,197]),(15913,204,[47]),(16253,68,[59,1,63,21,35,25]),(16661,476,[275]),(16729,17,[]),
-      (16763,34,[27,5,33,9,23,7]),(16831,765,[562]),(17137,2142,[485,1831]),(17239,51,[5,10,7,32,29]),(17341,340,[207,43]),(17443,306,[233,95,155,175]),(17477,68,[23,25,15,9,47]),(17579,34,[5,11,7]),(17681,136,[]),(17749,612,[533,401,197,41]),(17783,17,[7,13,6,3]),(17851,3570,[2207,53,3049,3203,3469]),(17987,2,[]),(18089,476,[387,261]),(18191,85,[27,38,53,73,28]),
-      (18701,340,[113,101,207]),(18803,34,[25]),(18973,612,[599,287,353,179,35,31,439,163]),(19211,10,[7]),(19381,204,[101,179]),(19483,102,[23,95]),(19687,17,[10]),(19891,1530,[121]),(19993,714,[1,467]),(20129,272,[249,183,77,29]),(20231,119,[]),(20333,4,[3]),(20639,17,[9,13,11,4,2,16,3]),(20707,238,[151]),(20809,153,[25,98]),
-      (21013,204,[131,77,29]),(21149,4,[]),(21319,51,[37,8,50,49,2,7]),(21523,102,[7,23,49,43,37,59,55,73]),(21557,68,[7,31,39,37,3,55,11,61]),(21727,51,[]),(21863,17,[9,5,2]),(22067,34,[13,33,3,11,5,15,31]),(22271,85,[18,47,12,64,29,22,11]),(22441,170,[121,21]),(22543,51,[28,20]),(22679,17,[15,6,5,12,7,8,13]),(23053,204,[67,193,47,113,25,37,163]),(23087,119,[10,19,18,94,116,16,95,6,13,36,86,118]),(23189,68,[41,3,57,39,25,5,31,67,43]),
-      (23291,34,[]),(23563,2142,[2047,1865,1367]),(23767,51,[40,32,31,16,7,20,8,35]),(23801,595,[519,212,293,209]),(23869,612,[79,611,539]),(23971,102,[35,5,91]),(24107,34,[9,23,21,11,7,5,15]),(24379,102,[25,1,61,97,7,41,11,77]),(24413,68,[45,57,63,21,61,15]),(24481,12240,[]),(24821,340,[83,133,3,31,171,281]),(24889,68,[21]),(24923,34,[31,25,5,9,21,11]),(25127,17,[2,3,8,4,9,13,16]),(25229,476,[73,27,461,353,15]),
-      (25603,102,[79,71]),(25841,680,[1,257,127]),(25943,119,[117,108,8,54,103,48,46]),(26113,1632,[671,293]),(26249,17,[]),(26317,68,[]),(26759,17,[1,15,2,6]),(26861,340,[107,261,39,9,309,57]),(27031,51,[11,43]),(27337,204,[35,25,173,167]),(27541,612,[]),(27779,34,[3,15]),(27847,1071,[776,740,262,148]),(27983,17,[12,8,3,2,13,15]),(28051,510,[121,197,107,31,239,133]),
-      (28289,544,[5,207]),(28493,68,[35,63,37,39,47,45]),(28663,51,[13,16,26,8]),(28697,17,[16,14,8]),(28867,34,[13,33,23]),(28901,340,[]),(29173,204,[55,83,109,203]),(29207,17,[7,5,3,8]),(29411,170,[141,3,87,33,159,161,137]),(29581,12,[]),(29683,34,[3]),(29717,68,[25,5,9,3,13,53,39]),(29819,2,[]),(29921,1360,[1301,1223,1209,1039,971]),(29989,4284,[1591,3323,583,1319,2827]),
-      (30091,102,[43]),(30431,85,[47,36,2,41,7]),(30703,357,[230,148,260,46]),(30839,17,[3,4,9,6,12,8,15,7]),(30941,2380,[1339,2267,999,1593,1629,1233,1287,967]),(31247,17,[7,1,16,5,9,15]),(31723,34,[]),(31859,34,[27,25,1,3,5]),(32029,204,[185,109,1,11,143]),(32063,17,[12,9,2,1]),(32233,102,[79]),(32369,952,[859,271]),(32573,68,[15,21,37,49,55,63,43]),(33049,612,[311]),(33083,238,[197,69,121]),
-      (33151,85,[16,4,82]),(33287,17,[15,9,8,4,16,14]),(33457,408,[139,19,97]),(33797,28,[13]),(33967,153,[29,148,14,64]),(34171,510,[241]),(34273,1008,[]),(34511,595,[]),(34613,68,[7,39,67]),(34919,17,[9,7,15,1,13,14,12,5,4]),(35089,204,[]),(35327,17,[1,7,6]),(35531,34,[5,19,29]),(35803,306,[]),(35837,68,[21,13,5,1,43,31]),
-      (36007,51,[37]),(36109,612,[557,563,197,331,455,199]),(36313,204,[]),(36551,85,[7,1,41,2,8,3]),(36653,476,[339,73,439,443,409,99,173]),(36721,3060,[101,41]),(36857,34,[31]),(37061,340,[127,199,113,131]),(37537,17,[10]),(37571,170,[59,157,167,9,41,81]),(38047,17,[10]),(38149,204,[]),(38183,17,[9,5,16,10,12,14]),(38557,4284,[1135,691,845,3197,2053,3431]),(38693,68,[63,49,65,21,15,29,3,27]),
-      (39373,68,[9,67,47]),(39509,28,[]),(39679,51,[43,13]),(39883,34,[31,5,15,25,3]),(40087,153,[140,29,82,43]),(40189,204,[95,109,197,43,35]),(40427,34,[25,29,21,23,19,11,27,9]),(40529,68,[15,41]),(40597,204,[191,97,179,53,19,113,79,161]),(40699,2142,[677,1021,1193,11]),(40801,4080,[1297,193,1607]),(40903,17,[3]),(41039,17,[10,3,2,12,5,7]),(41141,340,[97,303,71,277,229,147,329]),(41243,34,[7,11,25,29,15,1,9]),
-      (41413,476,[99,131,101,381]),(41549,68,[]),(41617,136,[]),(41651,1190,[653,643,899,293]),(41719,51,[13,19,10]),(41957,68,[49,61,33,21,35]),(42331,34,[19,11]),(42433,816,[583,103]),(42467,2,[]),(42569,4,[]),(42773,68,[]),(42841,476,[]),(42943,51,[29,35,22,46]),(43283,34,[19,33,5,29,23,13]),(43487,17,[10,4,9,1,3,12]),
-      (43691,34,[33,1]),(43759,51,[5]),(43793,238,[193,71]),(43963,6,[]),(43997,68,[53,43,33,65,5,21,31,23,59]),(44201,170,[]),(44269,1428,[955,773]),(44371,1530,[79,587,541,383]),(44507,238,[185,1,229,73,39,79,211]),(44711,85,[2,46,19,1,22]),(44983,1071,[608]),(45119,17,[6,10,5,9,4,14,13]),(45289,306,[]),(45697,1428,[]),(45833,68,[39,31,45,33,3]),
-      (46309,204,[179,143,161,193,25]),(46411,1190,[23]),(46649,476,[359]),(46751,85,[44,28,72,1]),(46819,306,[121,203,157,131,205,79]),(46853,68,[21,43,19,11,27]),(47057,68,[37]),(47363,238,[87,73,45,179,233,185,65,43,67]),(47431,765,[581,16]),(47533,204,[163,13,113,199,43,97,151,53]),(47737,51,[]),(48179,34,[21]),(48247,51,[29,16,31,23,7]),(48281,85,[13]),(48383,17,[10,12,7,3,2,11]),
-      (48757,204,[47,89,115]),(48859,102,[29,13,53,35]),(49199,17,[9,15,8,13,16,12,14,5,11]),(49369,51,[37]),(49811,34,[13]),(50287,17,[7]),(50321,170,[]),(50423,17,[16,5,3,10,15,2]),(50593,136,[21]),(50627,34,[9,19,13,29]),(51001,1020,[]),(51137,68,[]),(51239,17,[16,9,3,15,12]),(51307,34,[31,9]),(51341,340,[277,177,159,63,257,133]),
-      (51511,255,[122,247,193,191,226,29]),(51613,204,[169,23,67,107]),(51647,119,[]),(51749,68,[53,39,19,23]),(51817,204,[77,59]),(52021,3060,[1393,1127,1967]),(52259,34,[11,33,25,31,5,29,1,27]),(52361,2380,[1791,2039]),(52667,34,[3,27,25,21,1,29,9,7,23]),(52769,136,[129,89]),(52837,1428,[437,43,403]),(52973,68,[45,27,25,29,5,7,55]),(53279,17,[8,3,9,7]),(53381,340,[83,21,69]),(53551,5355,[2803,2341]),
-      (53653,204,[]),(53857,2448,[485,2219,421]),(53891,170,[63,113,11,93]),(53959,51,[28,50,23,37]),(53993,1,[0]),(54163,306,[91,139,109,287,127]),(54367,17,[2,5,7]),(54401,1360,[9]),(54469,612,[49,73,161]),(54503,119,[15,32,99,103,44,12,87,76]),(54673,136,[25,95,113]),(54877,204,[77,157,59,89]),(54979,238,[19,15]),(55217,119,[]),(55829,68,[43,57,33,27,19,1,47,61,7,53]),
-      (55897,204,[157,37,13]),(55931,238,[57]),(56101,204,[103,121]),(56237,68,[61,27,65,23,49,15,21,19]),(56509,204,[5,107,149,11,37]),(56543,17,[13,7,10,4,15]),(56611,170,[19,91]),(56713,51,[31]),(56747,34,[15,11,9,13,5,21,27]),(56951,85,[9,79,3,27,69]),(57223,153,[26,52,44]),(57427,102,[19,35,97,79]),(57529,306,[89]),(58073,119,[73,67]),(58243,102,[5,61,1,7,31,91]),
-      (58379,34,[15,21,9,19,13,27]),(58481,680,[287,183]),(58549,1428,[757,893,25,23]),(58787,238,[73,181,93,25,165,151]),(58889,34,[13,25]),(58991,85,[7,1,77]),(59093,4,[1]),(59263,357,[290,247,134,316,130]),(59399,17,[1,9,12,8,13,10,11]),(59467,102,[71,101,19]),(59671,765,[499,296,466,239,316,242]),(60317,68,[33,29,65,5,27,59,67]),(60521,17,[]),(60589,612,[185,419,83,95,511]),(60623,17,[13,9,1,11,10,4,8]),
-      (60793,204,[131,13,163]),(61031,85,[63,14,73,44,54,79,48]),(61099,102,[7,49,71,101,47,91,19]),(61507,306,[283,59,263,167]),(61609,51,[49,23,10,2]),(61643,238,[79,229,55,37,25,149,69,81]),(61813,612,[509,421,193,373]),(61949,68,[43,27,55,25,57,53]),(62017,1632,[593,1195]),(62119,357,[]),(62323,102,[95,61,41,89,43]),(62459,2,[]),(62731,306,[1,265]),(62969,17,[]),(63241,85,[]),
-      (63377,136,[97,15,13,19,23,135]),(63649,816,[395,319]),(63853,204,[55,175,173,97]),(64091,170,[149,127,11,97,19,59,49]),(64499,238,[205,57,59,11,5,219,15]),(64567,153,[151,127,97,131,64,22,110,83]),(64601,85,[]),(65111,85,[74,64,41]),(65179,306,[115,227,89]),(65213,476,[351,239,463,97,417,127,87]),(65519,17,[4,15,1,6,14,11]),(65587,102,[7,41,47,25,13,91,23,71]),(65927,119,[65,53,109,22,113,80]),(66029,68,[41,11,63,23,7,57]),(66301,340,[199,39,303,191,157]),
-      (66403,2142,[83,1541,655,1985]),(66947,34,[29,9,1]),(67049,17,[2,6]),(67219,2,[]),(67559,1,[]),(67763,34,[5,13,31,3,1,11,25,29]),(67933,612,[551,107,517,157]),(67967,17,[1,8,9,7,5]),(68171,170,[27,19,111,161,109,139,103,23]),(68239,153,[2,37]),(68443,6,[]),(68477,68,[29,3,67,59,39,23,5,63,1,25]),(68749,68,[13,37,35]),(69191,85,[63,79,74,56,23]),(69259,714,[13,601,317]),
-      (69463,153,[20,71,28,134,50,53,145]),(69497,34,[11]),(70177,816,[155,65]),(70313,68,[49]),(70381,3060,[]),(70619,34,[19,11,7,25,29,9]),(70687,1071,[626,806,598]),(70823,17,[12,9,3]),(70891,34,[]),(71129,68,[7,21,1,45]),(71333,68,[45,47,9,43]),(71503,51,[40,38,13,23,31]),(71537,136,[31,117]),(71707,102,[1,5,49,13,31,65]),(71741,340,[301,277,29,11,303,1]),
-      (71809,544,[337,123]),(71843,34,[7,15,21,33,25,9,31]),(72047,17,[15,7,4,9,2,11,6]),(72251,34,[]),(72353,1904,[853]),(72421,340,[269,223,83,109]),(72727,17,[]),(72931,170,[99,143]),(73237,68,[3]),(73679,17,[7,4,14,6,13,1]),(73849,68,[23]),(73883,34,[25,21,13,31,5]),(73951,255,[4,109,214,98,169]),(74189,68,[57,63,35,61,29,5,31]),(74257,1428,[]),
-      (74597,68,[49,41,13,11,33,25,39,15,7]),(74699,34,[25,11,15,19,31,7,13]),(74869,204,[25,179,185,29,73,95]),(74903,17,[16,10,8,2,3,9,12]),(75209,238,[143,15,127]),(75277,612,[211,163,533,455,571,121]),(75583,153,[149,7,91]),(75617,136,[71,79]),(75787,34,[3,1]),(75821,340,[89,57,27,297,273,83]),(75991,17,[14,15]),(76603,102,[61,1,19,101,55]),(76943,17,[1,9,11,16,3,2,8,7]),(77249,272,[105,127]),(77317,204,[71,89,91,1]),
-      (77351,595,[397]),(77419,306,[283,281,245,77,161]),(77521,2040,[653,1943]),(77929,102,[49,25,95,23,79]),(78031,765,[451,227,7,488,47,424]),(78167,17,[3,7,8,13,16,11,10,9]),(78439,51,[4,46,1,20,10,38,23]),(78541,7140,[7073,2539]),(78643,102,[37]),(78779,238,[121,151,1,227,185,37]),(79153,408,[35,343]),(79187,34,[]),(79357,68,[63,27]),(79493,68,[]),(79561,1020,[]),
-      (79697,17,[]),(79867,306,[245,253,31,5,209]),(79901,340,[93,7,149,203]),(80071,255,[49,61,116,74,251,112]),(80173,36,[]),(80207,119,[6,10,86,106,52]),(80309,68,[41,11,9,3,65]),(80513,16,[]),(80683,238,[81,29]),(80819,34,[21,33,25,7,1]),(80989,204,[103,137,97,163,125]),(81023,17,[7,10,11,6,1,12,13]),(81533,68,[57,37,15]),(81703,153,[152,43]),(81737,68,[37,3,29,23]),
-      (81839,17,[13,14,15,9,7,3]),(82009,68,[15]),(82349,68,[31,5]),(82723,102,[53,61]),(82757,68,[35,49,59,45,41,29,5,9,11]),(83063,119,[86,104,80,82,69,55,20,89]),(83233,204,[]),(83267,34,[27,5,25,9,15,21,13]),(83437,204,[113,67,173,175]),(83471,85,[38,78,49,81,84,28,37]),(83641,340,[91,287]),(83777,119,[]),(84389,68,[15,55,59,29,47,19,61,1,25]),(84457,204,[121]),(84559,51,[41,25,5,23,28]),
-      (84967,357,[145,134,169,334,314,326,92,274]),(85103,17,[15,12,7,11,3,16]),(85817,68,[37,39]),(86293,612,[269,551,515,439,209]),(86531,170,[53,139,129,103,23]),(86599,153,[19,121,142,118,11,28,62,70]),(86837,68,[1,35,53,31,65,55,3]),(86939,34,[3,19,13,33,25,31]),(87041,2720,[2459,1389,509]),(87211,18,[]),(87313,204,[107]),(87517,612,[407,137]),(87721,340,[311,63,139]),(87959,17,[9,16,4,11,15,13,5,2]),(88129,2448,[]),
-      (88469,68,[49,61,13,9,65,15,39]),(88741,3060,[1229,2213,2971,2947,2837]),(88843,102,[79,7]),(89387,34,[25,5,21,27,13]),(89591,85,[54,52,79,37,48,1,23,78]),(89659,102,[59,43]),(89897,68,[65,49,25]),(90067,102,[49,29,67,43,11,79,23]),(90203,238,[47,201,99,57,171,125,93,71,109]),(90271,765,[673,193]),(90373,68,[55]),(90407,17,[12,6,5,1,10,15,13,3,9]),(90679,357,[25,230]),(90917,476,[179,437,387,325,177,309,265,163]),(91019,34,[25,3,13,29,23,1,15,19,9]),
-      (91121,85,[33]),(91291,510,[223,389,23,331]),(91393,3808,[2945,513]),(91529,17,[1,16]),(91631,595,[158,248,169,302,423]),(91733,68,[7,63,43,65,39,57,41]),(91801,3060,[]),(92107,2142,[599,1667,1937]),(92243,34,[15,29,13,5,9]),(92311,85,[19,36]),(92413,612,[197,485,49,547]),(92753,17,[7,9]),(92821,1020,[]),(92957,68,[53,5,1,49,31,59,65,45,39]),(93059,238,[149]),
-      (93229,68,[25,65,31,59,35,61]),(93263,17,[12,11,7,1,4]),(93637,612,[]),(93739,34,[1,11,21,29]),(94079,17,[15,11,9,8,4,3]),(94351,255,[86,206,211,106,196,89]),(94793,34,[27,25]),(95507,34,[27,25,1,23,33,21,29]),(95813,68,[45,43,15,23,47,39]),(95881,1020,[467]),(96017,136,[87,1,35]),(96221,340,[101,173,207,87,137,59]),(96289,48,[]),(96323,34,[21,27,33,13,7,15,29]),(96493,204,[]),
-      (96527,17,[15,6,3,2,5,16]),(96697,612,[473,463,217,319,73]),(96731,170,[39,141,89,1,61,11,67]),(96799,51,[4,7,25,35,23]),(97003,34,[29]),(97241,340,[181,217]),(97547,34,[19,9,3,31]),(97649,136,[127,121,7,25,97]),(98057,238,[]),(98227,306,[]),(98533,4284,[2701]),(98669,68,[43,63,55,21,11]),(98737,408,[275,83,385,101]),(98873,68,[39,37]),(99349,68,[23,27]),
-      (99689,68,[39,43,55,65,5]),(99859,102,[47,65,35,11]),(99961,7140,[]),(100267,34,[21,25]),(100403,34,[31,33,21,3,29,27]),(100811,170,[111,43,61,3,19]),(100913,476,[421,29,233]),(100981,3060,[1501,2573]),(101117,68,[53,65,41,47,55,23,21,31]),(101287,9,[]),(101627,238,[1,41,173,235,219,145,207,181,171]),(101797,204,[11,37,121]),(102001,340,[49]),(102103,357,[311,58,271,13]),(102409,102,[61]),
-      (102647,17,[16,6,8,11,4,7]),(102953,68,[63,41,23,39,65]),(103123,102,[]),(103769,238,[183]),(103837,4,[]),(104347,102,[1]),(104381,340,[233,101,107,9,241,77,113]),(104551,255,[82]),(104789,68,[39,3,67,25,37]),(104891,170,[71,7,83,43,37,103,101,49]),(104959,1071,[829,64,1069]),(105367,17,[]),(105401,170,[109]),(105503,17,[11,10,9,16,1,12]),(105673,357,[]),
-      (106013,68,[53,11,65,55,59]),(106217,17,[8,9]),(106319,17,[11,5,7,8,2]),(106591,255,[]),(106693,204,[125,79]),(106727,17,[11,8,1,7,3]),(107033,68,[1,35,49,65]),(107101,1020,[]),(107339,34,[]),(107441,85,[38,76]),(107509,68,[13,21,39]),(107713,4896,[455,3121]),(107747,34,[13,23,15,11,21,33,27]),(107951,85,[57,12,76,82,77,42,47]),(108223,51,[19,1,41,13,22,11]),
-      (108359,17,[12,11,14,8,6,15,4]),(108461,340,[339,101,103,247,313]),(108529,1428,[919,193]),(108631,765,[451,104,163,239]),(108869,68,[49,21,45,55,37,11]),(108971,170,[137,39]),(109073,8,[]),(109141,1020,[871,857,983]),(109379,34,[1,33,13,15,11,7,29,3]),(109481,85,[]),(109583,17,[6,16,14,4,3,15,5,9,8]),(110059,2,[]),(110161,6120,[4447,1109]),(110501,340,[233,49,3,303,311,171,223]),(110569,17,[5]),
-      (110603,34,[3,1,11,5,23,7]),(110807,17,[1,7,5]),(110909,476,[387,73,431,285,267,467,253,335,121,109,433]),(110977,408,[]),(111317,68,[31,61,41,37,19,55,45,33,1]),(111487,1,[]),(111521,680,[]),(111623,119,[108,86,99]),(111827,34,[15,3,19,9,25,11]),(111997,612,[557,143,95,299,55]),(112031,85,[62,83,7,69,19,64]),(112303,153,[20]),(112337,238,[]),(112507,102,[11,23,53,5]),(112643,34,[11,1,9,19]),
-      (113017,102,[]),(113051,170,[]),(113153,544,[31,267,249]),(113357,68,[27,53,19,23,61,5,41,11]),(113731,170,[27]),(113969,136,[29,71]),(114343,51,[22,2,7,28]),(114377,2,[]),(114479,119,[10,30,99,6,118]),(114547,34,[13,25,33,29]),(114649,68,[43,25,3]),(115057,1224,[821,817,647,529]),(115363,102,[71,29]),(115499,34,[19,7,27,25,33]),(115601,680,[373,73]),
-      (115771,510,[451,31,211,61]),(115873,102,[]),(116009,34,[]),(116689,136,[]),(116791,255,[61,251,139,128]),(116927,17,[5,6,7]),(117437,68,[59,29]),(117539,34,[7,33,9,29]),(117709,204,[115,145,169,89]),(117811,10710,[8263,3529,7733,2629,4337,4181]),(118219,102,[19,73,31,23,5,11]),(118253,4,[]),(118423,153,[64]),(118457,17,[2]),(118661,340,[313,173,167,69,199,157,123,159,319,57,303,33]),
-      (118831,51,[16]),(118967,17,[15,10,3,1,4,9,8,7,14,11,2]),(119069,68,[]),(119783,17,[1,15,9,5,6,8,2]),(119851,34,[]),(119953,2142,[]),(120157,204,[41,71]),(120293,68,[65,21,43,33,7,19,53,23]),(120871,765,[706,397,536,334]),(121007,17,[3,10,12]),(121313,136,[123,83,117]),(121687,1,[]),(121721,10,[]),(121789,12,[7]),(121993,51,[]),
-      (122027,34,[15,9,7,25,29,31,13]),(122231,17,[15,14,4]),(122299,102,[91,49,65,55,83]),(122401,12240,[8557,8069,6913]),(122503,51,[16,49,8,22,11,13,43]),(122741,340,[57,239,149,159,101]),(123217,136,[45]),(123727,51,[1,38,31,23]),(123829,204,[145,151,95,121]),(123863,17,[6,13,1,16,10,14,12]),(123931,306,[]),(124067,34,[27,15,7]),(124339,34,[23,33,31]),(124543,51,[11]),(124577,136,[63,69]),
-      (124679,17,[3,12,10,15,13,7]),(124781,68,[65]),(124951,1785,[1639,1633,127,1612,1303]),(125053,68,[21,1,23]),(125597,4,[]),(126107,34,[7,9,13,23,27,25]),(126311,17,[2,6,14,10,15]),(126481,2040,[2033,1109,1667]),(126583,51,[28,47,11,32,37,40]),(126719,17,[13,7,11,12,1,8,9,3,4,15,5]),(126923,34,[5,31,7,29,21,1,27]),(127297,408,[]),(127331,238,[29]),(127399,51,[20,2,4,37,35]),(127637,68,[3,7,37,27]),
-      (127739,34,[27,5,21,19,13]),(127807,357,[265,31,10,157,256]),(128113,408,[89,263,169,175]),(128147,34,[15,23,19,9,33,11]),(128351,85,[7,57,59,24,14,1]),(128521,2142,[]),(128657,136,[33,83,107,5]),(128861,68,[29]),(129439,153,[104,76,5]),(129643,102,[89,65,67]),(130051,510,[407]),(130969,153,[139]),(131071,17,[16])]
-    let key (e : ℕ × ℕ × List ℕ × ℕ × List ℕ) := (e.1,Nat.gcd e.2.1 171360,e.2.2.1)
-    ∃ catalog : List (ℕ × ℕ × List ℕ × ℕ × List ℕ),
-      (∀ i ∈ List.range 7711, (17*i+1).Prime → ∃ e ∈ catalog,e.1=17*i+1) ∧
-      (∀ e ∈ catalog, 0 < e.2.1 ∧ e.2.1 ≤ 131073 ∧
-      2^e.2.1%e.1=1 ∧ (∀ j ∈ e.2.1.primeFactors, 2^(e.2.1/j)%e.1≠1) ∧
-      e.2.2.2.1^17%e.1=1 ∧ e.2.2.2.1%e.1≠1 ∧
-      ∀ i : Fin 17, let t := e.2.2.2.2.getD i.val e.2.1
-        let Y := (e.1+1-(2*e.2.2.2.1^i.val)%e.1)%e.1
-        if t < e.2.1 then 2^t%e.1=Y ∧ (t.Coprime e.2.1 → t%(Nat.gcd e.2.1 171360)∈e.2.2.1)
-        else Y^e.2.1%e.1≠1) ∧ catalog.map key=keys := by
-  intro keys key
-  let rootBlocks : List (List (ℕ × ℕ × List ℕ × ℕ × List ℕ)) := [
-    [(103,51,[28,20,14,32,13,47],64,[51,12,28,51,51,51,51,20,51,51,14,27,32,13,47,51,51]),
-    (137,68,[37,41],119,[34,51,60,68,68,37,68,26,42,68,68,68,68,41,68,68,68]),
-    (239,119,[72,103,30,104,45],132,[119,119,119,102,119,72,103,119,119,119,30,104,119,45,119,119,119]),
-    (307,102,[],273,[51,102,16,68,102,100,102,102,102,102,102,102,102,102,102,102,17]),
-    (409,204,[155,121,65],36,[102,178,92,204,204,85,155,204,194,204,204,124,121,204,204,204,65]),
-    (443,442,[13,11,21,9,33,15,23],123,[221,48,421,215,259,184,9,67,83,98,287,261,102,179,346,33,122]),
-    (613,612,[65,185,167,67],586,[306,322,531,65,84,324,50,80,338,185,98,34,138,167,585,67,340]),
-    (647,323,[11,2,9,16,3,15,14,4,1],293,[323,147,323,323,121,162,323,84,224,287,323,320,323,4,69,323,271])],
-    [(919,153,[101],416,[153,153,153,153,101,153,153,153,153,153,153,153,153,153,153,153,153]),
-    (953,68,[],802,[34,68,68,68,68,51,68,68,68,68,60,68,68,68,68,68,68]),
-    (1021,340,[111,91,3],729,[170,340,340,111,340,6,340,340,340,340,324,91,340,162,340,340,3]),
-    (1123,1122,[67],613,[561,945,169,738,282,468,1084,494,944,794,720,913,1105,684,926,138,504]),
-    (1259,1258,[13,3,7,19,15,27,1,9],316,[629,466,640,727,906,411,7,970,1210,937,457,1217,1175,436,239,723,391]),
-    (1327,221,[7,12,10],165,[221,221,221,221,221,211,131,221,221,221,221,221,221,27,221,221,221]),
-    (1361,680,[567,349],316,[340,680,680,130,680,680,552,680,125,680,567,680,349,680,680,680,248]),
-    (1429,84,[],1294,[42,84,84,84,84,84,84,84,84,84,84,84,84,84,20,84,84])],
-    [(1531,1530,[641,361,271,371,923],502,[765,641,63,361,271,1309,168,1076,415,284,786,371,124,243,923,576,920]),
-    (1667,1666,[31,47,37,29,27],642,[833,1221,761,1436,513,1130,582,1156,1188,704,1268,322,29,40,1217,1640,1366]),
-    (1871,935,[21,6,14,78],9,[935,935,935,935,935,380,935,276,880,935,935,771,231,935,779,163,935]),
-    (1973,1972,[7,39,43,1,9,27,45],1948,[986,415,1059,1471,80,545,689,146,318,1674,1330,286,639,1222,480,556,1541]),
-    (2143,51,[],1812,[51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51]),
-    (2347,782,[5],784,[391,782,782,782,782,782,782,782,782,782,782,379,192,782,248,782,782]),
-    (2381,476,[55],1787,[238,476,55,464,476,476,476,476,476,476,476,476,476,476,476,228,476]),
-    (2551,1275,[44,32,169,23,199],2089,[1275,1275,894,554,1052,424,477,1040,278,1235,1275,654,1275,709,1002,1275,1275])],
-    [(2687,79,[],2416,[79,79,79,79,79,79,79,79,79,79,79,79,79,79,79,79,79]),
-    (2789,2788,[55,49,33,1,9,37,47],1057,[1394,2300,1448,803,1958,457,376,1869,624,1234,2585,2457,581,523,2090,1488,592]),
-    (2857,102,[],1516,[51,102,102,102,102,102,102,102,102,17,102,102,102,102,102,102,102]),
-    (3061,204,[],1004,[102,204,204,204,204,204,204,204,204,204,204,204,204,204,204,204,178]),
-    (3163,1054,[25],2929,[527,1054,1054,1054,1054,1054,331,1054,1054,232,1054,739,842,342,1054,1054,1054]),
-    (3299,3298,[15,7,11,33,5,23,1],1355,[1649,831,2666,2388,174,2258,2986,2863,113,2175,1656,2896,2724,1200,2827,1077,2551]),
-    (3469,3468,[127,179,149,113,191],1095,[1734,2406,1106,2983,2015,3082,951,154,2597,1745,1806,626,2703,2566,1542,1007,15]),
-    (3571,3570,[311,3263,1093,3119],1847,[1785,311,2594,826,3045,1077,752,1492,428,3263,1093,3119,2366,2310,2894,525,2572])],
-    [(3673,918,[265,257],1374,[459,918,918,918,918,160,2,918,918,877,918,918,918,918,918,869,918]),
-    (3877,3876,[37,79,35,103,121,95,167,67],1039,[1938,649,1293,1711,1659,1011,3707,246,511,2773,2230,645,2002,1115,2615,2311,1800]),
-    (3911,1955,[9,36,43,1],555,[1955,1955,1114,1226,1955,1910,1955,1955,1955,799,1955,1955,1488,1955,1955,1021,1955]),
-    (4013,4012,[5,29,31,67,15,43,35,61,49],4003,[2006,345,1674,165,3918,3524,3280,1527,580,2515,1724,3075,3574,1471,1531,741,3517]),
-    (4217,1054,[3,15],190,[527,1054,1054,1054,1054,1054,1054,1054,139,732,1054,1054,695,198,556,1054,1054]),
-    (4421,340,[],483,[170,340,340,340,340,340,340,340,340,340,340,340,340,340,340,340,340]),
-    (4523,266,[],4281,[133,266,266,266,266,266,266,266,266,266,266,266,266,266,266,266,266]),
-    (4591,2295,[688,518,422,529,389,584],2189,[2295,1453,2082,2295,2295,1893,1283,1187,1294,2295,1154,2295,2286,2114,2295,2295,2295])],
-    [(4931,986,[],2914,[493,986,986,986,986,986,986,986,986,986,766,986,986,986,986,986,986]),
-    (4999,357,[37],2884,[357,357,37,357,357,357,357,357,357,357,357,357,357,357,272,357,357]),
-    (5101,1700,[301,269],366,[850,901,1700,301,1700,1289,1700,1700,1700,1700,378,1700,1700,391,1700,1700,64]),
-    (5237,748,[31],5102,[374,748,748,748,748,748,748,748,235,748,748,748,748,748,748,748,748]),
-    (5407,2703,[44,49,47,16,29,22],2232,[2703,1574,1018,2703,2703,2703,2028,2703,1934,1087,2703,2209,2703,2703,182,2253,328]),
-    (5441,544,[45],686,[272,544,544,45,544,544,544,544,544,544,544,474,357,544,544,544,544]),
-    (5849,2924,[67,45],3078,[1462,1372,2924,2924,2682,2924,2924,2924,543,2924,664,270,632,2420,44,2629,2924]),
-    (6053,6052,[65,23,61,7,29,27],1207,[3026,828,3261,5864,1111,61,3288,2200,336,2863,4606,4573,2304,913,1188,2543,1498])],
-    [(6121,1530,[],2238,[765,1530,1530,1332,1530,783,1106,1530,1530,216,1530,1530,1530,21,1530,1530,1530]),
-    (6257,3128,[115,89,31],4141,[1564,2805,934,1067,3128,3128,2673,158,1255,1970,3128,2328,3128,3128,3128,2368,3128]),
-    (6359,3179,[11,4,13,15],133,[3179,3179,3179,3179,844,3179,3179,3179,3179,3179,3179,85,2197,2214,2121,3179,1018]),
-    (6427,2142,[],683,[1071,2142,2142,2142,2142,2142,2142,608,2142,1182,680,2142,2142,2142,2142,2142,2142]),
-    (6529,102,[],5454,[51,102,102,102,102,17,102,102,102,102,102,102,102,102,102,102,102]),
-    (6563,386,[],1950,[193,386,386,386,386,386,386,386,386,386,386,386,386,386,386,386,386]),
-    (6733,6732,[355,349,379,407,317,167],5821,[3366,967,1026,2185,4051,4691,4400,4017,1698,3260,3989,2384,6096,2615,3726,822,3250]),
-    (6869,6868,[37,5,15,19,7,35],4120,[3434,4797,1161,616,384,4372,3211,2492,19,255,2450,6306,833,2455,4455,6714,442])],
-    [(6971,6970,[27,91,9,59,161,117,123,103,133],226,[3485,6487,5531,2049,5375,5499,2628,2382,331,106,6672,6594,2667,6923,6198,6223,1663]),
-    (7039,3519,[7,2,31,43],1762,[3519,2496,3129,1527,3519,3519,1384,3519,2289,2,3519,3519,3519,3519,3519,643,3103]),
-    (7243,7242,[25,79,35,19],900,[3621,5624,6218,2736,5979,2575,3876,1609,7034,2702,6550,2371,5951,772,1900,781,6853]),
-    (7481,1870,[],3668,[935,1870,1870,1870,1870,1870,1870,1870,1870,1870,1870,1870,238,1870,1870,820,1870]),
-    (7549,7548,[139,43,103,7,113,143,133],798,[3774,894,6512,1975,768,870,5551,7447,3271,3754,5282,4956,7258,4601,6434,5651,3397]),
-    (7583,3791,[7,12,14,11,5,16,1],1885,[3791,3791,3237,3791,2426,3791,3791,3397,177,2000,1316,2878,203,120,3791,3791,3791]),
-    (7753,323,[],946,[323,323,323,323,323,323,323,323,323,323,323,323,323,323,323,323,323]),
-    (8059,2686,[33,31],2788,[1343,2686,2686,2686,2686,2686,2686,2686,1189,2686,2686,2686,2686,2340,65,2686,2686])],
-    [(8093,8092,[401,275,285,183,317,331],2474,[4046,5272,7065,1227,2189,2305,5198,413,1611,6505,2850,4335,6556,6352,3110,3187,4312]),
-    (8161,408,[5],5659,[204,408,408,5,408,408,408,408,408,52,408,408,408,408,408,408,408]),
-    (8263,4131,[23,5,31,103,143],5155,[4131,329,4131,4131,1359,1076,4131,4131,2479,495,501,3622,4131,3509,4131,4131,2457]),
-    (8297,4148,[33,43,31,59,39],479,[2074,917,4148,4148,4132,4148,2831,983,4148,4148,408,4148,4148,2643,2827,4148,3950]),
-    (8467,8466,[37,95,49,1,101],4574,[4233,7527,3403,2077,4991,3309,3140,6814,5090,763,2653,6833,5316,7650,4118,1116,334]),
-    (8501,1700,[31,277],6796,[850,1700,1700,1700,360,1700,31,1700,1700,1700,1700,1637,1700,1700,1700,1700,1700]),
-    (8807,4403,[80,118,83,95,81,64,106,2],4569,[4403,1627,356,4403,4403,3772,95,4127,1035,4403,64,4403,3521,4403,1058,4403,2977]),
-    (9011,9010,[81,169,21,1],5058,[4505,5572,3134,4947,6100,3821,196,544,5315,546,8250,5949,3676,4233,3004,5971,3401])],
-    [(9181,9180,[2171,2993],2528,[4590,6416,2078,6600,1186,8751,6027,3524,8195,3036,6235,2171,3260,8394,4740,5835,2993]),
-    (9283,9282,[233,263,37,79,449,377,299,605],8151,[4641,5945,5629,3840,263,2179,3111,79,6958,1866,1970,1877,6803,5704,7439,5414,6317]),
-    (9419,9418,[15,5,29,7,3,27],5169,[4709,2696,2818,559,2462,4496,7757,8937,7113,2642,6810,316,3913,6760,3325,334,8099]),
-    (9521,476,[209],7034,[238,476,476,476,209,476,476,476,476,476,476,476,476,476,476,476,476]),
-    (9623,283,[],7556,[283,283,283,283,283,283,283,283,283,283,283,283,283,283,283,283,283]),
-    (9929,292,[],6287,[146,292,292,292,292,292,292,292,292,292,292,292,292,292,292,292,292]),
-    (10099,10098,[259,167,245],4343,[5049,3931,6578,9838,3764,9999,6048,7932,3700,1952,620,93,583,1309,6184,2309,551]),
-    (10133,10132,[29,35,49],8100,[5066,9162,2662,2396,9702,3060,8325,2868,5298,6510,9940,7169,6724,9276,4573,7991,9569])],
-    [(10303,1717,[3,4],4534,[1717,1717,1717,700,1717,395,1717,1717,1717,1717,1717,1717,1717,1717,1717,1717,1717]),
-    (10337,1292,[53,47],3430,[646,1292,869,1292,1292,1292,1292,1292,1292,1292,1292,1292,1292,1292,1292,1292,863]),
-    (10711,1071,[],1360,[1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071,1071]),
-    (10847,5423,[5,7,8,6,2],463,[5423,4663,447,5423,5423,5423,5423,5423,5423,5345,5423,926,1366,5423,5423,3961,1345]),
-    (10949,10948,[281,239,193,57,303,353,201],4913,[5474,2036,7600,2661,1130,3048,1667,8930,5429,3389,10557,9457,8871,3142,6065,1874,9245]),
-    (11119,51,[],2454,[51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51]),
-    (11527,5763,[13],4505,[5763,5763,5763,1206,540,5763,5763,5763,5763,5763,5763,5763,5763,5763,5763,5763,4297]),
-    (11731,3910,[147,37,93,29],5653,[1955,3910,3910,2017,3910,2417,3910,459,3910,3910,2983,369,3910,3910,3910,3910,3910])],
-    [(11833,5916,[71,163,65],9144,[2958,5916,5916,3933,4967,984,5916,2026,1020,571,5916,5916,473,3758,5916,5916,5916]),
-    (11867,11866,[23,9,7,21,1,3],2991,[5933,10890,3049,9101,1573,4903,5393,8266,10848,10167,266,6871,10884,2965,8011,2684,4577]),
-    (11969,2992,[],2708,[1496,2992,2992,2992,2992,2992,2992,2992,2992,2992,2992,2992,2992,524,2992,2992,1266]),
-    (12037,708,[],1582,[354,708,514,708,708,708,708,708,708,302,59,708,708,708,708,708,708]),
-    (12071,6035,[77,33,83,57,27,21],6607,[6035,3420,77,4538,5438,4222,2575,1812,6035,6035,6035,4300,2050,5400,2425,6035,786]),
-    (12241,510,[],8518,[255,510,510,510,510,94,510,510,510,510,510,510,510,510,510,510,510]),
-    (12343,2057,[9,13,6,3],7684,[2057,2057,2057,2057,2057,2057,2049,1509,2057,2057,2057,2057,2057,1825,156,2057,2057]),
-    (12377,3094,[237,137,61,195,227],9753,[1547,3094,3094,3094,3094,3094,3094,1903,1089,775,3094,3094,1623,3094,3094,2369,3094])],
-    [(12479,367,[],8470,[367,367,367,367,367,367,367,367,367,367,367,367,367,367,367,367,367]),
-    (12547,12546,[247,65,197],3098,[6273,10957,1446,5674,3759,7784,6264,3388,11817,9098,5853,10570,6968,10185,10775,124,7847]),
-    (12853,1428,[1247],8075,[714,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1247,1428]),
-    (13159,6579,[59,52,151,47,62,116],11527,[6579,3267,2048,6579,664,2446,6579,6579,6579,6579,2648,6579,6579,2204,6236,6579,6579]),
-    (13397,13396,[33,19,65,41,9,45,5,49],3793,[6698,8533,2875,65,6705,5478,12318,6868,11826,2248,4701,993,9293,8198,11089,11609,10314]),
-    (13499,794,[],7055,[397,794,794,794,794,794,794,794,794,794,794,794,794,794,794,794,794]),
-    (13567,6783,[304,52,227,284],11897,[6783,1375,6783,6243,6783,766,6783,3083,2421,5544,5496,6783,6783,2649,641,6783,6783]),
-    (13669,204,[],9888,[102,204,204,204,204,204,204,204,204,204,204,204,204,204,204,178,204])],
-    [(13873,6936,[61],9954,[3468,6936,6936,6936,6936,2728,6936,4089,6936,6936,5808,6936,5350,5773,6936,3405,422]),
-    (13907,13906,[7,27,33,31,13],3064,[6953,13199,2676,3378,5161,11519,12508,3291,2034,6990,9840,1918,7940,611,5253,6151,4467]),
-    (14009,7004,[15,49,25],6634,[3502,6960,7004,7004,7004,7004,7004,7004,7004,695,5149,491,7004,3969,7004,7004,7004]),
-    (14281,2380,[1363,1409],7193,[1190,2380,2380,2380,2380,2380,2380,1363,2380,2380,2380,1409,2380,2380,790,2380,2380]),
-    (14519,7259,[45,108,113,22],2194,[7259,7259,6114,703,7259,7259,7259,7259,6896,4267,7259,7259,7259,5853,1946,7259,7259]),
-    (14621,14620,[313,321,121,229,89,319],13738,[7310,10466,2808,12213,12699,9841,5561,3846,12469,10644,3465,2809,12488,374,5736,8819,7029]),
-    (14723,14722,[11,3,27,7,23,25],14532,[7361,12455,10494,9928,1023,736,10329,5423,2896,2678,14492,8677,11094,8319,4819,7100,959]),
-    (15131,15130,[1,147,3,61,129],6705,[7565,268,2840,7810,1701,7848,3887,3484,7313,9298,7756,4651,14749,1305,9392,7430,14322])],
-    [(15199,2533,[10,3],2561,[2533,2533,2533,2533,2533,367,2533,2533,2533,2533,2533,2533,2533,2533,2533,1482,2533]),
-    (15233,1088,[],8662,[544,1088,1088,1088,644,1088,1088,1088,1088,1088,1088,168,1088,1088,1088,1088,1088]),
-    (15607,7803,[67,23,89,59],4987,[7803,7803,3433,1923,7803,7803,3213,7803,3083,3294,7803,7280,7803,5613,753,3645,6944]),
-    (15641,7820,[97,197],5486,[3910,4108,4285,7130,7820,6154,4342,7820,690,7820,7820,6897,877,7820,7820,7820,2154]),
-    (15913,2652,[47],13149,[1326,2415,1371,2652,2001,2652,2652,2087,2652,2652,1615,2652,2652,2652,2652,2652,2652]),
-    (16253,16252,[59,1,63,21,35,25],2411,[8126,5028,6111,7345,2987,7042,5768,1857,9827,3184,15030,11827,1940,9477,8718,7016,8427]),
-    (16661,3332,[275],10944,[1666,3332,3332,3332,3332,3332,3332,3332,3332,3332,2655,3332,3332,3332,3246,3332,3315]),
-    (16729,697,[],5278,[697,697,697,697,697,697,697,697,697,697,697,697,697,697,697,697,697])],
-    [(16763,16762,[27,5,33,9,23,7],3873,[8381,4508,8712,436,14232,11728,16619,15849,1222,8499,16703,6109,8575,10808,925,1315,9514]),
-    (16831,765,[562],5986,[765,765,765,765,765,765,765,765,765,765,765,507,765,765,562,765,765]),
-    (17137,2142,[485,1831],15617,[1071,2142,485,2142,2142,650,2142,1831,1652,2142,2142,2142,2142,2142,2142,2142,2142]),
-    (17239,8619,[5,10,7,32,29],1565,[8619,6533,8619,112,8619,772,7800,8619,3806,6965,4614,342,8165,4238,8619,8619,1248]),
-    (17341,5780,[207,43],10809,[2890,5780,5780,5780,4036,3436,5780,5780,5780,5780,5780,5780,5780,547,5046,5780,2763]),
-    (17443,17442,[233,95,155,175],13213,[8721,6014,14062,7980,5373,10017,8156,10010,14309,4430,4570,13253,3180,14843,2317,5820,17394]),
-    (17477,17476,[23,25,15,9,47],1274,[8738,254,5986,13802,14678,9358,2508,5531,16204,7573,15487,1124,695,11628,14017,3651,10062]),
-    (17579,17578,[5,11,7],13135,[8789,13503,196,4295,16726,13738,8870,6853,304,8876,823,16068,9287,13690,11004,6477,16155])],
-    [(17681,1768,[],792,[884,1768,1768,1768,1768,1768,1768,1768,1768,1768,1042,1768,1768,1768,1768,1768,1768]),
-    (17749,17748,[533,401,197,41],2932,[8874,17235,9531,3593,11378,2924,9951,4222,3461,16109,6015,8542,1411,2511,2090,15747,2489]),
-    (17783,8891,[7,13,6,3],11664,[8891,8891,8891,8891,8891,1979,8891,8891,5419,8891,8891,8891,8891,4545,8891,8891,3947]),
-    (17851,17850,[2207,53,3049,3203,3469],5608,[8925,2229,592,3538,11635,9347,5555,5282,11805,7193,3049,13913,6870,3469,2164,7318,2648]),
-    (17987,1058,[],8343,[529,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058,1058]),
-    (18089,9044,[387,261],10072,[4522,4195,3367,4069,8072,9044,9044,2216,9044,9044,8840,9044,9044,9044,9044,9044,1010]),
-    (18191,9095,[27,38,53,73,28],15738,[9095,6742,9095,9095,2170,4288,4983,9095,5088,9095,7083,9095,9095,7510,9095,350,9095]),
-    (18701,18700,[113,101,207],12415,[9350,15930,14286,11155,12013,16956,10868,13021,965,9226,5307,1530,3560,11076,8220,6870,8109])],
-    [(18803,2686,[25],17794,[1343,2686,2686,2686,2686,2686,2686,2686,2686,2686,2686,2686,2686,2235,2686,2686,2686]),
-    (18973,18972,[599,287,353,179,35,31,439,163],362,[9486,11615,8559,5061,17423,16877,11195,18411,8506,6767,18100,18391,17805,1051,18495,11791,266]),
-    (19211,1130,[7],12369,[565,1130,1130,1130,1130,1130,1130,687,497,1130,1130,740,1130,1130,1130,1130,1130]),
-    (19381,3876,[101,179],733,[1938,3876,3876,3876,202,1860,3876,3876,3876,3161,3443,3876,3876,3876,3876,3876,3876]),
-    (19483,19482,[23,95],8518,[9741,13342,3632,13052,9003,6041,7934,6215,8782,8673,18710,13870,5501,8022,804,6750,11660]),
-    (19687,3281,[10],12527,[3281,3281,3281,3281,3281,17,3281,3281,3281,3281,3281,2951,3281,3281,3281,3281,3281]),
-    (19891,19890,[121],12132,[9945,12361,2662,15381,429,19166,14534,1355,3412,19584,15806,14027,915,13618,3814,9444,6662]),
-    (19993,4998,[1,467],9059,[2499,4998,4998,4998,4998,4998,1429,4998,4998,4998,4998,4998,4998,3966,4998,467,4998])],
-    [(20129,10064,[249,183,77,29],19767,[5032,10064,6505,10064,10064,10064,10064,10064,8887,2525,1920,10064,10064,10064,4381,10064,10064]),
-    (20231,119,[],128,[119,119,119,119,119,119,119,119,119,119,119,119,119,119,119,119,119]),
-    (20333,1196,[3],9733,[598,1196,1196,1196,1196,1196,1196,1196,1196,650,1196,163,1196,1196,1196,1196,1196]),
-    (20639,10319,[9,13,11,4,2,16,3],105,[10319,10319,4361,9584,10319,6301,10319,10319,10319,351,10319,5563,10319,10319,1685,9638,5732]),
-    (20707,6902,[151],4738,[3451,6902,5932,805,5094,6902,6902,6902,6902,6902,4435,6902,6902,6902,6902,6902,6902]),
-    (20809,2601,[25,98],2828,[2601,2601,2601,2601,2601,2601,2601,2601,2601,2601,2601,178,2601,1169,2601,2601,2601]),
-    (21013,21012,[131,77,29],6143,[10506,9237,7804,11351,18437,11584,1301,16961,3976,13346,13350,10144,813,1144,9476,8758,5895]),
-    (21149,1244,[],2694,[622,1244,1244,1244,1244,1244,1244,858,1244,1244,1244,1244,1244,1244,1244,1244,1244])],
-    [(21319,10659,[37,8,50,49,2,7],13078,[10659,3811,10659,10659,10659,8415,3578,5354,10147,10659,10659,8061,10659,971,4087,10659,10659]),
-    (21523,21522,[7,23,49,43,37,59,55,73],10753,[10761,13165,10736,19199,11269,16460,15343,19095,20029,11223,8729,14001,10051,525,21187,4172,1279]),
-    (21557,21556,[7,31,39,37,3,55,11,61],13295,[10778,13014,6780,12254,5243,2139,20099,20369,20102,8095,12922,17990,18202,13791,6136,21431,20189]),
-    (21727,3621,[],7364,[3621,3621,3621,3621,3621,3621,3621,3621,3621,3621,3621,3621,3621,3621,2312,3621,1347]),
-    (21863,10931,[9,5,2],19885,[10931,9648,10931,10931,1246,10931,10931,9724,10931,7601,10931,5374,10931,10931,10931,10931,1029]),
-    (22067,22066,[13,33,3,11,5,15,31],10912,[11033,3568,6779,13667,9727,20740,3398,15583,9207,908,753,12058,11812,4979,5947,15415,16555]),
-    (22271,11135,[18,47,12,64,29,22,11],459,[11135,11135,11135,6478,1067,4740,10127,7799,11135,9719,4782,11135,2529,3921,11135,6914,11135]),
-    (22441,1870,[121,21],5732,[935,1870,1870,461,1870,1870,1870,1870,1870,1870,1870,701,1870,42,1870,1870,1870])],
-    [(22543,11271,[28,20],11789,[11271,4455,11271,11271,11271,9667,11271,11271,669,11271,5732,11271,4494,11271,11271,11271,5630]),
-    (22679,11339,[15,6,5,12,7,8,13],2270,[11339,11339,11099,8914,8114,11339,11339,4908,9522,11339,11339,4444,11339,228,11339,2541,3447]),
-    (23053,23052,[67,193,47,113,25,37,163],17422,[11526,18835,2414,15901,19019,17200,6443,19404,521,15771,4624,5941,11665,8527,3777,20450,7062]),
-    (23087,11543,[10,19,18,94,116,16,95,6,13,36,86,118],1418,[11543,11543,10720,5136,2398,6520,6066,5847,5450,11543,8931,6677,11543,8442,2416,6155,6901]),
-    (23189,23188,[41,3,57,39,25,5,31,67,43],6135,[11594,13641,16663,23178,17057,7804,10715,11442,20765,15688,1365,10911,6935,9631,5054,6589,22556]),
-    (23291,4658,[],14618,[2329,4658,4658,4658,4658,4658,4658,4658,4658,4658,4658,1890,774,4320,4658,4658,4658]),
-    (23563,23562,[2047,1865,1367],19763,[11781,13884,5369,19183,18326,15962,21668,8602,17418,15800,12861,21143,7100,18503,3830,5416,18386]),
-    (23767,11883,[40,32,31,16,7,20,8,35],6569,[11883,10495,2415,11201,11883,11883,2275,11883,11542,11883,11883,1690,11883,6650,11883,1130,7685])],
-    [(23801,2975,[519,212,293,209],14543,[2975,2975,60,2899,807,2975,2975,2975,1483,2975,2975,2975,2975,2975,1399,2975,2975]),
-    (23869,23868,[79,611,539],2236,[11934,21437,12931,12536,2200,414,11684,4576,9418,20195,14003,11063,22685,12201,14694,23170,2122]),
-    (23971,4794,[35,5,91],14875,[2397,4794,4794,749,4794,4794,4794,515,4794,4794,4794,4794,4050,4794,3559,4794,4794]),
-    (24107,24106,[9,23,21,11,7,5,15],5846,[12053,11512,2370,1335,2029,17429,20720,12081,15942,16414,19800,415,10782,7740,14534,12075,19259]),
-    (24379,24378,[25,1,61,97,7,41,11,77],10304,[12189,672,14284,5125,817,5467,7148,9256,3871,6062,5343,7644,10615,2795,15107,23618,2729]),
-    (24413,24412,[45,57,63,21,61,15],6720,[12206,23898,23420,1473,20253,6183,8750,24093,7488,18136,3548,6148,2904,19322,11402,16109,11575]),
-    (24481,12240,[],23349,[6120,4506,4709,2460,10464,1504,12240,12240,12240,12240,12240,12240,12240,12240,12240,5650,8271]),
-    (24821,24820,[83,133,3,31,171,281],11547,[12410,23883,12713,4083,9211,8678,7405,21464,15264,19891,7886,17154,20036,6975,9754,4021,4585])],
-    [(24889,4148,[21],1627,[2074,4148,4148,4148,4148,4148,4148,4148,4148,4148,4148,3149,4148,4148,4148,4148,4148]),
-    (24923,24922,[31,25,5,9,21,11],14118,[12461,4043,7715,19776,19751,24097,6946,5746,18059,13882,15952,2797,10452,15554,4713,15787,12798]),
-    (25127,12563,[2,3,8,4,9,13,16],13786,[12563,2773,3607,12563,12563,12563,6553,3795,12563,10141,12563,8632,3450,5474,12563,12563,12563]),
-    (25229,25228,[73,27,461,353,15],5586,[12614,544,11973,2407,16750,14741,4161,23650,1141,13688,20122,15154,9646,11915,15582,17619,3409]),
-    (25603,25602,[79,71],14905,[12801,24208,22077,3376,9597,5995,904,18218,7721,1760,16588,19558,15726,4132,14380,11503,25366]),
-    (25841,12920,[1,257,127],14122,[6460,12920,4081,12920,12920,6678,5697,12920,12920,12920,12920,6262,12920,3527,12920,8076,9970]),
-    (25943,12971,[117,108,8,54,103,48,46],7336,[12971,11065,12971,8296,1060,12860,12971,12430,4149,2666,12971,12971,12971,12971,10745,12971,6591]),
-    (26113,13056,[671,293],17267,[6528,13056,13056,13056,8438,2303,13056,11906,13056,9147,11709,3573,13056,3557,8398,13056,12154])],
-    [(26249,3281,[],9144,[3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281,3281]),
-    (26317,68,[],1026,[34,68,68,68,68,68,68,42,68,68,68,68,68,68,68,68,26]),
-    (26759,13379,[1,15,2,6],1725,[13379,13379,13379,13379,9538,13379,13379,13379,11218,716,13379,312,13379,13379,7550,13379,13379]),
-    (26861,26860,[107,261,39,9,309,57],9461,[13430,9287,826,20802,12161,1399,22694,11990,16318,3095,21432,12352,6816,20144,22789,309,5837]),
-    (27031,2703,[11,43],13779,[2703,2115,2703,2703,62,273,2703,2703,2703,2703,2703,2703,247,2703,2703,2703,2703]),
-    (27337,13668,[35,25,173,167],9619,[6834,12275,637,6036,13668,13668,10577,7220,8434,6708,3932,5063,13668,13668,5083,13668,13668]),
-    (27541,1836,[],13862,[918,1836,1836,1836,1836,1836,1836,1836,1836,1836,1836,1836,1836,1836,1836,1836,1424]),
-    (27779,27778,[3,15],19950,[13889,20756,4117,22194,11138,4334,2862,20245,23532,27606,9542,19714,16842,6706,3342,420,1204])],
-    [(27847,13923,[776,740,262,148],21192,[13923,13923,5967,13923,13923,11486,12521,6688,13923,13923,13923,4432,13034,13923,12762,13923,13923]),
-    (27983,13991,[12,8,3,2,13,15],4583,[13991,11555,10310,8894,13991,13991,3978,2720,13991,13177,6217,13991,8564,13991,10793,13991,13991]),
-    (28051,28050,[121,197,107,31,239,133],15480,[14025,22830,4201,10810,13674,2277,6317,20630,3167,20431,4295,17254,17069,13390,23083,20084,22346]),
-    (28289,14144,[5,207],7144,[7072,14144,14144,14144,14144,14144,14144,4550,14144,14144,14144,14144,14144,1093,14144,6735,14144]),
-    (28493,28492,[35,63,37,39,47,45],15158,[14246,26618,6563,9243,8741,8312,1958,13696,1467,16231,13180,13663,21127,2901,17280,3995,146]),
-    (28663,14331,[13,16,26,8],876,[14331,9673,14331,14331,5805,14331,7765,14331,14331,27,14331,2719,5279,8525,14331,11898,14331]),
-    (28697,3587,[16,14,8],27079,[3587,3587,1529,3587,3587,3587,3587,3397,3587,3587,3587,3587,3587,2031,3587,3587,3587]),
-    (28867,9622,[13,33,23],20107,[4811,7289,9622,9622,8717,2744,1767,9622,9622,7259,9622,9622,8780,9622,9622,9622,2505])],
-    [(28901,5780,[],5754,[2890,5780,5780,5780,2938,5780,175,5780,5780,5780,5780,5780,5780,5780,5470,5780,5780]),
-    (29173,29172,[55,83,109,203],24616,[14586,13136,23933,716,15559,6609,21962,7427,28176,16362,20398,19328,2557,18051,5478,12239,7779]),
-    (29207,14603,[7,5,3,8],7166,[14603,14603,14603,653,14586,14603,14603,14603,14603,2215,14603,2026,14603,12571,12417,7857,13318]),
-    (29411,29410,[141,3,87,33,159,161,137],12600,[14705,19521,10788,7234,12205,844,23324,9965,19702,17853,11647,15524,15738,4623,8659,11211,15437]),
-    (29581,348,[],11083,[174,348,348,348,348,348,348,348,348,348,348,348,348,348,348,348,348]),
-    (29683,3298,[3],28825,[1649,3298,989,3298,3298,3298,3298,3298,3298,3298,3298,3298,3298,3298,1414,3298,3298]),
-    (29717,29716,[25,5,9,3,13,53,39],3754,[14858,24573,7077,28229,22476,16323,16945,27184,13638,20889,14513,11789,26573,12394,26681,20711,29165]),
-    (29819,1754,[],20926,[877,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754,1754])],
-    [(29921,14960,[1301,1223,1209,1039,971],10179,[7480,8101,14960,5303,1366,14960,1209,14960,14960,14960,2828,11922,10516,14960,7839,14960,9131]),
-    (29989,29988,[1591,3323,583,1319,2827],7450,[14994,23011,24743,28119,26944,13435,27023,7972,22502,1874,4540,19086,6009,11395,105,8294,24327]),
-    (30091,6018,[43],3426,[3009,553,6018,6018,6018,6018,6018,6018,6018,6018,6018,6018,6018,6018,6018,5880,6018]),
-    (30431,15215,[47,36,2,41,7],16591,[15215,5997,2841,257,13530,1741,8842,15215,15215,15215,15215,15215,15215,8790,5545,15215,14542]),
-    (30703,15351,[230,148,260,46],24292,[15351,15351,7370,27,4067,15351,13000,15351,15351,13112,15351,15351,15351,8257,15351,9270,15351]),
-    (30839,15419,[3,4,9,6,12,8,15,7],6,[15419,15419,11954,13009,15419,12521,15419,1281,15419,15419,15419,3514,12231,9830,15419,4027,13607]),
-    (30941,30940,[1339,2267,999,1593,1629,1233,1287,967],15284,[15470,27519,908,16547,12690,15842,2628,999,20633,15909,26620,9254,27413,20327,26012,3347,25256]),
-    (31247,15623,[7,1,16,5,9,15],15737,[15623,14270,15437,3688,15623,6410,12211,15623,2338,15623,15623,10878,15623,15623,15623,5923,7361])],
-    [(31723,10574,[],12393,[5287,10574,10574,10574,1174,10574,9504,1558,10574,10574,10574,10574,9626,10574,10574,10574,10574]),
-    (31859,31858,[27,25,1,3,5],29823,[15929,16014,11996,6215,19881,19133,17935,23516,11917,31621,15983,25522,25687,9978,4328,11497,60]),
-    (32029,32028,[185,109,1,11,143],30789,[16014,16913,807,28873,409,20550,26499,22588,4920,7659,8171,16594,2283,27519,22787,11058,30627]),
-    (32063,16031,[12,9,2,1],22679,[16031,10250,14275,7166,16031,6426,16031,16031,6734,16031,9469,16031,16031,16031,16031,16031,13295]),
-    (32233,8058,[79],24989,[4029,8058,8058,8058,8058,895,8058,8058,8058,8058,8058,8058,8058,8058,8058,8058,2254]),
-    (32369,16184,[859,271],24697,[8092,16184,15139,7887,16184,8561,16184,16184,16162,16184,10206,12586,16184,16184,16184,13192,16184]),
-    (32573,32572,[15,21,37,49,55,63,43],19735,[16286,24291,19524,19741,19836,22341,29493,15831,5251,9404,19259,5204,4415,1552,17162,28875,4854]),
-    (33049,5508,[311],20273,[2754,5508,3093,5508,5508,5508,5508,5508,5508,5508,5508,5508,923,2975,5508,5508,5508])],
-    [(33083,33082,[197,69,121],27066,[16541,9034,6623,10605,3078,24583,19596,7954,10092,11510,11450,16552,29598,9586,20822,13687,6816]),
-    (33151,5525,[16,4,82],28344,[5525,4436,5525,3404,5525,5525,5525,5525,5525,5525,5525,5525,5525,5522,5525,1270,5525]),
-    (33287,16643,[15,9,8,4,16,14],12637,[16643,7512,15683,16643,16643,11337,13030,16643,16643,16069,16643,10607,10826,16643,12147,3597,8322]),
-    (33457,16728,[139,19,97],28114,[8364,16728,16728,1363,7371,13686,1651,16728,16728,14502,16728,3422,4840,16728,16728,10678,5809]),
-    (33797,1988,[13],7810,[994,1988,1988,1988,1988,1988,1988,1988,1988,1988,1988,1988,1988,1988,1385,1988,1988]),
-    (33967,16983,[29,148,14,64],27538,[16983,16983,16983,16983,16983,6302,16983,3055,16983,8582,10767,16983,16983,16983,11951,11539,7044]),
-    (34171,34170,[241],4726,[17085,10675,23701,33957,11955,28179,9394,11295,21382,24698,29030,9765,18037,28491,18615,31835,28535]),
-    (34273,1008,[],2213,[504,1008,1008,1008,1008,1008,1008,1008,1008,1008,1008,1008,508,1008,1008,1008,1008])],
-    [(34511,595,[],4592,[595,595,595,140,595,595,595,595,595,595,595,595,595,595,595,595,595]),
-    (34613,34612,[7,39,67],31458,[17306,280,14763,32088,21255,14280,2852,3848,11614,26726,4686,33455,27156,3444,32228,29864,20960]),
-    (34919,17459,[9,7,15,1,13,14,12,5,4],22898,[17459,2491,14117,16429,8685,17459,5050,9771,2455,1340,17459,17459,9294,5632,17459,15508,17459]),
-    (35089,8772,[],21284,[4386,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772]),
-    (35327,17663,[1,7,6],23883,[17663,17663,17663,17663,17663,17663,17171,17663,6756,17663,17663,17663,17663,1276,9594,17663,17663]),
-    (35531,7106,[5,19,29],28721,[3553,7106,7106,7106,7106,7106,7106,5989,7106,7106,4677,7106,7106,4211,7106,7106,7106]),
-    (35803,3978,[],9085,[1989,3978,3978,2388,3978,3140,3978,3978,1886,3978,3978,3978,3978,3978,3978,3978,520]),
-    (35837,35836,[21,13,5,1,43,31],1187,[17918,30689,5589,5309,9337,17409,8672,5822,35811,33788,5169,16507,29314,2516,2955,12612,31346])],
-    [(36007,18003,[37],8497,[18003,18003,6879,18003,18003,18003,18003,18003,18003,18003,2238,18003,18003,18003,17173,10095,18003]),
-    (36109,36108,[557,563,197,331,455,199],12041,[18054,33630,31653,32079,21009,22589,18923,4481,33942,33147,11004,27871,12695,30826,6008,34569,10603]),
-    (36313,18156,[],28728,[9078,18156,18156,18156,18156,18156,13800,4026,18156,18009,18156,6032,18156,18156,18156,18156,16704]),
-    (36551,18275,[7,1,41,2,8,3],2006,[18275,17007,18275,14026,18275,2533,15766,12412,18275,18275,3068,18275,1700,9588,3743,18275,10999]),
-    (36653,36652,[339,73,439,443,409,99,173],21387,[18326,29074,26043,15305,10252,28084,14243,6155,3741,4994,16759,23346,12439,30250,8265,20348,16335]),
-    (36721,3060,[101,41],1256,[1530,3060,3060,3060,3060,3060,3060,3060,3060,101,3060,3060,3060,3060,3060,41,3060]),
-    (36857,9214,[31],2161,[4607,9214,9214,9214,3812,9214,9214,9214,9214,9214,9214,9214,8361,9214,9214,9214,9214]),
-    (37061,37060,[127,199,113,131],28109,[18530,25922,17127,26588,17688,17404,5299,23200,19395,11036,28056,30373,33032,30391,27108,16465,28536])],
-    [(37537,391,[10],12821,[391,391,391,391,391,391,391,391,391,391,391,391,391,78,391,391,391]),
-    (37571,37570,[59,157,167,9,41,81],7510,[18785,17823,8642,15189,14294,32980,19707,33487,20749,32419,25818,3356,30650,15851,2801,26687,1435]),
-    (38047,6341,[10],9182,[6341,6341,6341,5365,6341,6341,6341,6341,6341,6341,6341,6341,6341,6341,6341,6341,850]),
-    (38149,3468,[],29542,[1734,3468,3468,3468,1701,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468]),
-    (38183,19091,[9,5,16,10,12,14],30590,[19091,6605,19091,17600,19091,15350,3597,11621,2668,19091,13243,14982,5156,10341,1406,19091,7664]),
-    (38557,38556,[1135,691,845,3197,2053,3431],19124,[19278,9703,332,22111,15004,35117,2326,7282,9993,32578,25425,33185,16701,14905,26182,5703,33419]),
-    (38693,38692,[63,49,65,21,15,29,3,27],10245,[19346,24092,2134,6183,24116,18885,11702,3784,38624,29915,38689,6481,33811,33349,12282,38015,7643]),
-    (39373,13124,[9,67,47],20762,[6562,13124,13124,13124,13124,13124,13124,13124,13124,13124,13124,13124,8598,3273,4351,13124,6507])],
-    [(39509,2324,[],39163,[1162,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324,2324]),
-    (39679,19839,[43,13],4415,[19839,19839,19839,13813,10608,19839,19839,19839,19839,3919,19839,16140,19839,19839,9805,19839,19839]),
-    (39883,13294,[31,5,15,25,3],37801,[6647,13294,11999,6431,8379,13294,13294,13294,6740,13294,4615,13294,13294,8818,9902,11835,13294]),
-    (40087,20043,[140,29,82,43],21003,[20043,18959,20043,20043,20043,20043,20043,20043,20043,20043,12116,20043,17830,20043,15496,7926,20043]),
-    (40189,40188,[95,109,197,43,35],6224,[20094,2951,6864,34177,22413,27146,20597,2899,12818,17378,34582,3584,6807,13785,13703,37518,39456]),
-    (40427,40426,[25,29,21,23,19,11,27,9],39307,[20213,13842,30149,7803,8563,11411,27562,21344,23109,461,15039,28376,8561,30245,24353,2852,29744]),
-    (40529,10132,[15,41],13818,[5066,10132,10132,4163,10132,3424,10132,10132,10132,10132,10132,6112,10132,10132,6025,10132,10132]),
-    (40597,40596,[191,97,179,53,19,113,79,161],20230,[20298,31403,16342,9889,36596,34089,816,18539,16557,3725,28171,30336,17249,38839,12518,37446,7913])],
-    [(40699,40698,[677,1021,1193,11],17244,[20349,11912,17919,34949,31623,9429,13873,9891,7100,11452,11456,9492,129,14786,14105,20471,34283]),
-    (40801,20400,[1297,193,1607],7568,[10200,5377,20400,20400,17030,20400,20400,8366,20400,20400,20400,20400,8353,3134,10698,1607,20400]),
-    (40903,6817,[3],18852,[6817,6817,6817,6817,6817,6817,6817,6817,6817,6817,105,6817,6817,6817,6817,6817,6817]),
-    (41039,20519,[10,3,2,12,5,7],10300,[20519,20519,6861,20519,20519,4236,3232,20519,7305,2453,20519,16429,5061,20519,20519,20519,11155]),
-    (41141,41140,[97,303,71,277,229,147,329],18446,[20570,8937,23083,31918,25690,29698,10951,20716,9163,24757,27769,4879,9558,35058,27007,38409,39094]),
-    (41243,41242,[7,11,25,29,15,1,9],15004,[20621,11912,34313,29834,32960,31828,28478,39417,38207,38041,7495,26104,17346,25807,15474,21191,4152]),
-    (41413,13804,[99,131,101,381],33295,[6902,10095,13804,950,668,607,13804,13804,13804,1529,13804,9741,13804,8473,6008,5064,13804]),
-    (41549,3196,[],37099,[1598,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196])],
-    [(41617,2312,[],2723,[1156,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312,2312]),
-    (41651,41650,[653,643,899,293],16260,[20825,18503,8071,18277,1052,37533,21872,19939,3612,20972,32022,26468,21595,11236,18120,30043,8805]),
-    (41719,20859,[13,19,10],26209,[20859,20859,20859,8019,20859,20859,1288,3588,9360,20859,18465,1290,8893,11077,3740,11892,20859]),
-    (41957,41956,[49,61,33,21,35],34870,[20978,14705,31737,26581,33132,13830,23746,12018,27165,6178,28764,602,1054,40384,20489,38659,1547]),
-    (42331,2822,[19,11],167,[1411,2822,2822,2822,2822,2822,2822,461,2822,2822,2822,2822,385,2822,2822,2822,2822]),
-    (42433,10608,[583,103],33403,[5304,8743,10608,6456,10608,6631,10608,10608,10608,230,10608,10608,10608,478,10608,10608,10608]),
-    (42467,2498,[],9113,[1249,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498,2498]),
-    (42569,1252,[],11484,[626,642,1252,1252,1252,1252,1252,1252,1252,1252,1252,1252,1252,1252,1252,1252,1252])],
-    [(42773,2516,[],21731,[1258,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516,2516]),
-    (42841,476,[],38918,[238,476,476,476,476,476,476,476,476,476,476,476,476,476,476,476,476]),
-    (42943,21471,[29,35,22,46],21024,[21471,17118,21471,3497,21471,3720,21471,9776,21471,10512,6754,21471,21471,1678,21471,21471,8694]),
-    (43283,43282,[19,33,5,29,23,13],28044,[21641,31521,15000,37756,37474,17440,26982,10797,27743,23104,16427,28997,40551,31282,35600,20923,12863]),
-    (43487,21743,[10,4,9,1,3,12],35263,[21743,21743,21743,21743,2662,21743,18177,4633,18888,21743,21743,5066,13127,21743,13340,17256,21743]),
-    (43691,34,[33,1],43683,[17,34,34,34,34,33,34,34,34,34,34,1,34,34,34,34,34]),
-    (43759,7293,[5],36975,[7293,7293,3813,7293,7293,7293,974,7293,5644,7293,7293,7293,7293,7293,7293,7293,6858]),
-    (43793,5474,[193,71],31777,[2737,5474,5474,5474,5474,4953,5474,4882,5474,5474,5474,5474,5474,3879,5474,5474,5474])],
-    [(43963,2586,[],24095,[1293,782,2586,2586,543,2586,2586,2586,2586,2586,2586,2586,2586,2115,2586,2586,2586]),
-    (43997,43996,[53,43,33,65,5,21,31,23,59],30910,[21998,7805,41863,14517,13175,9721,36708,31222,4926,12313,38441,11778,14175,36403,33638,6451,33609]),
-    (44201,2210,[],5517,[1105,2210,2210,2210,2210,2210,2210,2210,2210,2210,2210,2210,514,2210,2210,2210,2210]),
-    (44269,44268,[955,773],36443,[22134,15888,33441,30040,4378,8972,17356,36945,42176,6726,23803,3765,26508,5103,42588,35371,29333]),
-    (44371,44370,[79,587,541,383],10234,[22185,19662,35030,3598,10789,31359,26217,4832,7776,17019,11297,18789,31825,5506,43381,18364,21803]),
-    (44507,44506,[185,1,229,73,39,79,211],30561,[22253,34457,2424,7078,10711,16413,3102,12749,38913,7875,21969,41592,16223,17962,9814,26259,29485]),
-    (44711,22355,[2,46,19,1,22],12521,[22355,22355,22355,22355,22355,8927,5401,1804,22355,22355,22355,2381,22355,617,3859,22355,22355]),
-    (44983,22491,[608],41722,[22491,9095,14147,168,22491,5979,22491,22491,22491,19886,4386,22491,22491,22491,22491,9588,22491])],
-    [(45119,22559,[6,10,5,9,4,14,13],21955,[22559,1927,22559,22559,13440,22559,15662,22559,5569,19695,11734,5896,22559,17910,21892,22559,22559]),
-    (45289,11322,[],39056,[5661,11322,11322,5988,1250,11322,11322,11322,11322,11322,9202,11322,11322,11322,11322,11322,11322]),
-    (45697,1428,[],31478,[714,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428,1428]),
-    (45833,22916,[39,31,45,33,3],29900,[11458,22916,17107,1246,5748,16827,20974,6573,17694,12838,22916,22916,22916,3977,6191,22916,22916]),
-    (46309,46308,[179,143,161,193,25],44988,[23154,10857,33248,46023,29759,3550,19931,23139,28472,45184,10565,21406,11986,37117,33277,15658,45900]),
-    (46411,15470,[23],35255,[7735,15470,15470,15470,15470,15470,736,15470,10085,15470,15470,23,15470,15470,5502,5632,15470]),
-    (46649,3332,[359],41883,[1666,3332,3332,3332,3332,3332,359,3332,3332,3332,3332,3332,3332,3332,3332,1482,3332]),
-    (46751,23375,[44,28,72,1],12537,[23375,23375,8591,3289,10754,9042,23375,1388,20472,17242,9475,23375,23375,23375,20571,8850,23375])],
-    [(46819,46818,[121,203,157,131,205,79],36919,[23409,2569,16725,9383,12950,30520,157,33747,16043,4010,22328,27268,32029,27135,32821,24256,32246]),
-    (46853,46852,[21,43,19,11,27],7075,[23426,41025,1570,8475,43563,29667,45775,41022,6354,34702,35812,5473,34540,20068,18724,596,7099]),
-    (47057,11764,[37],29859,[5882,11764,11764,11764,11764,11764,3592,11764,11764,10290,11764,11764,11257,11764,11764,11764,11764]),
-    (47363,47362,[87,73,45,179,233,185,65,43,67],25192,[23681,30789,4542,3881,6947,8432,31833,39027,36024,36123,33358,46390,25531,20993,15037,34359,7683]),
-    (47431,23715,[581,16],2365,[23715,12190,5936,19906,23715,4335,19701,23715,23715,23715,23715,23715,23715,23715,23715,23715,18005]),
-    (47533,47532,[163,13,113,199,43,97,151,53],34819,[23766,4039,33417,42789,31648,13,18065,19670,26923,19317,22075,33349,39022,40135,7306,13928,37997]),
-    (47737,663,[],21265,[663,663,663,663,663,663,663,663,663,663,663,663,663,234,663,663,663]),
-    (48179,3706,[21],5733,[1853,3706,3149,3706,3706,3706,3706,3706,104,3706,3706,3706,3706,3706,3706,3706,3706])],
-    [(48247,24123,[29,16,31,23,7],47833,[24123,11708,24123,24123,24123,24123,24123,17289,20467,24123,7324,24123,20474,24123,7963,5621,24123]),
-    (48281,6035,[13],31840,[6035,6035,6035,685,6035,6035,6035,6035,6035,2563,6035,6035,6035,6035,6035,6035,6035]),
-    (48383,24191,[10,12,7,3,2,11],40890,[24191,24191,24191,24191,24191,23912,24191,1627,8252,24191,24191,20879,24191,4099,21984,14716,24191]),
-    (48757,48756,[47,89,115],39355,[24378,32279,29060,32098,41937,36197,45094,35912,44842,40099,36261,26128,39899,33447,23644,11224,35925]),
-    (48859,48858,[29,13,53,35],7710,[24429,4863,35739,15125,38978,28815,1048,35887,11845,11996,35818,29500,14333,6869,39932,47075,10551]),
-    (49199,24599,[9,15,8,13,16,12,14,5,11],43941,[24599,17774,23996,13292,24599,4343,15245,15418,8802,24599,10127,24599,24599,17014,23843,14846,20326]),
-    (49369,6171,[37],21484,[6171,6171,6171,6171,6171,6171,2434,6171,5682,6171,6171,6171,6171,6171,6171,6171,6171]),
-    (49811,9962,[13],12500,[4981,9962,1686,9962,8241,9962,4588,9962,6167,9962,9962,9962,4036,8340,9962,9962,9962])],
-    [(50287,8381,[7],467,[8381,8381,8381,8381,8381,8381,8381,8381,8381,8381,8381,8381,8381,7776,8381,8381,8381]),
-    (50321,6290,[],26224,[3145,6290,2450,6290,6290,6290,6290,276,6290,6290,6290,6290,6290,6290,6290,6290,6290]),
-    (50423,25211,[16,5,3,10,15,2],34079,[25211,1937,25211,1110,25211,25211,25211,24007,18132,22676,25211,17257,25211,23377,25211,17084,25211]),
-    (50593,4216,[21],6456,[2108,4216,4216,4216,4216,4216,4216,2538,4216,4216,3013,4216,4216,4216,4216,4216,4216]),
-    (50627,50626,[9,19,13,29],20271,[25313,11297,41050,2322,34686,46327,36535,32486,24852,50605,29405,9403,15054,35372,29060,27666,22990]),
-    (51001,1020,[],50792,[510,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020,1020]),
-    (51137,3196,[],35256,[1598,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3196,3145,3196,3196,3196,3196]),
-    (51239,25619,[16,9,3,15,12],32372,[25619,25619,6292,16813,3916,25619,20161,25619,19797,20760,25619,3613,25619,25619,23322,25619,7305])],
-    [(51307,17102,[31,9],31941,[8551,10446,13922,17102,17102,7076,2309,17102,17102,2669,17102,4157,17102,17102,17102,17102,17102]),
-    (51341,51340,[277,177,159,63,257,133],44774,[25670,36317,14040,25435,43596,31117,40245,3734,5259,42903,12540,50204,46258,12157,14753,34558,31526]),
-    (51511,25755,[122,247,193,191,226,29],13235,[25755,25755,6242,25755,22432,25183,22932,6566,25755,25755,25755,23431,21048,25755,17965,25755,9464]),
-    (51613,51612,[169,23,67,107],2418,[25806,10165,46036,37276,10341,20831,437,5580,12120,22885,10179,6348,24234,43106,19508,42703,20507]),
-    (51647,3689,[],24143,[3689,3689,3689,3689,3689,3689,3689,2852,3689,3689,3689,3689,3689,3689,3689,3689,3689]),
-    (51749,51748,[53,39,19,23],48615,[25874,20800,32192,40756,38476,50220,7574,8648,2788,19588,15081,34039,19264,4303,46807,50988,50290]),
-    (51817,25908,[77,59],34102,[12954,9869,25908,25908,7490,25908,25908,25908,23118,25908,25908,16814,25908,25908,24414,4955,25908]),
-    (52021,52020,[1393,1127,1967],36059,[26010,18688,27190,19000,41445,35774,47200,35053,18786,17382,10307,38973,32425,38687,43863,45245,36040])],
-    [(52259,52258,[11,33,25,31,5,29,1,27],347,[26129,24831,44641,34603,15161,8942,14557,10382,11895,15539,255,2656,46672,3383,11560,23220,11213]),
-    (52361,26180,[1791,2039],12131,[13090,26180,26180,26180,23804,26180,26180,26180,4171,26180,12744,26180,11804,18606,26180,9179,26180]),
-    (52667,52666,[3,27,25,21,1,29,9,7,23],23306,[26333,30141,28461,2679,38275,28173,22122,22135,39494,12439,2831,32545,43851,1934,11043,21273,2747]),
-    (52769,13192,[129,89],11077,[6596,13192,10465,13192,13192,13192,13192,4522,13192,13192,9881,13192,13192,13192,13192,6384,5000]),
-    (52837,52836,[437,43,403],43637,[26418,11991,26490,40421,9657,42634,50023,16111,40479,12916,38297,22822,586,11747,35241,5370,25824]),
-    (52973,52972,[45,27,25,29,5,7,55],42250,[26486,44585,3580,26968,40885,12539,45864,10837,17981,10069,49760,27878,10071,47386,46792,11479,15169]),
-    (53279,26639,[8,3,9,7],28533,[26639,26639,26639,26639,22567,26639,26639,18414,26639,26639,26639,26639,6503,19761,7301,14918,836]),
-    (53381,53380,[83,21,69],2843,[26690,7096,33565,38865,18178,37823,32652,29427,51187,18126,39585,45392,46264,50001,22040,34236,38149])],
-    [(53551,26775,[2803,2341],49924,[26775,9425,23379,23646,26775,8158,12544,26775,16443,14686,26775,26775,26775,26775,20886,4529,2341]),
-    (53653,53652,[],46614,[26826,39753,18897,824,42700,3160,39049,25046,29682,43596,17086,45388,23528,52290,11440,9254,13070]),
-    (53857,26928,[485,2219,421],52260,[13464,3434,7829,1934,10638,26928,9630,21803,9554,26928,18196,26928,26928,17948,7765,5931,9392]),
-    (53891,53890,[63,113,11,93],40894,[26945,1978,22515,12620,44603,27474,37164,51663,43678,7593,22451,31525,49088,47863,47552,22110,44542]),
-    (53959,26979,[28,50,23,37],8625,[26979,17368,26979,26979,26979,26979,9384,5507,10053,26979,26979,26979,8571,3134,26979,18040,20539]),
-    (53993,397,[0],14292,[397,397,397,397,397,397,389,397,397,397,397,397,397,397,397,397,397]),
-    (54163,54162,[91,139,109,287,127],41098,[27081,37117,30159,46965,37914,49094,13071,4423,11781,40842,53395,2973,44785,50777,23689,30036,29637]),
-    (54367,9061,[2,5,7],31533,[9061,9061,9061,9061,1685,7423,9061,9061,9061,9061,4731,9061,9061,9061,6171,2030,4624])],
-    [(54401,6800,[9],43517,[3400,6800,6800,6800,6800,6800,6506,6800,6800,6800,6800,4089,6800,6800,5532,6800,6800]),
-    (54469,54468,[49,73,161],10161,[27234,4471,46604,34933,44088,45430,41565,52908,33733,14238,26798,43032,25364,26477,76,31544,44670]),
-    (54503,27251,[15,32,99,103,44,12,87,76],17022,[27251,27251,27251,27251,8940,26807,27251,25803,27251,16882,27251,16466,9532,3776,24352,27251,27251]),
-    (54673,9112,[25,95,113],12845,[4556,9112,7840,9112,9112,2745,3903,9112,9112,9112,9112,9112,9112,1881,502,9112,7484]),
-    (54877,54876,[77,157,59,89],48606,[27438,43529,48913,37038,1895,38645,26571,34778,13968,36092,16240,16834,40650,8655,26103,22544,16069]),
-    (54979,18326,[19,15],35667,[9163,10131,18326,17479,18326,18326,12350,12078,5732,14775,18326,18326,18326,18326,3823,18326,1926]),
-    (55217,3451,[],16853,[3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451,3451]),
-    (55829,55828,[43,57,33,27,19,1,47,61,7,53],52715,[27914,6163,33309,7384,55181,21012,44363,47200,44831,33525,12504,43771,46301,16168,27615,31356,24125])],
-    [(55897,27948,[157,37,13],32366,[13974,10640,27948,159,27948,27948,23209,21865,11540,27948,27948,27948,16342,18169,604,6278,27948]),
-    (55931,11186,[57],17207,[5593,11186,8762,11186,11186,11186,11186,8127,11186,8625,11186,11186,11186,11186,11186,2270,11186]),
-    (56101,2244,[103,121],33720,[1122,2244,2244,2244,2244,2244,919,1141,2244,2244,2244,2244,2244,2244,2244,2244,2244]),
-    (56237,56236,[61,27,65,23,49,15,21,19],15503,[28118,18149,54359,20873,32450,2558,48686,20695,7937,31295,15074,34046,6345,22838,18175,41639,21403]),
-    (56509,56508,[5,107,149,11,37],5538,[28254,42424,48302,14897,36936,5889,27557,21282,3371,33381,26391,10145,43196,28571,9255,40021,44216]),
-    (56543,28271,[13,7,10,4,15],43446,[28271,28271,28271,28271,11913,19217,28271,28271,28271,20563,28271,25419,5814,28271,28271,28271,2956]),
-    (56611,6290,[19,91],10036,[3145,4756,1524,6290,6290,3079,6290,6290,6290,6290,6290,6290,6290,6290,6290,3661,6290]),
-    (56713,7089,[31],53317,[7089,7089,7089,7089,7089,7089,7089,7089,7089,7089,7089,4978,7089,7089,7089,7089,7089])],
-    [(56747,56746,[15,11,9,13,5,21,27],8552,[28373,30785,34338,16140,13135,17725,14161,54998,23278,35675,12695,28984,29838,19759,45501,13825,24269]),
-    (56951,28475,[9,79,3,27,69],24572,[28475,28475,28475,8424,27302,28475,28475,8409,11600,19978,28475,11405,13542,14009,7820,28475,28475]),
-    (57223,28611,[26,52,44],3382,[28611,15264,17731,28611,2933,4971,28611,19110,28611,4030,28611,18710,5520,27111,28611,28611,28611]),
-    (57427,57426,[19,35,97,79],21952,[28713,9393,52274,37606,52563,30288,18787,34032,49709,6010,6217,21913,10796,41389,53075,5649,23462]),
-    (57529,14382,[89],52405,[7191,14382,14382,13569,14382,14382,13912,14382,14382,5884,14382,14382,14382,14382,14382,14382,5291]),
-    (58073,7259,[73,67],47369,[7259,1263,7259,4575,7259,7259,7259,7259,7259,900,7259,7259,7259,7259,7259,7259,7259]),
-    (58243,58242,[5,61,1,7,31,91],50370,[29121,47612,8464,38663,21874,23460,25458,31987,1749,33253,18163,54091,46394,8483,27012,51193,11192]),
-    (58379,58378,[15,21,9,19,13,27],27769,[29189,2092,3758,31528,25107,43658,15434,42725,43427,30740,58295,5997,13060,22113,9479,19982,44544])],
-    [(58481,29240,[287,183],22696,[14620,29240,29240,29240,1647,9625,29240,29240,27405,29240,6345,2223,29240,29240,25508,29240,29240]),
-    (58549,58548,[757,893,25,23],17289,[29274,55021,26028,51802,58338,42051,36593,56402,10021,11998,45719,46466,28271,24630,36520,50258,27171]),
-    (58787,58786,[73,181,93,25,165,151],2058,[29393,21438,42675,50399,44123,977,46966,40368,7360,16349,18758,16088,23850,44657,16841,33012,43774]),
-    (58889,14722,[13,25],9098,[7361,14722,14722,14722,14722,14722,14722,14722,14722,14722,2937,5491,4411,14722,14722,14722,14722]),
-    (58991,29495,[7,1,77],36212,[29495,5655,2580,29495,29495,29495,21087,29495,29495,29495,6971,6807,29495,29495,23171,29495,4667]),
-    (59093,3476,[1],24087,[1738,3476,3476,3476,1184,3476,381,3476,3476,3476,3476,3476,3476,3476,3476,3476,2053]),
-    (59263,29631,[290,247,134,316,130],20328,[29631,29631,29631,3503,28450,29631,29631,29631,14685,29631,22625,29631,29631,6370,3529,24763,29631]),
-    (59399,29699,[1,9,12,8,13,10,11],2836,[29699,29699,29699,1395,29699,29699,15734,29699,29699,12660,13183,29699,16464,2070,18336,29699,27500])],
-    [(59467,59466,[71,101,19],11647,[29733,35717,7542,44332,49372,30477,27070,45767,35465,7547,9274,34632,37916,33908,47199,32642,32251]),
-    (59671,29835,[499,296,466,239,316,242],50837,[29835,18859,29835,26306,29835,489,29835,2349,9570,29835,10411,29835,1769,10261,29835,25487,29835]),
-    (60317,60316,[33,29,65,5,27,59,67],28452,[30158,51509,26000,48384,47474,24772,1117,39845,8709,57086,32803,45810,37323,2787,6054,15770,42456]),
-    (60521,1513,[],3754,[1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513,1513]),
-    (60589,60588,[185,419,83,95,511],8000,[30294,17933,53051,30332,55163,10974,7172,37301,11404,16158,21729,54563,25949,18374,55431,2347,48753]),
-    (60623,30311,[13,9,1,11,10,4,8],36042,[30311,10434,2780,30311,30311,23835,25545,30311,24820,30311,30311,23742,30311,4611,16346,18878,30311]),
-    (60793,30396,[131,13,163],309,[15198,8699,30396,30396,26037,19597,27831,30396,30396,29040,30396,30396,8060,26071,30396,30396,29006]),
-    (61031,30515,[63,14,73,44,54,79,48],54161,[30515,19528,30515,260,30515,17099,30515,28790,14438,23929,30515,30515,30515,30515,6854,14529,25633])],
-    [(61099,61098,[7,49,71,101,47,91,19],7049,[30549,27550,52639,21618,30037,7211,54773,43663,31361,4497,57746,9373,20295,30617,57853,31611,13563]),
-    (61507,61506,[283,59,263,167],10266,[30753,56494,31994,37615,24246,29741,18274,27960,42285,45920,43103,22295,35127,38111,14162,50640,43334]),
-    (61609,7701,[49,23,10,2],11827,[7701,2089,3240,7701,7701,6704,7701,7701,7701,7701,7701,7701,7701,7701,1948,2450,7701]),
-    (61643,61642,[79,229,55,37,25,149,69,81],55833,[30821,29353,32121,48132,48845,35000,46447,48530,6743,23415,39295,51795,10872,48335,8774,53381,59343]),
-    (61813,61812,[509,421,193,373],59887,[30906,2957,9776,17206,33015,4935,35330,39990,4035,42764,47878,61009,32629,53889,48109,43758,15796]),
-    (61949,61948,[43,27,55,25,57,53],44176,[30974,39347,39174,47012,15730,50007,36456,31607,21270,9378,40825,14677,47546,36924,14877,9380,10524]),
-    (62017,31008,[593,1195],18560,[15504,31008,26700,31008,3070,16226,22456,25073,25448,6522,31008,31008,31008,9355,31008,9686,1286]),
-    (62119,10353,[],36551,[10353,10353,10353,10353,10353,10353,10353,10353,807,10353,10353,10353,10353,10353,10353,10353,10353])],
-    [(62323,62322,[95,61,41,89,43],10390,[31161,45562,60980,40793,50959,36396,57390,31297,14415,49919,9506,35992,40878,13043,19416,35029,12363]),
-    (62459,3674,[],40780,[1837,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674,3674]),
-    (62731,12546,[1,265],35693,[6273,12546,12546,12546,12546,12546,12241,12546,12546,12546,12546,12546,9751,12546,12546,12546,5832]),
-    (62969,7871,[],58497,[7871,7871,7871,7871,7871,7871,7871,7871,5372,7871,7871,7871,7871,7871,7871,7871,7871]),
-    (63241,2635,[],38813,[2635,2635,2635,2635,2635,2635,2635,2635,2567,2635,2635,2635,2635,2635,2635,2635,360]),
-    (63377,31688,[97,15,13,19,23,135],35220,[15844,21177,10054,31688,64,31688,2676,26807,31688,11573,31688,31688,16883,31688,27359,31688,17815]),
-    (63649,10608,[395,319],21503,[5304,10608,10608,10608,10608,8547,9371,10608,319,10608,10608,10608,10608,10608,10608,10608,10608]),
-    (63853,63852,[55,175,173,97],979,[31926,36678,22699,20846,51144,21098,36573,44936,4107,54867,44709,58723,44344,62189,36164,436,19681])],
-    [(64091,64090,[149,127,11,97,19,59,49],26335,[32045,5294,33299,56834,57915,39397,31067,4278,52871,27211,42597,3285,40479,22839,50606,17196,32519]),
-    (64499,64498,[205,57,59,11,5,219,15],54691,[32249,1395,61456,60977,59826,42077,26713,12140,18623,3581,61171,31397,17266,4299,6948,32888,32524]),
-    (64567,32283,[151,127,97,131,64,22,110,83],3239,[32283,10982,4435,3646,8214,5299,32283,743,13641,32283,32194,18535,22601,32283,32283,21503,32283]),
-    (64601,8075,[],34543,[8075,8075,8075,8075,8075,8075,8075,8075,8075,8075,8075,8075,8075,5225,8075,8075,8075]),
-    (65111,32555,[74,64,41],39955,[32555,32555,32555,32555,32555,32555,3755,32555,32555,32555,32555,32555,29824,32555,32555,21569,19506]),
-    (65179,65178,[115,227,89],22731,[32589,11437,50800,60414,1876,42642,10962,12786,46652,64018,42455,57850,19323,1437,63431,58125,30208]),
-    (65213,65212,[351,239,463,97,417,127,87],21902,[32606,44042,57328,31291,63316,49555,39344,10711,19066,13394,28547,29732,11997,59660,9461,3459,44355]),
-    (65519,32759,[4,15,1,6,14,11],3691,[32759,32759,32759,32759,30621,26025,32759,32759,19352,24549,7435,5386,32759,32759,32759,6165,32759])],
-    [(65587,65586,[7,41,47,25,13,91,23,71],48313,[32793,55306,7861,31592,42779,57371,33685,28267,7463,60140,10417,42621,29161,15432,46637,25775,13209]),
-    (65927,32963,[65,53,109,22,113,80],4299,[32963,32963,32963,28506,32963,32963,32963,32963,23377,32963,32963,27955,4544,32963,2017,675,32963]),
-    (66029,66028,[41,11,63,23,7,57],15582,[33014,17888,64332,37305,1934,30648,6947,16859,44116,1451,12927,37470,5695,14240,41333,25693,16949]),
-    (66301,22100,[199,39,303,191,157],18113,[11050,5639,22100,22100,22100,18399,19343,22100,8160,18014,22100,11268,19911,22100,22100,20557,13256]),
-    (66403,66402,[83,1541,655,1985],51545,[33201,16719,48897,83,5294,6749,39632,63659,45556,45637,21784,34016,53460,48162,43882,34682,34115]),
-    (66947,66946,[29,9,1],33323,[33473,37497,59860,35812,26970,11622,52404,27674,10583,6988,28459,25356,11876,35926,35490,12278,19660]),
-    (67049,8381,[2,6],22825,[8381,8381,8381,8381,8381,8381,1124,8381,8381,189,8381,8381,8381,4851,8381,8381,8381]),
-    (67219,1318,[],44391,[659,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318,1318])],
-    [(67559,1987,[],11097,[1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987,1987]),
-    (67763,67762,[5,13,31,3,1,11,25,29],64065,[33881,50019,9996,5929,59072,55825,56477,49066,25918,67219,53019,44086,39456,24176,65835,62347,13731]),
-    (67933,67932,[551,107,517,157],25816,[33966,13694,12179,36215,27152,40341,52120,14853,5413,50967,10556,29162,21804,34680,6128,17775,18517]),
-    (67967,33983,[1,8,9,7,5],34596,[33983,33983,27388,25355,33983,33983,33983,33983,33983,33983,33983,33983,4565,28567,33983,16592,4272]),
-    (68171,68170,[27,19,111,161,109,139,103,23],57322,[34085,877,15018,22119,28108,42015,9631,18181,7606,36505,65156,25609,9149,11153,45413,7531,34056]),
-    (68239,34119,[2,37],66720,[34119,34119,23082,34119,34119,1532,28036,34119,13023,4374,34119,34119,34119,34119,34119,34119,34119]),
-    (68443,4026,[],65857,[2013,4026,4026,558,4026,4026,4026,4026,4026,4026,4026,4026,4026,4026,4026,4026,4026]),
-    (68477,68476,[29,3,67,59,39,23,5,63,1,25],31138,[34238,36749,22746,31215,54603,34943,55595,34023,60321,26583,47691,38353,22465,62996,66233,2915,65804])],
-    [(68749,22916,[13,37,35],28744,[11458,14769,22916,22916,22916,16914,22916,4990,22916,18450,22916,19892,22916,22916,18737,22916,20775]),
-    (69191,34595,[63,79,74,56,23],25543,[34595,1130,34595,34595,34595,34595,17488,34595,33059,18019,5245,34595,22174,32560,34595,13741,7758]),
-    (69259,69258,[13,601,317],29535,[34629,6705,54277,46297,64844,27449,26199,122,42336,8274,54681,56247,46904,698,56580,52936,66130]),
-    (69463,34731,[20,71,28,134,50,53,145],10629,[34731,34731,26336,10719,31742,34731,21142,34731,10538,8483,8159,17342,34731,13456,34731,34731,34731]),
-    (69497,2482,[11],36599,[1241,2482,2482,2482,2482,2482,2482,2482,1090,2482,1303,2482,2482,2482,2482,2482,2482]),
-    (70177,35088,[155,65],15401,[17544,3699,35088,35088,35088,13194,20522,35088,1566,35088,1787,4961,35088,35088,10142,35088,35088]),
-    (70313,35156,[49],45702,[17578,502,35156,35156,35156,20768,35156,28566,35156,35156,28932,35156,35156,35156,35156,2769,12488]),
-    (70381,3060,[],17839,[1530,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060,3060])],
-    [(70619,70618,[19,11,7,25,29,9],36419,[35309,54970,16500,29973,6626,50622,12523,57437,68619,8316,48713,1491,54588,4871,33252,16601,25354]),
-    (70687,35343,[626,806,598],18813,[35343,30285,24705,7399,29574,35343,35343,25259,29723,24840,26445,31800,35343,19876,35343,11673,29415]),
-    (70823,35411,[12,9,3],65238,[35411,35411,35411,35411,19460,417,35411,22443,35411,35411,35411,35411,35411,35411,35411,35411,35411]),
-    (70891,4726,[],57408,[2363,4726,4726,4726,4726,4726,4726,4726,4726,4726,4726,4726,1746,4726,4726,4726,4726]),
-    (71129,35564,[7,21,1,45],21349,[17782,16395,26201,35564,8280,31946,35564,18028,2313,31900,35564,35564,32617,8492,35564,35564,694]),
-    (71333,71332,[45,47,9,43],35616,[35666,29008,69180,5430,51312,69958,68914,53914,32345,47987,31142,36044,23401,29623,47764,54906,2376]),
-    (71503,35751,[40,38,13,23,31],32718,[35751,35751,4834,35751,35751,35751,35751,11844,4938,35751,21917,35751,10366,13167,9044,30113,35170]),
-    (71537,35768,[31,117],52301,[17884,5199,26482,8718,35768,35341,35768,35768,25284,35768,35768,35768,35768,35768,15968,19662,17386])],
-    [(71707,71706,[1,5,49,13,31,65],70284,[35853,41362,51842,21278,71328,21523,35133,25199,64513,44281,61087,24001,10798,116,19716,62750,21077]),
-    (71741,71740,[301,277,29,11,303,1],69379,[35870,8442,67518,4994,67376,53341,43457,2622,20685,18396,70069,67392,8171,39743,12378,24530,47601]),
-    (71809,11968,[337,123],5764,[5984,11968,11968,11968,11968,11968,11968,5777,11968,11968,11968,1784,11968,11968,11968,11968,5019]),
-    (71843,71842,[7,15,21,33,25,9,31],1920,[35921,22787,58090,29459,13204,4402,27518,67545,38793,69793,70625,63793,12328,58572,32968,67660,33657]),
-    (72047,36023,[15,7,4,9,2,11,6],3260,[36023,31635,1445,16548,36023,36023,36023,31114,36023,35811,36023,36023,13388,8774,19187,21852,27019]),
-    (72251,578,[],28404,[289,578,578,578,578,578,578,578,578,578,578,578,578,578,578,578,578]),
-    (72353,36176,[853],11637,[18088,36158,21797,36176,29360,36176,20041,21418,23440,8874,36176,36176,36176,36176,31068,36176,36176]),
-    (72421,24140,[269,223,83,109],42492,[12070,24140,24140,24140,17269,24140,24140,7762,19943,5523,18022,24140,7932,19829,24140,24140,24140])],
-    [(72727,12121,[],71973,[12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121,12121]),
-    (72931,24310,[99,143],13474,[12155,16986,24310,12698,24310,16255,24310,24310,12404,21262,8769,24310,11873,24310,24310,24310,24310]),
-    (73237,24412,[3],5462,[12206,21420,24412,1798,3494,24412,15386,5987,24412,24412,24412,24412,24412,24412,24412,844,24412]),
-    (73679,36839,[7,4,14,6,13,1],25657,[36839,33174,36839,13842,14634,35452,31711,31293,36839,33888,1871,36839,36839,36839,36839,15202,17183]),
-    (73849,12308,[23],73023,[6154,9232,12308,12308,12308,12308,12308,12308,12308,12308,12308,12308,12308,7571,12308,12308,12308]),
-    (73883,73882,[25,21,13,31,5],50967,[36941,16120,21402,14062,50052,71969,48199,53358,59547,40618,31701,23536,68677,48214,24996,1909,62670]),
-    (73951,36975,[4,109,214,98,169],17860,[36975,35130,36975,6124,36975,36975,36975,36975,36975,4599,31984,23419,36975,2393,36975,36975,18784]),
-    (74189,74188,[57,63,35,61,29,5,31],35121,[37094,32901,53851,49267,4562,34910,43322,64525,9158,63074,41101,36106,65353,47594,32195,21545,40390])],
-    [(74257,18564,[],65706,[9282,18564,18564,18564,18228,18564,18564,18564,14978,7065,18564,18564,18564,15690,18564,1964,18564]),
-    (74597,74596,[49,41,13,11,33,25,39,15,7],41334,[37298,36701,69537,20481,25987,54258,68509,18385,32846,21097,26788,55138,16402,42471,56183,18775,23009]),
-    (74699,74698,[25,11,15,19,31,7,13],72543,[37349,19609,65087,2463,39634,3309,50407,37499,24827,40018,29475,4408,9986,7051,21090,63378,25868]),
-    (74869,74868,[25,179,185,29,73,95],53541,[37434,39978,41641,18539,74784,48700,15052,64241,72041,61863,60267,51073,34289,19475,12718,4638,27332]),
-    (74903,37451,[16,10,8,2,3,9,12],67888,[37451,37451,24904,37451,37451,19798,2373,37451,37451,4241,37451,37451,19586,20488,37451,1063,24866]),
-    (75209,18802,[143,15,127],46008,[9401,18802,18802,18802,15375,18802,18802,18802,18802,18802,18802,18802,14771,18802,11313,10378,18802]),
-    (75277,75276,[211,163,533,455,571,121],14691,[37638,11839,39331,69077,67329,40847,51759,49916,23215,59622,6442,42766,35565,36841,69819,50174,62652]),
-    (75583,37791,[149,7,91],44240,[37791,21954,37791,7034,37791,37791,37791,9952,33044,37791,3055,5599,37791,37791,37791,7083,37791])],
-    [(75617,18904,[71,79],46627,[9452,2655,18904,18904,18904,18904,18904,18904,18904,18904,18904,18288,11846,18904,18904,17759,18904]),
-    (75787,25262,[3,1],17666,[12631,25262,25262,25262,17928,22562,4726,4015,25262,25262,25262,13975,25262,6164,502,25262,25262]),
-    (75821,75820,[89,57,27,297,273,83],48508,[37910,67060,58162,9269,53494,21380,70777,18727,54474,18624,53677,58073,42518,12086,56450,10283,4324]),
-    (75991,2533,[14,15],33473,[2533,2533,2533,2533,2533,643,2533,2533,2533,2533,2533,2533,2533,2533,32,2533,2533]),
-    (76603,76602,[61,1,19,101,55],59090,[38301,3733,33768,103,52310,42348,71254,43878,4341,28783,14517,58684,18774,76295,17343,11127,13315]),
-    (76943,38471,[1,9,11,16,3,2,8,7],11379,[38471,38471,38471,1463,38471,38471,8611,34980,38471,30446,31725,35498,1045,38471,38471,38471,17721]),
-    (77249,19312,[105,127],37145,[9656,16322,19312,3958,10985,19312,9006,4858,7190,19312,19312,19312,19312,1028,11551,7208,19312]),
-    (77317,77316,[71,89,91,1],51793,[38658,69839,4902,9249,36809,3600,46728,40687,67342,70096,44127,35071,25026,37945,55875,47445,5703])],
-    [(77351,7735,[397],73876,[7735,7735,7735,7735,7735,7735,7735,7735,7735,7735,7735,7735,7735,2182,7735,7735,7735]),
-    (77419,77418,[283,281,245,77,161],38234,[38709,62707,52898,41000,66580,60124,72497,60422,23086,77127,73379,61963,19049,38784,49654,22112,2609]),
-    (77521,38760,[653,1943],30869,[19380,8813,38760,20916,7108,33815,19629,38760,20616,29530,38760,36644,24383,38760,38760,38760,38760]),
-    (77929,19482,[49,25,95,23,79],60242,[9741,19482,6985,19482,19482,19482,19482,7863,19482,14509,19482,19482,6317,19482,10019,19482,8035]),
-    (78031,39015,[451,227,7,488,47,424],27836,[39015,39015,35820,39015,17281,39015,30827,6867,9952,39015,186,37208,1545,30647,39015,39015,27199]),
-    (78167,39083,[3,7,8,13,16,11,10,9],40625,[39083,32184,39083,39083,10666,13931,24000,21929,24355,13025,38617,28215,39083,39083,39083,9478,17197]),
-    (78439,39219,[4,46,1,20,10,38,23],63227,[39219,17344,15645,6249,34071,24475,34579,32079,39219,27305,25663,39219,39104,14943,39219,39219,23891]),
-    (78541,78540,[7073,2539],5686,[39270,64193,55940,35135,74782,13211,66799,73426,51090,71106,16407,6560,65145,74412,72537,48460,55484])],
-    [(78643,26214,[37],69562,[13107,6463,26214,26214,25074,26214,26214,26214,26214,26214,26214,26214,26214,26214,26214,26214,26214]),
-    (78779,78778,[121,151,1,227,185,37],77713,[39389,77471,37041,59059,78591,63400,75209,11413,50152,18511,60944,32166,28875,5035,474,78198,26308]),
-    (79153,39576,[35,343],25562,[19788,39576,39576,39576,4138,39576,39576,34715,39576,751,8338,37522,39576,24927,27092,39576,464]),
-    (79187,578,[],11973,[289,578,578,578,578,578,578,578,578,578,578,578,578,578,578,578,578]),
-    (79357,26452,[63,27],40925,[13226,26452,3486,26452,26452,26452,26452,26452,15510,19783,26452,26452,26452,26452,6215,26452,20394]),
-    (79493,11356,[],42906,[5678,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356,11356]),
-    (79561,13260,[],75784,[6630,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260,13260]),
-    (79697,4981,[],77027,[4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981,4981])],
-    [(79867,79866,[245,253,31,5,209],6926,[39933,51959,105,19608,56557,47436,19309,59256,22967,20689,22710,34074,3677,50978,26854,74567,58836]),
-    (79901,79900,[93,7,149,203],71848,[39950,65002,1232,68773,25897,13267,31092,70305,43669,58282,25194,71545,66163,45572,3765,3695,18016]),
-    (80071,40035,[49,61,116,74,251,112],76189,[40035,16242,9994,32191,21536,19199,37120,9807,18843,36716,18179,40035,40035,9802,40035,40035,40035]),
-    (80173,4716,[],37243,[2358,4716,4716,4716,4716,4716,4716,296,4716,4716,4716,4716,4716,4716,4716,4716,4716]),
-    (80207,40103,[6,10,86,106,52],27696,[40103,40103,27376,40103,40103,40103,40103,16313,40103,29687,9725,8555,40103,40103,40103,40103,7430]),
-    (80309,80308,[41,11,9,3,65],48421,[40154,38876,75521,3018,65746,54139,51182,26558,48164,64330,4992,1668,52505,44883,17677,31190,74936]),
-    (80513,592,[],40470,[296,592,592,592,592,592,592,592,592,592,592,592,592,592,592,592,592]),
-    (80683,26894,[81,29],1014,[13447,26894,26894,26894,26894,26894,26894,26894,26894,6745,26894,26894,26894,9132,26894,8835,26894])],
-    [(80819,80818,[21,33,25,7,1],76629,[40409,15214,61255,43682,5269,19813,75736,63324,43673,49749,41804,42229,49762,47978,39958,63666,57107]),
-    (80989,80988,[103,137,97,163,125],1937,[40494,35919,60891,19700,54418,6239,67423,39250,43756,11765,38245,64539,52591,51604,59438,54564,28277]),
-    (81023,40511,[7,10,11,6,1,12,13],39282,[40511,25762,20410,30747,40511,40511,31031,40511,40511,40511,17086,25376,31954,40511,40511,23983,40511]),
-    (81533,7412,[57,37,15],59143,[3706,7412,6245,7412,7412,7412,7412,7412,7412,4661,7412,7412,384,6271,7412,7412,7412]),
-    (81703,40851,[152,43],74807,[40851,40851,40851,40851,14228,40851,40851,40851,40851,40851,30056,40851,40851,40851,40851,13813,40851]),
-    (81737,40868,[37,3,29,23],18496,[20434,40868,5480,40868,31046,17642,40868,40868,24313,25177,29855,17777,3763,40868,40868,40868,40868]),
-    (81839,40919,[13,14,15,9,7,3],10608,[40919,693,40919,25361,40919,40919,40919,1375,14731,32443,14737,10309,40919,40919,40919,40919,30688]),
-    (82009,4556,[15],52617,[2278,4556,4556,4556,2280,4556,4556,4556,4556,4556,4556,4556,4556,3483,4556,4556,4556])],
-    [(82349,11764,[31,5],48569,[5882,11764,11764,11764,11764,11764,11764,11764,439,11764,8784,2669,5717,11764,11764,11764,11764]),
-    (82723,82722,[53,61],66154,[41361,496,26254,63548,13714,35860,50284,44282,74280,15362,51714,17794,19841,11571,76765,73462,78852]),
-    (82757,82756,[35,49,59,45,41,29,5,9,11],47246,[41378,38115,73360,79337,2484,50243,57854,78789,24997,16213,19113,67737,64520,65084,66044,73179,79932]),
-    (83063,41531,[86,104,80,82,69,55,20,89],45170,[41531,41531,25671,38303,21500,41531,38638,41531,34817,41531,41531,5291,41531,41531,15728,33409,23821]),
-    (83233,3468,[],23267,[1734,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468,3468]),
-    (83267,83266,[27,5,25,9,15,21,13],6336,[41633,82511,38920,23896,4932,39592,8482,17141,39499,18947,77236,5746,4469,82437,42460,36679,77975]),
-    (83437,83436,[113,67,173,175],71536,[41718,13985,12307,65283,1623,32175,74837,72048,10313,10792,22834,78810,48523,40438,32702,24974,42090]),
-    (83471,41735,[38,78,49,81,84,28,37],4348,[41735,41735,41735,41735,3353,30508,19939,41735,41735,25921,41735,11899,41168,41735,41735,25109,29447])],
-    [(83641,13940,[91,287],22370,[6970,1451,13940,13940,13940,13940,13940,10487,13940,13940,13940,13940,834,13940,13940,13940,13940]),
-    (83777,1309,[],57393,[1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309,1309]),
-    (84389,84388,[15,55,59,29,47,19,61,1,25],55111,[42194,63068,7767,5495,82888,19099,26060,66074,49465,56011,12735,56161,44405,12208,59622,43642,81557]),
-    (84457,4692,[121],75228,[2346,3997,4692,4692,4692,1353,4692,4692,4692,4692,4692,4692,4692,4692,4692,4692,4692]),
-    (84559,42279,[41,25,5,23,28],23849,[42279,22908,42279,42279,40484,42279,42279,42279,42279,42279,13336,41162,16547,24202,42279,35195,42279]),
-    (84967,42483,[145,134,169,334,314,326,92,274],59486,[42483,17638,31550,42483,16311,38011,42483,42483,42483,42483,4618,42483,9953,12107,29723,4915,42483]),
-    (85103,42551,[15,12,7,11,3,16],30332,[42551,9960,42551,12048,1299,7678,42551,21440,42551,42551,22303,42551,42551,42551,42551,42551,42551]),
-    (85817,42908,[37,39],4766,[21454,42908,42908,42908,15450,42908,39341,12143,25778,33860,42908,42908,14478,42908,20566,42908,42908])],
-    [(86293,86292,[269,551,515,439,209],84283,[43146,80441,18911,35961,76286,29344,21062,79067,31292,17390,65999,26143,8494,6662,69365,49830,85969]),
-    (86531,86530,[53,139,129,103,23],22360,[43265,11613,57769,37504,48160,22399,14580,73203,12345,50656,4752,52416,62940,2403,11466,70986,84342]),
-    (86599,43299,[19,121,142,118,11,28,62,70],5539,[43299,43299,39187,36375,43299,23836,43299,43299,43299,8863,27046,43299,9191,13530,34147,6641,25927]),
-    (86837,86836,[1,35,53,31,65,55,3],52333,[43418,66573,622,75243,86617,17468,16992,80578,39675,14413,8428,23855,67200,39103,19820,38258,22272]),
-    (86939,86938,[3,19,13,33,25,31],19352,[43469,64535,32682,50509,61608,24601,32522,74818,68944,58187,37059,76831,27568,35731,72082,68445,42510]),
-    (87041,43520,[2459,1389,509],46047,[21760,43520,41712,2459,43520,43520,43520,28768,43520,31610,14989,38589,43520,35366,1452,43520,43520]),
-    (87211,54,[],55894,[27,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54]),
-    (87313,21828,[107],24977,[10914,21828,21828,21828,21828,10307,21828,21828,21828,21828,21828,21828,21828,21828,21828,21828,21828])],
-    [(87517,87516,[407,137],72178,[43758,18767,60450,82814,83288,23642,36236,60113,25534,80856,15663,21960,68686,59994,22666,8442,27180]),
-    (87721,14620,[311,63,139],9984,[7310,14620,14620,674,14620,14620,14620,9491,14620,4448,14620,14620,14620,14620,4143,14620,4559]),
-    (87959,43979,[9,16,4,11,15,13,5,2],11224,[43979,11178,26825,40617,27653,19191,43979,31126,43979,7765,43979,43979,43979,24060,19986,32523,43979]),
-    (88129,2448,[],18844,[1224,2448,2448,2448,2448,1320,2448,2448,2448,2448,2448,2448,2448,2448,2448,2448,2448]),
-    (88469,88468,[49,61,13,9,65,15,39],3436,[44234,87200,30581,31548,47838,28349,53189,27890,6877,84710,64325,85423,32067,68458,18268,32485,41974]),
-    (88741,88740,[1229,2213,2971,2947,2837],5199,[44370,25150,47037,50286,33525,74669,68476,48113,33566,49071,21331,32419,86626,2004,85567,8957,61525]),
-    (88843,88842,[79,7],53584,[44421,13850,24640,30744,47919,1347,24294,80424,51093,43930,5913,88036,83102,55369,60462,14461,65185]),
-    (89387,89386,[25,5,21,27,13],23056,[44693,64240,77102,83079,51454,42562,28586,58684,75702,65372,84923,69705,45037,58700,41235,18781,55288])],
-    [(89591,44795,[54,52,79,37,48,1,23,78],80550,[44795,35754,44795,40937,21754,19077,24090,44795,44795,21128,14111,35135,44795,44795,43033,6198,25330]),
-    (89659,29886,[59,43],60912,[14943,13217,9562,29886,29886,29886,29886,29886,29886,29886,29886,29886,29886,3205,26330,29886,17278]),
-    (89897,44948,[65,49,25],83133,[22474,44948,22913,44948,26146,44948,44948,44948,40302,11152,44948,44948,44948,27589,29809,44948,44948]),
-    (90067,90066,[49,29,67,43,11,79,23],4903,[45033,16833,46138,75414,60747,68389,70598,67440,405,10127,51271,44923,34181,73059,64441,7775,13226]),
-    (90203,90202,[47,201,99,57,171,125,93,71,109],34212,[45101,89297,3286,11863,83875,69690,41330,67411,39917,11311,78157,12546,4355,79388,72570,75317,41532]),
-    (90271,45135,[673,193],47841,[45135,45135,45135,1720,2203,45135,39651,45135,17370,45135,11977,45135,25520,18553,17355,45135,6279]),
-    (90373,30124,[55],14903,[15062,30124,30124,30124,15546,30124,30124,30124,30124,11014,26264,18143,30124,30124,30124,30124,30124]),
-    (90407,45203,[12,6,5,1,10,15,13,3,9],43573,[45203,38976,15408,45203,17498,43045,10907,45203,34814,45203,8394,26623,45203,4273,39222,45203,44158])],
-    [(90679,45339,[25,230],41958,[45339,13948,45339,44855,45339,45339,31161,45339,3663,45339,45339,45339,22463,45339,45339,45339,45339]),
-    (90917,90916,[179,437,387,325,177,309,265,163],57169,[45458,22075,23761,12922,26567,54674,58397,59679,21276,70625,83698,63767,6497,37393,9775,17775,56310]),
-    (91019,91018,[25,3,13,29,23,1,15,19,9],72136,[45509,3976,28584,47047,13161,26533,89585,49731,22781,11802,87916,11964,58087,37997,82756,5755,39638]),
-    (91121,5695,[33],62996,[5695,5695,5695,5695,5695,5695,5695,5695,5695,5695,5695,5695,1393,3840,5695,5695,5695]),
-    (91291,91290,[223,389,23,331],54373,[45645,29124,56292,26463,34944,71623,70769,19516,42863,31158,51836,58206,82133,80922,43598,54555,71731]),
-    (91393,15232,[2945,513],64725,[7616,15232,15232,15232,15232,15232,15232,15232,15232,15232,6753,15232,3353,5134,15232,15232,11937]),
-    (91529,11441,[1,16],78696,[11441,11441,1021,11441,11441,11441,11441,11441,11441,11441,11441,11441,5422,11441,11441,11441,11441]),
-    (91631,45815,[158,248,169,302,423],39893,[45815,45815,18603,45815,45815,45815,45815,44278,13320,45815,42414,8632,43858,45815,45332,17878,45815])],
-    [(91733,91732,[7,63,43,65,39,57,41],68720,[45866,72782,82555,49103,49246,29910,59646,4891,55667,84424,61220,33414,44809,74363,10325,24747,9629]),
-    (91801,9180,[],55910,[4590,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180,9180]),
-    (92107,92106,[599,1667,1937],18917,[46053,81078,66983,60180,63717,18447,18604,57735,28821,25510,25702,30587,46649,68146,31023,77433,10505]),
-    (92243,92242,[15,29,13,5,9],41616,[46121,85014,44574,14286,8447,30867,16333,41510,31887,91640,51268,64629,12336,11072,13129,13541,39862]),
-    (92311,15385,[19,36],60583,[15385,15385,15385,15385,3185,15385,15385,8950,15385,15385,2909,15385,15385,15385,5221,15385,15385]),
-    (92413,92412,[197,485,49,547],72044,[46206,87394,24777,20362,15118,22718,54053,41014,72555,67193,86358,80221,18747,7829,34819,5505,6618]),
-    (92753,5797,[7,9],73506,[5797,5797,5797,5797,5797,5797,5797,5797,5797,5797,5797,3407,5797,5797,5797,5143,5797]),
-    (92821,13260,[],47903,[6630,13260,13260,13260,13260,13260,13260,13260,2138,13260,8784,13260,13260,13260,13260,13260,13260])],
-    [(92957,92956,[53,5,1,49,31,59,65,45,39],46764,[46478,30789,26389,15097,91441,90490,46598,19751,83427,35922,77457,35328,58477,89737,84087,75463,20329]),
-    (93059,93058,[149],111,[46529,17696,76180,9794,64374,79716,17440,49134,4947,17143,72268,38062,79832,73222,3719,64740,42578]),
-    (93229,31076,[25,65,31,59,35,61],60789,[15538,24845,31076,7817,31076,31076,31076,3363,19167,31076,31076,31076,26895,9173,31076,13224,31076]),
-    (93263,46631,[12,11,7,1,4],92771,[46631,21449,46631,37598,6756,9453,46631,28819,46631,46631,46631,46631,46631,34425,46631,36400,11141]),
-    (93637,31212,[],22069,[15606,31212,31212,4472,31212,31212,31212,31212,31212,31212,3298,31212,12351,31212,31212,31212,31212]),
-    (93739,31246,[1,11,21,29],53913,[15623,31246,31246,31246,31246,16695,19799,31246,31246,29120,31246,31246,11173,31246,31246,31246,16009]),
-    (94079,47039,[15,11,9,8,4,3],43800,[47039,10538,47039,47039,3275,47039,25118,26401,14220,47039,13009,47039,13634,27135,47039,47039,47039]),
-    (94351,47175,[86,206,211,106,196,89],43369,[47175,38336,47175,23156,1741,46200,47175,31195,37081,47175,1991,22224,47175,40486,47175,6209,24732])],
-    [(94793,23698,[27,25],7487,[11849,21132,22705,23698,23698,23698,23698,23698,23698,8456,18351,23698,23698,23698,23698,23698,13232]),
-    (95507,95506,[27,25,1,23,33,21,29],33316,[47753,33886,16094,41473,76593,58884,11538,50235,6121,30967,3729,67557,40107,88106,5423,15092,37701]),
-    (95813,95812,[45,43,15,23,47,39],92033,[47906,46282,16433,48459,60288,34156,75444,28944,28968,67267,84030,84374,27170,28426,62107,94295,25811]),
-    (95881,47940,[467],82131,[23970,47940,43526,47940,44036,47940,47940,6272,47940,47940,27434,47940,47940,41267,47940,47940,47940]),
-    (96017,48008,[87,1,35],42731,[24004,27152,38598,48008,48008,48008,17631,26436,704,48008,48008,14961,15811,33136,40432,48008,48008]),
-    (96221,96220,[101,173,207,87,137,59],13709,[48110,70054,40273,75241,70213,27006,34798,54066,35907,73256,78242,95967,87558,85817,87420,60239,4425]),
-    (96289,2832,[],54819,[1416,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832,2832]),
-    (96323,96322,[21,27,33,13,7,15,29],48029,[48161,2707,47744,50381,16204,52869,20212,32466,83044,561,56980,59343,29145,9598,25617,61331,27934])],
-    [(96493,8772,[],24018,[4386,8772,7737,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,8772,2505,8772,8772]),
-    (96527,48263,[15,6,3,2,5,16],20348,[48263,48263,7835,16921,48263,48263,48263,48263,30824,4354,48263,48263,10443,48263,48263,48263,47735]),
-    (96697,48348,[473,463,217,319,73],38130,[24174,48348,2309,33511,48348,33265,10622,48348,48348,26023,13016,48348,48348,20269,48348,48348,48348]),
-    (96731,96730,[39,141,89,1,61,11,67],64350,[48365,76539,37371,76890,11479,95652,80411,50381,40734,14188,22720,28571,688,48232,11967,46988,642]),
-    (96799,48399,[4,7,25,35,23],92110,[48399,21883,24742,48399,12928,7188,48399,46427,15219,48399,26949,48399,48399,48399,30120,44303,5531]),
-    (97003,10778,[29],71299,[5389,10778,10778,1287,10778,10778,10778,10778,10778,10778,10778,5260,10778,10778,10778,10778,10778]),
-    (97241,48620,[181,217],58274,[24310,48620,48620,48620,2221,122,48338,17217,48620,48620,48620,48620,19656,48620,48620,48620,48620]),
-    (97547,97546,[19,9,3,31],76606,[48773,72182,31406,29498,50454,13702,61321,27556,67431,40078,73449,68548,76451,68649,21179,13439,30949])],
-    [(97649,48824,[127,121,7,25,97],82367,[24412,2031,48824,48824,18345,31754,44960,16738,18832,14423,48824,25049,11868,48824,29170,48824,35049]),
-    (98057,24514,[],14347,[12257,16432,24514,24514,24514,24514,24514,24514,24514,10160,24514,24514,24514,24514,24514,24514,24514]),
-    (98227,918,[],36446,[459,918,918,918,918,918,918,918,918,918,918,918,918,918,918,918,918]),
-    (98533,98532,[2701],96463,[49266,67090,37008,44960,56104,51861,55989,2644,75676,62677,83762,24711,10776,91821,40173,22920,40666]),
-    (98669,98668,[43,63,55,21,11],80830,[49334,91775,68286,76672,88531,90720,93884,30316,29882,88532,63363,63058,95765,88624,92826,7922,75491]),
-    (98737,49368,[275,83,385,101],38383,[24684,49368,49368,49368,49368,49368,21083,48635,40233,35473,49368,49368,39579,49368,49368,49368,9485]),
-    (98873,49436,[39,37],57373,[24718,12062,22547,49436,49436,14152,22216,49436,49436,49436,18479,49436,49436,49436,30366,40157,49436]),
-    (99349,33116,[23,27],81845,[16558,33116,33116,33116,33116,33116,33116,33116,26163,33116,22803,33116,33116,33116,28315,33116,33116])],
-    [(99689,49844,[39,43,55,65,5],41962,[24922,14387,49844,19559,49844,49844,49844,49844,40651,9585,49844,49844,34413,49844,49844,49844,49844]),
-    (99859,99858,[47,65,35,11],19883,[49929,20398,26057,40457,81270,83682,42773,73502,67172,38212,6729,35558,21804,16541,84059,25613,91000]),
-    (99961,49980,[],5597,[24990,49980,19567,49980,49980,49980,49980,6482,7251,49980,49980,35046,42644,49980,49980,28096,31617]),
-    (100267,33422,[21,25],20133,[16711,20432,33422,33422,20566,33422,33422,6464,33422,33422,33422,29364,18114,33422,2401,27272,20561]),
-    (100403,100402,[31,33,21,3,29,27],37533,[50201,1289,40357,47587,12012,26710,45914,44764,17926,93265,28800,42419,15193,1115,30710,54466,27768]),
-    (100811,100810,[111,43,61,3,19],8775,[50405,25668,35512,51451,60344,47872,10991,90648,71953,51978,16210,50975,21991,73156,51876,100133,86719]),
-    (100913,25228,[421,29,233],15870,[12614,7735,25228,22317,25228,17225,25228,25228,22877,25228,25228,25228,2116,25228,25228,22605,15082]),
-    (100981,9180,[1501,2573],81627,[4590,9180,9180,9180,9180,9180,9180,4561,9180,9180,9180,9180,9180,9180,2573,9180,9180])],
-    [(101117,101116,[53,65,41,47,55,23,21,31],54616,[50558,99333,79965,74705,446,25553,101027,76148,90686,10595,132,40282,3151,69925,40015,15088,31642]),
-    (101287,2979,[],75135,[2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979,2979]),
-    (101627,101626,[1,41,173,235,219,145,207,181,171],63591,[50813,55362,70427,71639,58390,93096,42076,26697,89423,44292,64019,9977,83445,48283,54642,65869,14451]),
-    (101797,101796,[11,37,121],84799,[50898,101691,37343,28024,20020,88164,31664,26640,11665,10520,9932,84764,84327,16448,82537,70406,7012]),
-    (102001,8500,[49],3030,[4250,8500,8500,8500,8500,8500,5149,8500,8500,8500,8500,8500,8500,8500,8500,8500,8030]),
-    (102103,51051,[311,58,271,13],63449,[51051,51051,26372,3271,51051,46212,51051,51051,51051,51051,14194,47676,44548,51051,21429,370,51051]),
-    (102409,25602,[61],76599,[12801,25602,25602,25602,25602,25602,25602,25602,25602,25602,25602,19543,25602,25602,25602,25602,25602]),
-    (102647,51323,[16,6,8,11,4,7],86829,[51323,20450,10478,14152,51323,51323,51323,51323,51323,47271,51323,29108,38002,51323,9502,51323,51323])],
-    [(102953,51476,[63,41,23,39,65],7953,[25738,6568,1559,41135,24045,51476,50615,3371,51476,51476,51476,108,51476,51476,32340,51476,25701]),
-    (103123,34374,[],94418,[17187,10490,11172,5306,34374,9530,34374,34374,34374,34374,34374,34374,34374,17958,34374,34374,15063]),
-    (103769,25942,[183],35225,[12971,20612,4705,25942,25942,2042,5728,25942,25942,25942,25942,9061,14512,25942,25942,25942,1841]),
-    (103837,2036,[],58624,[1018,2036,2036,2036,2036,2036,2036,2036,2036,2036,2036,2036,2036,2036,1212,2036,2036]),
-    (104347,34782,[1],38227,[17391,29392,1974,27144,11439,34782,34782,34782,34782,34782,34782,12343,13755,34782,34782,34782,34782]),
-    (104381,104380,[233,101,107,9,241,77,113],91567,[52190,32476,78433,90254,71501,54595,51634,64027,52155,56449,31692,30135,28461,78957,17113,78578,68936]),
-    (104551,10455,[82],59520,[10455,10455,10455,10455,10455,10455,1612,10455,10455,10455,10455,10455,10455,10455,10455,10455,10455]),
-    (104789,104788,[39,3,67,25,37],18205,[52394,77231,62871,3267,49830,69087,61240,31802,74273,5078,102479,32257,102459,77477,27849,93466,12158])],
-    [(104891,104890,[71,7,83,43,37,103,101,49],3281,[52445,27611,5062,17007,60469,10453,52913,27828,88538,50986,71607,102105,906,100560,101763,36821,55979]),
-    (104959,52479,[829,64,1069],25367,[52479,12299,52479,39385,52479,52479,64,5517,48093,52479,52479,4282,52479,11733,9969,52479,20577]),
-    (105367,17561,[],85634,[17561,17561,15096,17561,17561,17561,17561,17561,17561,17561,17561,17561,17561,17561,17561,17561,17561]),
-    (105401,26350,[109],17212,[13175,26350,26350,14219,26350,26350,26350,26350,22878,1838,1649,26350,26350,26350,26350,26350,3250]),
-    (105503,52751,[11,10,9,16,1,12],82170,[52751,52751,52751,26548,6062,52751,52751,5449,52751,52751,52751,52751,9944,6104,52751,52751,20752]),
-    (105673,13209,[],25537,[13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209,13209]),
-    (106013,106012,[53,11,65,55,59],57150,[53006,76300,81326,102056,91921,7492,82291,105378,33589,86690,90250,91248,66151,103574,58063,70134,39765]),
-    (106217,13277,[8,9],57404,[13277,13277,13277,13277,2932,13277,13277,8738,11773,429,13277,13277,13277,13277,13277,13277,13277])],
-    [(106319,53159,[11,5,7,8,2],77082,[53159,53159,51691,37895,53159,53159,53159,5156,50378,20578,40380,53159,10559,53159,53159,53159,53159]),
-    (106591,255,[],43382,[255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255]),
-    (106693,106692,[125,79],15043,[53346,41620,35799,22570,105,100550,15246,40925,90228,48631,95248,93513,68736,45861,23535,13524,69916]),
-    (106727,53363,[11,8,1,7,3],99355,[53363,51759,3306,29581,53363,53363,44224,53363,48060,50867,53363,53363,46383,16833,20588,53363,53363]),
-    (107033,53516,[1,35,49,65],106195,[26758,53516,53516,23801,33036,2266,23563,53516,35118,5353,20873,49256,636,53516,45940,53516,53516]),
-    (107101,5100,[],54597,[2550,5100,5100,5100,5100,5100,5100,5100,5100,5100,5100,5100,5100,5100,5100,462,5100]),
-    (107339,1394,[],31155,[697,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394,1394]),
-    (107441,6715,[38,76],62042,[6715,6715,6715,6715,6715,6715,6158,6715,6715,6715,6715,6715,6621,6715,1630,6715,6715])],
-    [(107509,35836,[13,21,39],100620,[17918,16129,35836,35836,10833,35836,35836,35836,35836,35836,35836,22207,35836,35836,35836,35836,35836]),
-    (107713,53856,[455,3121],100302,[26928,18824,5203,53856,53856,53856,3004,40898,30302,15143,53856,16680,53856,2368,12913,23214,53856]),
-    (107747,107746,[13,23,15,11,21,33,27],65099,[53873,45879,19641,45643,25688,61360,32878,80421,13893,69958,4242,25521,53832,93630,71943,95344,29811]),
-    (107951,53975,[57,12,76,82,77,42,47],68770,[53975,53975,22072,6180,22282,38581,53975,37907,53975,53975,9503,8237,13132,53975,4637,14725,53975]),
-    (108223,54111,[19,1,41,13,22,11],51037,[54111,901,41788,51307,54111,54111,14691,45552,54111,24317,26890,24618,45361,54111,1281,14240,54111]),
-    (108359,54179,[12,11,14,8,6,15,4],44590,[54179,26294,18847,7256,32206,54179,28362,32940,2660,54179,54179,1409,23619,51684,54179,54179,54179]),
-    (108461,108460,[339,101,103,247,313],20356,[54230,39845,103625,19719,99026,48398,72861,57932,443,20009,18589,27447,12684,25473,62316,60635,16274]),
-    (108529,27132,[919,193],36518,[13566,27132,27132,27132,27132,27132,27132,27132,10774,27132,25195,4477,27132,27132,27132,385,27132])],
-    [(108631,54315,[451,104,163,239],65774,[54315,54315,54315,54315,54315,54315,28120,15365,40231,27310,54315,54315,10049,19288,54315,16304,54315]),
-    (108869,108868,[49,21,45,55,37,11],40675,[54434,53701,2686,98689,91804,1744,6913,24321,73284,90291,33908,46994,60625,70558,85327,73140,68351]),
-    (108971,108970,[137,39],24986,[54485,24596,32402,48200,23786,57765,100896,51477,93136,71200,90906,60764,69692,53929,59604,86930,86458]),
-    (109073,3208,[],63726,[1604,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208,3208]),
-    (109141,109140,[871,857,983],64204,[54570,97629,100831,27485,76974,95717,89138,48545,92599,24443,59652,76745,12492,28023,63715,1265,41223]),
-    (109379,109378,[1,33,13,15,11,7,29,3],102299,[54689,7128,7855,9859,87968,60628,24289,97017,46982,23573,789,630,69469,44881,103933,79696,81739]),
-    (109481,1955,[],52798,[1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955,1955]),
-    (109583,54791,[6,16,14,4,3,15,5,9,8],57270,[54791,7758,54791,9060,25803,15440,54791,54791,4457,32162,54791,41740,5772,54791,54791,30880,54791])],
-    [(110059,2158,[],75059,[1079,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158,2158]),
-    (110161,55080,[4447,1109],34222,[27540,55080,2225,2043,55080,10830,55080,53407,7229,55080,55080,55080,9806,53038,55080,51526,43839]),
-    (110501,110500,[233,49,3,303,311,171,223],28261,[55250,58713,49858,90604,24189,36928,15414,68082,68683,3023,61171,103105,95722,77085,101266,54911,20283]),
-    (110569,4607,[5],97510,[4607,4607,4607,17,4607,4607,4607,4607,4607,2266,4607,4607,4607,4607,4607,4607,4607]),
-    (110603,110602,[3,1,11,5,23,7],31353,[55301,27214,13996,23871,4353,100794,20308,49068,8953,45964,58485,62503,36316,76856,91109,10733,95921]),
-    (110807,55403,[1,7,5],4635,[55403,55403,3061,55403,55403,25677,55403,55403,38493,55403,53370,55403,55403,55403,55403,55403,55403]),
-    (110909,110908,[387,73,431,285,267,467,253,335,121,109,433],60744,[55454,59411,41961,100626,12807,104860,45981,81690,50723,29027,17384,69273,54868,41271,41057,57705,92301]),
-    (110977,6936,[],29149,[3468,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936,6936])],
-    [(111317,111316,[31,61,41,37,19,55,45,33,1],7969,[55658,25378,75579,35625,83552,585,50493,95212,22323,98179,31121,87776,39269,62612,106081,96605,35605]),
-    (111487,1093,[],85015,[1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093,1093]),
-    (111521,27880,[],15767,[13940,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880,27880]),
-    (111623,55811,[108,86,99],94219,[55811,55811,55811,27426,55811,20576,52208,55811,55811,55811,55811,55811,55811,10809,55811,6727,55811]),
-    (111827,111826,[15,3,19,9,25,11],93357,[55913,106367,8496,48079,6649,99490,88783,5750,50391,47720,32257,86677,62817,55590,80854,99112,2695]),
-    (111997,111996,[557,143,95,299,55],103552,[55998,95799,83278,86237,74807,107512,97110,104898,17589,4408,109643,63597,98366,106787,80227,13358,83132]),
-    (112031,56015,[62,83,7,69,19,64],3300,[56015,24797,26093,5277,56015,56015,40834,45374,55099,15266,56015,56015,56015,55144,52760,56015,54465]),
-    (112303,56151,[20],16995,[56151,56151,26976,56151,12828,56151,56151,56151,56151,56151,41789,4148,4446,56151,56151,56151,56151])],
-    [(112337,14042,[],40878,[7021,14042,12299,14042,14042,14042,14042,14042,14042,14042,14042,14042,14042,14042,14042,14042,14042]),
-    (112507,112506,[11,23,53,5],101355,[56253,89562,110302,104280,95673,92682,100900,78449,23,51155,69027,92289,23421,106593,80986,10103,81651]),
-    (112643,112642,[11,1,9,19],63770,[56321,480,23437,30340,1507,60742,17264,80324,27269,52037,29717,107109,13166,49929,110603,64522,70331]),
-    (113017,28254,[],102705,[14127,28254,28254,28254,28254,28254,27692,25488,28254,28254,28254,28254,28254,28254,28254,28254,28254]),
-    (113051,3230,[],35988,[1615,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230,3230]),
-    (113153,56576,[31,267,249],29216,[28288,56576,50794,56576,41119,56576,56576,41919,50724,8427,56576,56576,56576,10557,12217,56576,56576]),
-    (113357,113356,[27,53,19,23,61,5,41,11],47740,[56678,67558,92915,110938,70569,113050,14095,50547,86284,15484,42153,11116,98129,36822,7045,57626,29455]),
-    (113731,37910,[27],71640,[18955,22320,22030,37910,37910,37910,27196,37910,37910,37910,33878,37910,37910,8017,37910,37910,2275])],
-    [(113969,56984,[29,71],15657,[28492,56984,17472,48037,1159,56984,20788,56984,56984,56984,986,56984,56984,40230,56984,8808,9178]),
-    (114343,57171,[22,2,7,28],49726,[57171,57171,9865,52877,57171,11298,55650,57171,57171,13211,57171,30400,57171,57171,32341,57171,50365]),
-    (114377,1682,[],83905,[841,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682,1682]),
-    (114479,57239,[10,30,99,6,118],38687,[57239,57239,51061,57239,57239,57239,5147,32467,57239,57239,57239,57239,57239,57239,57239,7860,54620]),
-    (114547,38182,[13,25,33,29],45930,[19091,32176,38182,30164,38182,38182,9295,38182,10429,7756,38182,13239,37093,38182,38182,38182,24203]),
-    (114649,19108,[43,25,3],71370,[9554,17043,19108,18929,14450,19108,19108,19108,19108,19108,19108,19108,19108,4476,19108,207,19108]),
-    (115057,57528,[821,817,647,529],66049,[28764,57528,17652,3269,16729,9992,24886,57528,57528,57528,57528,57528,12887,22438,57528,22570,25009]),
-    (115363,38454,[71,29],74302,[19227,38454,38454,15881,38454,38454,37084,1478,38454,33681,38454,18593,38454,38454,11724,38454,38454])],
-    [(115499,115498,[19,7,27,25,33],56982,[57749,32081,44706,73662,48299,103741,43246,97516,3733,79159,75036,73227,33557,98504,7616,54438,78251]),
-    (115601,57800,[373,73],18259,[28900,57800,32515,29613,14026,55336,57800,57800,31424,57800,17753,57800,57800,53196,26294,13744,16280]),
-    (115771,115770,[451,31,211,61],3852,[57885,46861,86586,105696,1082,19263,12861,76021,11092,60734,31086,77476,7982,20101,78205,4971,571]),
-    (115873,7242,[],60656,[3621,7242,7242,7242,7242,7242,7242,7242,7242,7242,7242,7242,7114,7242,7242,7242,7242]),
-    (116009,29002,[],56375,[14501,29002,27688,21280,29002,29002,29002,29002,29002,29002,14524,29002,29002,29002,29002,29002,29002]),
-    (116689,19448,[],32030,[9724,2940,19448,410,19448,19448,19448,19448,19448,19448,19448,14166,19448,19448,19448,19448,19448]),
-    (116791,58395,[61,251,139,128],24913,[58395,785,58395,41001,58395,58395,58395,19951,58395,58395,15551,40174,58395,11093,58395,17170,58395]),
-    (116927,58463,[5,6,7],846,[58463,58463,58463,50631,36573,58463,8847,58463,58463,58463,58463,58463,58463,58463,36302,58463,58027])],
-    [(117437,117436,[59,29],38041,[58718,66902,22736,31025,100894,98754,73567,29648,86734,86382,18636,86710,45929,99146,79534,38411,943]),
-    (117539,117538,[7,33,9,29],529,[58769,36030,75452,91977,101999,98382,92421,90376,42597,66506,104306,54594,50886,29972,18853,87460,105441]),
-    (117709,117708,[115,145,169,89],16411,[58854,140,76202,40821,70699,45229,112332,93538,62593,18994,4169,40905,100443,76348,33282,69975,66490]),
-    (117811,117810,[8263,3529,7733,2629,4337,4181],107604,[58905,26625,58332,40393,89209,17152,4641,93413,45469,18844,25757,33538,48670,68345,68441,99741,89582]),
-    (118219,118218,[19,73,31,23,5,11],107283,[59109,87068,57037,98401,81750,86977,92733,78052,58190,97810,9496,36445,5327,43355,78817,97625,80364]),
-    (118253,6956,[],14094,[3478,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956,6956]),
-    (118423,19737,[64],117606,[19737,19737,19737,19737,19737,19737,5572,19737,19737,19737,19737,19737,19737,17832,19737,19737,19737]),
-    (118457,14807,[2],65053,[14807,14807,14807,14807,14807,14807,14807,14807,14807,14807,14807,6581,14807,14807,14807,14807,14807])],
-    [(118661,118660,[313,173,167,69,199,157,123,159,319,57,303,33],23974,[59330,97213,101125,6973,108967,9589,55279,45037,15083,64004,105559,36699,80060,98317,102824,94483,118013]),
-    (118831,11883,[16],36584,[11883,11883,11883,11883,11883,3382,11883,11883,11883,11883,11883,11883,11883,11883,11883,11883,11883]),
-    (118967,59483,[15,10,3,1,4,9,8,7,14,11,2],18430,[59483,59483,52783,17248,49524,22577,39665,27192,41369,59483,19115,27928,17946,59483,59483,59483,19518]),
-    (119069,7004,[],64222,[3502,7004,7004,7004,7004,7004,482,7004,7004,7004,7004,7004,1700,7004,7004,7004,7004]),
-    (119783,59891,[1,15,9,5,6,8,2],27055,[59891,59891,51647,59891,19956,24200,40397,26220,21248,53864,59891,40224,59891,59891,59891,26613,40359]),
-    (119851,1598,[],34323,[799,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598,1598]),
-    (119953,2142,[],82370,[1071,2001,2142,2142,2142,2142,2142,2142,2142,2142,2142,2142,2142,2142,2142,2142,2142]),
-    (120157,120156,[41,71],57303,[60078,95328,11712,51796,24317,98923,95594,77706,63719,16016,70935,38092,84306,87854,50528,35450,39720])],
-    [(120293,120292,[65,21,43,33,7,19,53,23],5033,[60146,59157,112132,104567,93656,73257,85859,25020,51645,39243,27559,16766,67711,68393,110387,84240,112333]),
-    (120871,60435,[706,397,536,334],37428,[60435,27481,52077,60435,60435,14932,60435,58923,60435,1301,59350,60435,60435,58474,60435,60435,60435]),
-    (121007,60503,[3,10,12],66366,[60503,4593,60503,60503,54264,60503,60503,60503,39603,60503,60503,60503,60503,24507,60503,60503,46439]),
-    (121313,30328,[123,83,117],44368,[15164,11275,30328,30328,30328,30328,30328,16675,19701,30328,30328,23914,30328,30328,30328,30328,30328]),
-    (121687,1193,[],61749,[1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193,1193]),
-    (121721,1790,[],38379,[895,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790,1790]),
-    (121789,2388,[7],78265,[1194,2388,2388,2388,2388,331,2388,2388,2388,2388,2388,2388,2388,2388,87,2388,2388]),
-    (121993,15249,[],75175,[15249,15249,13716,15249,15249,15249,15249,15249,15249,15249,15249,15249,15249,15249,15249,15249,15249])],
-    [(122027,122026,[15,9,7,25,29,31,13],64768,[61013,43365,73449,15409,77300,111681,117941,33507,73842,44836,49562,89757,115155,42802,7582,46423,50850]),
-    (122231,12223,[15,14,4],79673,[12223,12223,12223,8600,12223,12223,12223,11268,12223,12223,12223,12223,12223,5733,12223,12223,12223]),
-    (122299,122298,[91,49,65,55,83],68476,[61149,21511,86128,79569,64683,20528,115207,10874,52901,69776,6140,110317,111436,59168,87135,73429,105755]),
-    (122401,61200,[8557,8069,6913],16245,[30600,45277,61200,15525,61200,61200,20309,45910,7050,61200,61200,61200,61200,61200,61200,61200,19153]),
-    (122503,61251,[16,49,8,22,11,13,43],40774,[61251,28678,57322,35142,9299,45704,61251,22309,60265,61251,55601,60244,61251,61251,61251,61251,45484]),
-    (122741,122740,[57,239,149,159,101],64848,[61370,13014,58537,68239,87604,115501,4229,83064,114590,65276,113256,20219,100300,103234,48735,96164,2821]),
-    (123217,20536,[45],123101,[10268,20536,20536,20536,20536,20536,20536,20536,20536,6573,20536,20536,1196,20536,20536,20536,20536]),
-    (123727,61863,[1,38,31,23],82740,[61863,50762,20452,61863,2397,36078,61863,61863,26048,61863,61863,21414,13699,61863,42648,61863,46739])],
-    [(123829,123828,[145,151,95,121],67308,[61914,100416,18913,69268,91203,64920,23204,98980,93372,15261,48499,42323,109782,85956,2259,69277,92698]),
-    (123863,61931,[6,13,1,16,10,14,12],64789,[61931,61931,61931,46960,61931,61931,48395,37078,61931,8176,61931,43530,39726,61931,35440,61931,61931]),
-    (123931,306,[],18066,[153,306,306,306,306,306,306,306,306,306,306,306,306,306,306,306,306]),
-    (124067,124066,[27,15,7],104437,[62033,99410,97692,66968,57286,103217,49962,75104,101505,113004,8580,42731,111976,111346,98377,116627,36594]),
-    (124339,41446,[23,33,31],120068,[20723,10455,38307,12044,41446,41446,41446,34322,41446,30599,41446,8796,41446,41446,41446,9007,41446]),
-    (124543,20757,[11],52260,[20757,20757,20757,20757,20757,20757,20757,20757,20757,18932,20757,20757,20757,20757,20757,20757,20757]),
-    (124577,31144,[63,69],107306,[15572,31144,9175,31144,31144,31144,22322,31144,26590,31144,30941,31144,31144,31144,31144,31144,31144]),
-    (124679,62339,[3,12,10,15,13,7],123568,[62339,62339,6055,62339,23166,62339,49497,28864,12338,39809,62339,62339,62339,62339,18761,20730,62339])],
-    [(124781,24956,[65],83792,[12478,24956,24956,24956,24956,24956,24956,24956,24956,12350,24956,24956,24956,24956,22845,12622,24956]),
-    (124951,62475,[1639,1633,127,1612,1303],22479,[62475,9336,62475,62475,39124,62475,62475,9740,45003,54638,5134,28408,62475,62475,50107,24817,53068]),
-    (125053,41684,[21,1,23],122223,[20842,41684,25688,41684,35381,33492,34497,5733,27164,41684,7378,41684,28629,41684,30759,41684,41684]),
-    (125597,7388,[],32117,[3694,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388,7388]),
-    (126107,126106,[7,9,13,23,27,25],104606,[63053,87761,125231,87242,37917,118526,65856,69048,1441,31949,103348,121130,18168,100803,69003,7845,115018]),
-    (126311,12631,[2,6,14,10,15],57393,[12631,12631,12582,12631,12631,12631,12631,12631,5242,4264,1438,4464,12631,12631,12631,11558,12631]),
-    (126481,63240,[2033,1109,1667],91499,[31620,5154,57494,26794,63240,63240,26513,15440,63240,51309,26373,45634,15389,40989,63240,4568,54707]),
-    (126583,63291,[28,47,11,32,37,40],97443,[63291,63291,63291,4512,16042,37736,59433,18167,63291,57692,63291,63291,63291,10844,4474,57313,63291])],
-    [(126719,63359,[13,7,11,12,1,8,9,3,4,15,5],6615,[63359,55144,63359,47369,63359,14767,36290,22237,63359,63359,42678,6622,5749,55798,53820,46976,15447]),
-    (126923,126922,[5,31,7,29,21,1,27],120232,[63461,96837,106940,113442,52884,40680,71009,36226,101997,108705,114983,79356,38271,56815,125759,82485,95854]),
-    (127297,5304,[],14179,[2652,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304,5304]),
-    (127331,25466,[29],102131,[12733,25466,25466,25466,25466,25466,25466,21374,25466,25466,25466,25466,3854,25466,25466,25466,16689]),
-    (127399,63699,[20,2,4,37,35],95579,[63699,63699,57630,13280,62426,63699,3564,51645,54727,1131,57514,63699,63699,63699,63699,63699,5390]),
-    (127637,127636,[3,7,37,27],38834,[63818,104430,70000,89048,40636,85411,8643,65624,85828,45958,47773,122757,37087,33123,10400,58450,18826]),
-    (127739,127738,[27,5,21,19,13],86887,[63869,71869,6148,66210,40567,52381,75846,113213,19943,102850,113300,66568,76540,61459,57306,33775,58149]),
-    (127807,63903,[265,31,10,157,256],103398,[63903,60598,9129,63903,46441,2509,63903,18364,20337,60589,63903,6066,63903,57316,63903,63903,63903])],
-    [(128113,64056,[89,263,169,175],121089,[32028,48108,64056,57617,64056,41012,64056,64056,64056,64056,45143,64056,20569,7111,16704,29626,64056]),
-    (128147,128146,[15,23,19,9,33,11],90590,[64073,62602,46068,87190,23305,72001,21038,19316,107799,91809,51713,45503,126264,17869,121192,29760,36447]),
-    (128351,64175,[7,57,59,24,14,1],75896,[64175,64175,26017,35587,64175,64175,64175,64175,64175,64175,48084,51279,64175,64175,64175,28319,24396]),
-    (128521,6426,[],15536,[3213,6426,6426,6426,6426,6426,6426,6426,6426,6426,6426,6426,6426,6426,6426,5564,6426]),
-    (128657,64328,[33,83,107,5],33662,[32164,64328,10777,21299,64328,12426,64328,64328,30707,64328,64328,27318,64328,13060,47243,60253,64328]),
-    (128861,25772,[29],84140,[12886,25772,25772,25772,25772,5605,25772,25772,25772,25772,25772,25772,25772,25772,25772,25772,25772]),
-    (129439,64719,[104,76,5],13858,[64719,64719,64719,64719,26726,64719,64719,64719,33277,64719,16023,64719,27327,46058,64719,64719,64719]),
-    (129643,129642,[89,65,67],23599,[64821,83826,96996,103856,45154,105180,126642,4168,40764,122977,10689,129527,101930,12407,17193,62211,37501])],
-    [(130051,43350,[407],116333,[21675,43350,43350,43350,43350,43350,42015,43350,43350,13595,43350,482,35597,43350,27540,11958,43350]),
-    (130969,16371,[139],17340,[16371,16371,14997,16371,11883,16371,16371,16371,16371,16371,16371,16371,16371,16371,16371,16371,16204]),
-    (131071,17,[16],512,[17,17,17,17,17,17,17,17,17,17,17,17,17,16,17,17,17])]]
-  let catalog := rootBlocks.flatten
-  let pm := (fun (a e m : ℕ) => Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m) (fun _ f n => (f (n/2))^2 * a^(n%2) % m) (e.log2+1) e)
-  have lst : ∀ i ∈ List.range 7711, (17*i+1).Prime → ∃ e ∈ catalog,e.1=17*i+1 :=
-    seventeen_prime_cover catalog Prod.fst [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,307,311,313,317,331,337,347,349,353,359] (by decide +kernel)
-  have part : ∀ block ∈ rootBlocks, ∀ e ∈ block, 0 < e.2.1 ∧ e.2.1 ≤ 131073 ∧
-      2^e.2.1%e.1=1 ∧ (∀ j ∈ e.2.1.primeFactors, 2^(e.2.1/j)%e.1≠1) ∧
-      e.2.2.2.1^17%e.1=1 ∧ e.2.2.2.1%e.1≠1 ∧
-      ∀ i : Fin 17, let t := e.2.2.2.2.getD i.val e.2.1
-        let Y := (e.1+1-(2*e.2.2.2.1^i.val)%e.1)%e.1
-        if t < e.2.1 then 2^t%e.1=Y ∧ (t.Coprime e.2.1 → t%(Nat.gcd e.2.1 171360)∈e.2.2.1)
-        else Y^e.2.1%e.1≠1 := by
-    iterate 96
-      refine verify_cons ?_ ?_
-      · exact seventeen_root_verify _ pm seventeen_powMod_eq (by decide +kernel)
-    exact fun _ h => (List.not_mem_nil h).elim
-  have periods : ∀ e ∈ catalog, 0 < e.2.1 ∧ e.2.1 ≤ 131073 ∧
-      2^e.2.1%e.1=1 ∧ (∀ j ∈ e.2.1.primeFactors, 2^(e.2.1/j)%e.1≠1) ∧
-      e.2.2.2.1^17%e.1=1 ∧ e.2.2.2.1%e.1≠1 ∧
-      ∀ i : Fin 17, let t := e.2.2.2.2.getD i.val e.2.1
-        let Y := (e.1+1-(2*e.2.2.2.1^i.val)%e.1)%e.1
-        if t < e.2.1 then 2^t%e.1=Y ∧ (t.Coprime e.2.1 → t%(Nat.gcd e.2.1 171360)∈e.2.2.1)
-        else Y^e.2.1%e.1≠1 := by
-    intro e he
-    obtain ⟨block,hb,mem⟩ := List.mem_flatten.mp he
-    exact part block hb _ mem
-  exact ⟨catalog,lst,periods,by decide +kernel⟩
+/-- The projected seventeenth roots exclude the final Mersenne-index congruence class. -/
+theorem seventeen_last_compact_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b)
+    (hb : 131073 < b) (idx : b%42840=1) :
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧
+      q∣p^17+d ∧ s∣p^17+d := by
+  obtain ⟨F,fac⟩ : p+2∣p^17+131072 := (by decide : Odd 17).nat_add_dvd_pow_add_pow p 2
+  have bad := seventeen_compact_cofactor_negative base hb idx fac seventeen_compact_discriminant_period
+    (by decide +kernel) (by decide +kernel) (by decide +kernel) (by decide +kernel) seventeen_compact_discriminant_value
+  apply seventeen_compact_last_abstract pp base hb idx fac bad
+  intro i lim ps mult nd
+  exact seventeen_compact_catalog lim ps base idx mult nd
 
-set_option maxRecDepth 32768 in
-set_option synthInstance.maxSize 512 in
-set_option maxHeartbeats 20000000 in
-private theorem seventeen_certificate :
-    let F (y : ℕ) := ((((((((((((((((1*y+30)*y+424)*y+3744)*y+23104)*y+105600)*y+369664)*y+1010688)*y+2180608)*y+3724288)*y+5017600)*y+5275648)*y+4243456)*y+2523136)*y+1048576)*y+262144)*y+65536)
-    let char (m n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
-      else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
-      else if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1
-    ∃ (catalog : List (ℕ × ℕ × List ℕ × ℕ × List ℕ)) (hard : List (ℕ × List ℕ × List ℕ)),
-      hard.map Prod.fst=[1,1201,1681,1793,3361,3721,4033,4313,5041,5713,6241,6553,6721,7201,8401,8761,8881,9073,9353,9721,10441,10753,10921,11281,11761,11873,12241,12961,13441,13801,14761,15481,15961,16321,16633,16993,17281,17641,18001,18481,18841,19801,20833,21001,21841,21953,22033,22681,23521,23881,24001,24473,25201,25561,26041,26713,26881,28081,28561,29881,30241,30601,30913,31081,31921,33121,34081,34273,35641,35953,36121,36961,37441,38161,39001,39121,39313,39961,40321,40993,41521,42001,42113,42841,43201,44041,44161,44633,46033,46201,46561,47041,47233,47881,49081,49201,49393,49673,50041,50401,51601,51913,52081,52193,52273,52561,53281,53761,54121,54241,54713,55081,55441,55801,56113,56281,56641,57121,57313,57601,58321,58801,59161,59281,59473,60121,60481,61153,61321,61681,62161,62273,62641,63841,64201,64321,64513,64793,65521,66193,66361,66721,67393,67681,68041,68401,68881,69361,69553,69833,70921,71401,71761,72353,72433,72721,73081,73441,74401,75961,76273,77113,77473,77761,78481,78961,80281,80641,81313,81841,82153,82321,82513,82801,83161,84001,84361,84673,84953,85681,87361,89041,89401,89713,89993,90721,91393,91921,92233,92401,92513,92881,93241,94081,94441,94561,94753,95033,95401,96121,96433,96601,96961,97441,97921,98641,99121,99481,100441,101161,101641,102313,102593,102673,102961,103321,103681,104161,104521,106513,106681,107353,107521,107713,109201,109561,109681,110153,110881,111721,112393,112561,113761,114241,114913,115561,115921,116281,116593,116761,117601,118801,119761,119953,120601,121321,121633,121801,122641,122753,122833,123121,123481,123841,124681,124801,124993,126001,127201,127513,127681,128521,128881,129721,129841,130313,131713,131881,132241,132721,132833,132913,133561,134761,134881,135073,135353,136081,136921,137281,137593,137761,137953,138241,138961,139441,139801,139921,140393,140761,141121,141481,141793,141961,142321,142801,142993,143281,144481,144841,144961,145153,145433,145801,146161,146521,146833,147001,147841,148321,149521,149881,150001,150193,150473,151201,151873,152041,152401,152993,153073,153361,153721,154081,154561,155041,155233,155513,156601,157081,157441,157753,158113,158401,159121,159601,160081,161641,161953,162793,163153,163441,164161,164641,165961,166681,166993,167521,167833,168001,168193,168481,168841,169681,170041,170353,170633] ∧
-      (∀ i ∈ List.range 7711, (17*i+1).Prime → ∃ e ∈ catalog,e.1=17*i+1) ∧
-      (∀ e ∈ catalog, 0 < e.2.1 ∧ e.2.1 ≤ 131073 ∧
-        2^e.2.1%e.1=1 ∧ (∀ j ∈ e.2.1.primeFactors, 2^(e.2.1/j)%e.1≠1) ∧
-        e.2.2.2.1^17%e.1=1 ∧ e.2.2.2.1%e.1≠1 ∧
-        ∀ i : Fin 17, let t := e.2.2.2.2.getD i.val e.2.1
-          let Y := (e.1+1-(2*e.2.2.2.1^i.val)%e.1)%e.1
-          if t < e.2.1 then 2^t%e.1=Y ∧ (t.Coprime e.2.1 → t%(Nat.gcd e.2.1 171360)∈e.2.2.1)
-          else Y^e.2.1%e.1≠1) ∧
-      (∀ r ∈ hard, ∀ t ∈ catalog, r.1%(Nat.gcd t.2.1 171360) ∈ t.2.2.1 → t.1 ∈ r.2.1) ∧
-      (∀ row ∈ hard, ∀ m ∈ row.2.2, m=4 ∨ m=8 ∨ (m.Prime ∧ 2 < m ∧ 2^171360%m=1)) ∧
-      (∀ r ∈ hard, (∀ q ∈ r.2.1, (r.2.2.map (fun m => char m q)).prod=1) ∧
-      (r.2.2.map (fun m => char m (F ((2^(r.1+171360)-3)%m)))).prod= -1) := by
-  intro F char
-  let keys : List (ℕ × ℕ × List ℕ) := [
-    (103,51,[28,20,14,32,13,47]),(137,68,[37,41]),(239,119,[72,103,30,104,45]),(307,102,[]),(409,204,[155,121,65]),(443,34,[13,11,21,9,33,15,23]),(613,612,[65,185,167,67]),(647,17,[11,2,9,16,3,15,14,4,1]),(919,153,[101]),(953,68,[]),(1021,340,[111,91,3]),(1123,102,[67]),(1259,34,[13,3,7,19,15,27,1,9]),(1327,17,[7,12,10]),(1361,680,[567,349]),
-    (1429,84,[]),(1531,1530,[641,361,271,371,923]),(1667,238,[31,47,37,29,27]),(1871,85,[21,6,14,78]),(1973,68,[7,39,43,1,9,27,45]),(2143,51,[]),(2347,34,[5]),(2381,476,[55]),(2551,255,[44,32,169,23,199]),(2687,1,[]),(2789,68,[55,49,33,1,9,37,47]),(2857,102,[]),(3061,204,[]),(3163,34,[25]),(3299,34,[15,7,11,33,5,23,1]),
-    (3469,204,[127,179,149,113,191]),(3571,3570,[311,3263,1093,3119]),(3673,306,[265,257]),(3877,204,[37,79,35,103,121,95,167,67]),(3911,85,[9,36,43,1]),(4013,68,[5,29,31,67,15,43,35,61,49]),(4217,34,[3,15]),(4421,340,[]),(4523,14,[]),(4591,765,[688,518,422,529,389,584]),(4931,34,[]),(4999,357,[37]),(5101,340,[301,269]),(5237,68,[31]),(5407,51,[44,49,47,16,29,22]),
-    (5441,544,[45]),(5849,68,[67,45]),(6053,68,[65,23,61,7,29,27]),(6121,1530,[]),(6257,136,[115,89,31]),(6359,17,[11,4,13,15]),(6427,2142,[]),(6529,102,[]),(6563,2,[]),(6733,612,[355,349,379,407,317,167]),(6869,68,[37,5,15,19,7,35]),(6971,170,[27,91,9,59,161,117,123,103,133]),(7039,153,[7,2,31,43]),(7243,102,[25,79,35,19]),(7481,170,[]),
-    (7549,204,[139,43,103,7,113,143,133]),(7583,17,[7,12,14,11,5,16,1]),(7753,17,[]),(8059,34,[33,31]),(8093,476,[401,275,285,183,317,331]),(8161,408,[5]),(8263,153,[23,5,31,103,143]),(8297,68,[33,43,31,59,39]),(8467,102,[37,95,49,1,101]),(8501,340,[31,277]),(8807,119,[80,118,83,95,81,64,106,2]),(9011,170,[81,169,21,1]),(9181,3060,[2171,2993]),(9283,714,[233,263,37,79,449,377,299,605]),(9419,34,[15,5,29,7,3,27]),
-    (9521,476,[209]),(9623,1,[]),(9929,4,[]),(10099,306,[259,167,245]),(10133,68,[29,35,49]),(10303,17,[3,4]),(10337,68,[53,47]),(10711,1071,[]),(10847,17,[5,7,8,6,2]),(10949,476,[281,239,193,57,303,353,201]),(11119,51,[]),(11527,51,[13]),(11731,170,[147,37,93,29]),(11833,204,[71,163,65]),(11867,34,[23,9,7,21,1,3]),
-    (11969,272,[]),(12037,12,[]),(12071,85,[77,33,83,57,27,21]),(12241,510,[]),(12343,17,[9,13,6,3]),(12377,238,[237,137,61,195,227]),(12479,1,[]),(12547,306,[247,65,197]),(12853,1428,[1247]),(13159,153,[59,52,151,47,62,116]),(13397,68,[33,19,65,41,9,45,5,49]),(13499,2,[]),(13567,357,[304,52,227,284]),(13669,204,[]),(13873,408,[61]),
-    (13907,34,[7,27,33,31,13]),(14009,68,[15,49,25]),(14281,2380,[1363,1409]),(14519,119,[45,108,113,22]),(14621,340,[313,321,121,229,89,319]),(14723,34,[11,3,27,7,23,25]),(15131,170,[1,147,3,61,129]),(15199,17,[10,3]),(15233,544,[]),(15607,153,[67,23,89,59]),(15641,340,[97,197]),(15913,204,[47]),(16253,68,[59,1,63,21,35,25]),(16661,476,[275]),(16729,17,[]),
-    (16763,34,[27,5,33,9,23,7]),(16831,765,[562]),(17137,2142,[485,1831]),(17239,51,[5,10,7,32,29]),(17341,340,[207,43]),(17443,306,[233,95,155,175]),(17477,68,[23,25,15,9,47]),(17579,34,[5,11,7]),(17681,136,[]),(17749,612,[533,401,197,41]),(17783,17,[7,13,6,3]),(17851,3570,[2207,53,3049,3203,3469]),(17987,2,[]),(18089,476,[387,261]),(18191,85,[27,38,53,73,28]),
-    (18701,340,[113,101,207]),(18803,34,[25]),(18973,612,[599,287,353,179,35,31,439,163]),(19211,10,[7]),(19381,204,[101,179]),(19483,102,[23,95]),(19687,17,[10]),(19891,1530,[121]),(19993,714,[1,467]),(20129,272,[249,183,77,29]),(20231,119,[]),(20333,4,[3]),(20639,17,[9,13,11,4,2,16,3]),(20707,238,[151]),(20809,153,[25,98]),
-    (21013,204,[131,77,29]),(21149,4,[]),(21319,51,[37,8,50,49,2,7]),(21523,102,[7,23,49,43,37,59,55,73]),(21557,68,[7,31,39,37,3,55,11,61]),(21727,51,[]),(21863,17,[9,5,2]),(22067,34,[13,33,3,11,5,15,31]),(22271,85,[18,47,12,64,29,22,11]),(22441,170,[121,21]),(22543,51,[28,20]),(22679,17,[15,6,5,12,7,8,13]),(23053,204,[67,193,47,113,25,37,163]),(23087,119,[10,19,18,94,116,16,95,6,13,36,86,118]),(23189,68,[41,3,57,39,25,5,31,67,43]),
-    (23291,34,[]),(23563,2142,[2047,1865,1367]),(23767,51,[40,32,31,16,7,20,8,35]),(23801,595,[519,212,293,209]),(23869,612,[79,611,539]),(23971,102,[35,5,91]),(24107,34,[9,23,21,11,7,5,15]),(24379,102,[25,1,61,97,7,41,11,77]),(24413,68,[45,57,63,21,61,15]),(24481,12240,[]),(24821,340,[83,133,3,31,171,281]),(24889,68,[21]),(24923,34,[31,25,5,9,21,11]),(25127,17,[2,3,8,4,9,13,16]),(25229,476,[73,27,461,353,15]),
-    (25603,102,[79,71]),(25841,680,[1,257,127]),(25943,119,[117,108,8,54,103,48,46]),(26113,1632,[671,293]),(26249,17,[]),(26317,68,[]),(26759,17,[1,15,2,6]),(26861,340,[107,261,39,9,309,57]),(27031,51,[11,43]),(27337,204,[35,25,173,167]),(27541,612,[]),(27779,34,[3,15]),(27847,1071,[776,740,262,148]),(27983,17,[12,8,3,2,13,15]),(28051,510,[121,197,107,31,239,133]),
-    (28289,544,[5,207]),(28493,68,[35,63,37,39,47,45]),(28663,51,[13,16,26,8]),(28697,17,[16,14,8]),(28867,34,[13,33,23]),(28901,340,[]),(29173,204,[55,83,109,203]),(29207,17,[7,5,3,8]),(29411,170,[141,3,87,33,159,161,137]),(29581,12,[]),(29683,34,[3]),(29717,68,[25,5,9,3,13,53,39]),(29819,2,[]),(29921,1360,[1301,1223,1209,1039,971]),(29989,4284,[1591,3323,583,1319,2827]),
-    (30091,102,[43]),(30431,85,[47,36,2,41,7]),(30703,357,[230,148,260,46]),(30839,17,[3,4,9,6,12,8,15,7]),(30941,2380,[1339,2267,999,1593,1629,1233,1287,967]),(31247,17,[7,1,16,5,9,15]),(31723,34,[]),(31859,34,[27,25,1,3,5]),(32029,204,[185,109,1,11,143]),(32063,17,[12,9,2,1]),(32233,102,[79]),(32369,952,[859,271]),(32573,68,[15,21,37,49,55,63,43]),(33049,612,[311]),(33083,238,[197,69,121]),
-    (33151,85,[16,4,82]),(33287,17,[15,9,8,4,16,14]),(33457,408,[139,19,97]),(33797,28,[13]),(33967,153,[29,148,14,64]),(34171,510,[241]),(34273,1008,[]),(34511,595,[]),(34613,68,[7,39,67]),(34919,17,[9,7,15,1,13,14,12,5,4]),(35089,204,[]),(35327,17,[1,7,6]),(35531,34,[5,19,29]),(35803,306,[]),(35837,68,[21,13,5,1,43,31]),
-    (36007,51,[37]),(36109,612,[557,563,197,331,455,199]),(36313,204,[]),(36551,85,[7,1,41,2,8,3]),(36653,476,[339,73,439,443,409,99,173]),(36721,3060,[101,41]),(36857,34,[31]),(37061,340,[127,199,113,131]),(37537,17,[10]),(37571,170,[59,157,167,9,41,81]),(38047,17,[10]),(38149,204,[]),(38183,17,[9,5,16,10,12,14]),(38557,4284,[1135,691,845,3197,2053,3431]),(38693,68,[63,49,65,21,15,29,3,27]),
-    (39373,68,[9,67,47]),(39509,28,[]),(39679,51,[43,13]),(39883,34,[31,5,15,25,3]),(40087,153,[140,29,82,43]),(40189,204,[95,109,197,43,35]),(40427,34,[25,29,21,23,19,11,27,9]),(40529,68,[15,41]),(40597,204,[191,97,179,53,19,113,79,161]),(40699,2142,[677,1021,1193,11]),(40801,4080,[1297,193,1607]),(40903,17,[3]),(41039,17,[10,3,2,12,5,7]),(41141,340,[97,303,71,277,229,147,329]),(41243,34,[7,11,25,29,15,1,9]),
-    (41413,476,[99,131,101,381]),(41549,68,[]),(41617,136,[]),(41651,1190,[653,643,899,293]),(41719,51,[13,19,10]),(41957,68,[49,61,33,21,35]),(42331,34,[19,11]),(42433,816,[583,103]),(42467,2,[]),(42569,4,[]),(42773,68,[]),(42841,476,[]),(42943,51,[29,35,22,46]),(43283,34,[19,33,5,29,23,13]),(43487,17,[10,4,9,1,3,12]),
-    (43691,34,[33,1]),(43759,51,[5]),(43793,238,[193,71]),(43963,6,[]),(43997,68,[53,43,33,65,5,21,31,23,59]),(44201,170,[]),(44269,1428,[955,773]),(44371,1530,[79,587,541,383]),(44507,238,[185,1,229,73,39,79,211]),(44711,85,[2,46,19,1,22]),(44983,1071,[608]),(45119,17,[6,10,5,9,4,14,13]),(45289,306,[]),(45697,1428,[]),(45833,68,[39,31,45,33,3]),
-    (46309,204,[179,143,161,193,25]),(46411,1190,[23]),(46649,476,[359]),(46751,85,[44,28,72,1]),(46819,306,[121,203,157,131,205,79]),(46853,68,[21,43,19,11,27]),(47057,68,[37]),(47363,238,[87,73,45,179,233,185,65,43,67]),(47431,765,[581,16]),(47533,204,[163,13,113,199,43,97,151,53]),(47737,51,[]),(48179,34,[21]),(48247,51,[29,16,31,23,7]),(48281,85,[13]),(48383,17,[10,12,7,3,2,11]),
-    (48757,204,[47,89,115]),(48859,102,[29,13,53,35]),(49199,17,[9,15,8,13,16,12,14,5,11]),(49369,51,[37]),(49811,34,[13]),(50287,17,[7]),(50321,170,[]),(50423,17,[16,5,3,10,15,2]),(50593,136,[21]),(50627,34,[9,19,13,29]),(51001,1020,[]),(51137,68,[]),(51239,17,[16,9,3,15,12]),(51307,34,[31,9]),(51341,340,[277,177,159,63,257,133]),
-    (51511,255,[122,247,193,191,226,29]),(51613,204,[169,23,67,107]),(51647,119,[]),(51749,68,[53,39,19,23]),(51817,204,[77,59]),(52021,3060,[1393,1127,1967]),(52259,34,[11,33,25,31,5,29,1,27]),(52361,2380,[1791,2039]),(52667,34,[3,27,25,21,1,29,9,7,23]),(52769,136,[129,89]),(52837,1428,[437,43,403]),(52973,68,[45,27,25,29,5,7,55]),(53279,17,[8,3,9,7]),(53381,340,[83,21,69]),(53551,5355,[2803,2341]),
-    (53653,204,[]),(53857,2448,[485,2219,421]),(53891,170,[63,113,11,93]),(53959,51,[28,50,23,37]),(53993,1,[0]),(54163,306,[91,139,109,287,127]),(54367,17,[2,5,7]),(54401,1360,[9]),(54469,612,[49,73,161]),(54503,119,[15,32,99,103,44,12,87,76]),(54673,136,[25,95,113]),(54877,204,[77,157,59,89]),(54979,238,[19,15]),(55217,119,[]),(55829,68,[43,57,33,27,19,1,47,61,7,53]),
-    (55897,204,[157,37,13]),(55931,238,[57]),(56101,204,[103,121]),(56237,68,[61,27,65,23,49,15,21,19]),(56509,204,[5,107,149,11,37]),(56543,17,[13,7,10,4,15]),(56611,170,[19,91]),(56713,51,[31]),(56747,34,[15,11,9,13,5,21,27]),(56951,85,[9,79,3,27,69]),(57223,153,[26,52,44]),(57427,102,[19,35,97,79]),(57529,306,[89]),(58073,119,[73,67]),(58243,102,[5,61,1,7,31,91]),
-    (58379,34,[15,21,9,19,13,27]),(58481,680,[287,183]),(58549,1428,[757,893,25,23]),(58787,238,[73,181,93,25,165,151]),(58889,34,[13,25]),(58991,85,[7,1,77]),(59093,4,[1]),(59263,357,[290,247,134,316,130]),(59399,17,[1,9,12,8,13,10,11]),(59467,102,[71,101,19]),(59671,765,[499,296,466,239,316,242]),(60317,68,[33,29,65,5,27,59,67]),(60521,17,[]),(60589,612,[185,419,83,95,511]),(60623,17,[13,9,1,11,10,4,8]),
-    (60793,204,[131,13,163]),(61031,85,[63,14,73,44,54,79,48]),(61099,102,[7,49,71,101,47,91,19]),(61507,306,[283,59,263,167]),(61609,51,[49,23,10,2]),(61643,238,[79,229,55,37,25,149,69,81]),(61813,612,[509,421,193,373]),(61949,68,[43,27,55,25,57,53]),(62017,1632,[593,1195]),(62119,357,[]),(62323,102,[95,61,41,89,43]),(62459,2,[]),(62731,306,[1,265]),(62969,17,[]),(63241,85,[]),
-    (63377,136,[97,15,13,19,23,135]),(63649,816,[395,319]),(63853,204,[55,175,173,97]),(64091,170,[149,127,11,97,19,59,49]),(64499,238,[205,57,59,11,5,219,15]),(64567,153,[151,127,97,131,64,22,110,83]),(64601,85,[]),(65111,85,[74,64,41]),(65179,306,[115,227,89]),(65213,476,[351,239,463,97,417,127,87]),(65519,17,[4,15,1,6,14,11]),(65587,102,[7,41,47,25,13,91,23,71]),(65927,119,[65,53,109,22,113,80]),(66029,68,[41,11,63,23,7,57]),(66301,340,[199,39,303,191,157]),
-    (66403,2142,[83,1541,655,1985]),(66947,34,[29,9,1]),(67049,17,[2,6]),(67219,2,[]),(67559,1,[]),(67763,34,[5,13,31,3,1,11,25,29]),(67933,612,[551,107,517,157]),(67967,17,[1,8,9,7,5]),(68171,170,[27,19,111,161,109,139,103,23]),(68239,153,[2,37]),(68443,6,[]),(68477,68,[29,3,67,59,39,23,5,63,1,25]),(68749,68,[13,37,35]),(69191,85,[63,79,74,56,23]),(69259,714,[13,601,317]),
-    (69463,153,[20,71,28,134,50,53,145]),(69497,34,[11]),(70177,816,[155,65]),(70313,68,[49]),(70381,3060,[]),(70619,34,[19,11,7,25,29,9]),(70687,1071,[626,806,598]),(70823,17,[12,9,3]),(70891,34,[]),(71129,68,[7,21,1,45]),(71333,68,[45,47,9,43]),(71503,51,[40,38,13,23,31]),(71537,136,[31,117]),(71707,102,[1,5,49,13,31,65]),(71741,340,[301,277,29,11,303,1]),
-    (71809,544,[337,123]),(71843,34,[7,15,21,33,25,9,31]),(72047,17,[15,7,4,9,2,11,6]),(72251,34,[]),(72353,1904,[853]),(72421,340,[269,223,83,109]),(72727,17,[]),(72931,170,[99,143]),(73237,68,[3]),(73679,17,[7,4,14,6,13,1]),(73849,68,[23]),(73883,34,[25,21,13,31,5]),(73951,255,[4,109,214,98,169]),(74189,68,[57,63,35,61,29,5,31]),(74257,1428,[]),
-    (74597,68,[49,41,13,11,33,25,39,15,7]),(74699,34,[25,11,15,19,31,7,13]),(74869,204,[25,179,185,29,73,95]),(74903,17,[16,10,8,2,3,9,12]),(75209,238,[143,15,127]),(75277,612,[211,163,533,455,571,121]),(75583,153,[149,7,91]),(75617,136,[71,79]),(75787,34,[3,1]),(75821,340,[89,57,27,297,273,83]),(75991,17,[14,15]),(76603,102,[61,1,19,101,55]),(76943,17,[1,9,11,16,3,2,8,7]),(77249,272,[105,127]),(77317,204,[71,89,91,1]),
-    (77351,595,[397]),(77419,306,[283,281,245,77,161]),(77521,2040,[653,1943]),(77929,102,[49,25,95,23,79]),(78031,765,[451,227,7,488,47,424]),(78167,17,[3,7,8,13,16,11,10,9]),(78439,51,[4,46,1,20,10,38,23]),(78541,7140,[7073,2539]),(78643,102,[37]),(78779,238,[121,151,1,227,185,37]),(79153,408,[35,343]),(79187,34,[]),(79357,68,[63,27]),(79493,68,[]),(79561,1020,[]),
-    (79697,17,[]),(79867,306,[245,253,31,5,209]),(79901,340,[93,7,149,203]),(80071,255,[49,61,116,74,251,112]),(80173,36,[]),(80207,119,[6,10,86,106,52]),(80309,68,[41,11,9,3,65]),(80513,16,[]),(80683,238,[81,29]),(80819,34,[21,33,25,7,1]),(80989,204,[103,137,97,163,125]),(81023,17,[7,10,11,6,1,12,13]),(81533,68,[57,37,15]),(81703,153,[152,43]),(81737,68,[37,3,29,23]),
-    (81839,17,[13,14,15,9,7,3]),(82009,68,[15]),(82349,68,[31,5]),(82723,102,[53,61]),(82757,68,[35,49,59,45,41,29,5,9,11]),(83063,119,[86,104,80,82,69,55,20,89]),(83233,204,[]),(83267,34,[27,5,25,9,15,21,13]),(83437,204,[113,67,173,175]),(83471,85,[38,78,49,81,84,28,37]),(83641,340,[91,287]),(83777,119,[]),(84389,68,[15,55,59,29,47,19,61,1,25]),(84457,204,[121]),(84559,51,[41,25,5,23,28]),
-    (84967,357,[145,134,169,334,314,326,92,274]),(85103,17,[15,12,7,11,3,16]),(85817,68,[37,39]),(86293,612,[269,551,515,439,209]),(86531,170,[53,139,129,103,23]),(86599,153,[19,121,142,118,11,28,62,70]),(86837,68,[1,35,53,31,65,55,3]),(86939,34,[3,19,13,33,25,31]),(87041,2720,[2459,1389,509]),(87211,18,[]),(87313,204,[107]),(87517,612,[407,137]),(87721,340,[311,63,139]),(87959,17,[9,16,4,11,15,13,5,2]),(88129,2448,[]),
-    (88469,68,[49,61,13,9,65,15,39]),(88741,3060,[1229,2213,2971,2947,2837]),(88843,102,[79,7]),(89387,34,[25,5,21,27,13]),(89591,85,[54,52,79,37,48,1,23,78]),(89659,102,[59,43]),(89897,68,[65,49,25]),(90067,102,[49,29,67,43,11,79,23]),(90203,238,[47,201,99,57,171,125,93,71,109]),(90271,765,[673,193]),(90373,68,[55]),(90407,17,[12,6,5,1,10,15,13,3,9]),(90679,357,[25,230]),(90917,476,[179,437,387,325,177,309,265,163]),(91019,34,[25,3,13,29,23,1,15,19,9]),
-    (91121,85,[33]),(91291,510,[223,389,23,331]),(91393,3808,[2945,513]),(91529,17,[1,16]),(91631,595,[158,248,169,302,423]),(91733,68,[7,63,43,65,39,57,41]),(91801,3060,[]),(92107,2142,[599,1667,1937]),(92243,34,[15,29,13,5,9]),(92311,85,[19,36]),(92413,612,[197,485,49,547]),(92753,17,[7,9]),(92821,1020,[]),(92957,68,[53,5,1,49,31,59,65,45,39]),(93059,238,[149]),
-    (93229,68,[25,65,31,59,35,61]),(93263,17,[12,11,7,1,4]),(93637,612,[]),(93739,34,[1,11,21,29]),(94079,17,[15,11,9,8,4,3]),(94351,255,[86,206,211,106,196,89]),(94793,34,[27,25]),(95507,34,[27,25,1,23,33,21,29]),(95813,68,[45,43,15,23,47,39]),(95881,1020,[467]),(96017,136,[87,1,35]),(96221,340,[101,173,207,87,137,59]),(96289,48,[]),(96323,34,[21,27,33,13,7,15,29]),(96493,204,[]),
-    (96527,17,[15,6,3,2,5,16]),(96697,612,[473,463,217,319,73]),(96731,170,[39,141,89,1,61,11,67]),(96799,51,[4,7,25,35,23]),(97003,34,[29]),(97241,340,[181,217]),(97547,34,[19,9,3,31]),(97649,136,[127,121,7,25,97]),(98057,238,[]),(98227,306,[]),(98533,4284,[2701]),(98669,68,[43,63,55,21,11]),(98737,408,[275,83,385,101]),(98873,68,[39,37]),(99349,68,[23,27]),
-    (99689,68,[39,43,55,65,5]),(99859,102,[47,65,35,11]),(99961,7140,[]),(100267,34,[21,25]),(100403,34,[31,33,21,3,29,27]),(100811,170,[111,43,61,3,19]),(100913,476,[421,29,233]),(100981,3060,[1501,2573]),(101117,68,[53,65,41,47,55,23,21,31]),(101287,9,[]),(101627,238,[1,41,173,235,219,145,207,181,171]),(101797,204,[11,37,121]),(102001,340,[49]),(102103,357,[311,58,271,13]),(102409,102,[61]),
-    (102647,17,[16,6,8,11,4,7]),(102953,68,[63,41,23,39,65]),(103123,102,[]),(103769,238,[183]),(103837,4,[]),(104347,102,[1]),(104381,340,[233,101,107,9,241,77,113]),(104551,255,[82]),(104789,68,[39,3,67,25,37]),(104891,170,[71,7,83,43,37,103,101,49]),(104959,1071,[829,64,1069]),(105367,17,[]),(105401,170,[109]),(105503,17,[11,10,9,16,1,12]),(105673,357,[]),
-    (106013,68,[53,11,65,55,59]),(106217,17,[8,9]),(106319,17,[11,5,7,8,2]),(106591,255,[]),(106693,204,[125,79]),(106727,17,[11,8,1,7,3]),(107033,68,[1,35,49,65]),(107101,1020,[]),(107339,34,[]),(107441,85,[38,76]),(107509,68,[13,21,39]),(107713,4896,[455,3121]),(107747,34,[13,23,15,11,21,33,27]),(107951,85,[57,12,76,82,77,42,47]),(108223,51,[19,1,41,13,22,11]),
-    (108359,17,[12,11,14,8,6,15,4]),(108461,340,[339,101,103,247,313]),(108529,1428,[919,193]),(108631,765,[451,104,163,239]),(108869,68,[49,21,45,55,37,11]),(108971,170,[137,39]),(109073,8,[]),(109141,1020,[871,857,983]),(109379,34,[1,33,13,15,11,7,29,3]),(109481,85,[]),(109583,17,[6,16,14,4,3,15,5,9,8]),(110059,2,[]),(110161,6120,[4447,1109]),(110501,340,[233,49,3,303,311,171,223]),(110569,17,[5]),
-    (110603,34,[3,1,11,5,23,7]),(110807,17,[1,7,5]),(110909,476,[387,73,431,285,267,467,253,335,121,109,433]),(110977,408,[]),(111317,68,[31,61,41,37,19,55,45,33,1]),(111487,1,[]),(111521,680,[]),(111623,119,[108,86,99]),(111827,34,[15,3,19,9,25,11]),(111997,612,[557,143,95,299,55]),(112031,85,[62,83,7,69,19,64]),(112303,153,[20]),(112337,238,[]),(112507,102,[11,23,53,5]),(112643,34,[11,1,9,19]),
-    (113017,102,[]),(113051,170,[]),(113153,544,[31,267,249]),(113357,68,[27,53,19,23,61,5,41,11]),(113731,170,[27]),(113969,136,[29,71]),(114343,51,[22,2,7,28]),(114377,2,[]),(114479,119,[10,30,99,6,118]),(114547,34,[13,25,33,29]),(114649,68,[43,25,3]),(115057,1224,[821,817,647,529]),(115363,102,[71,29]),(115499,34,[19,7,27,25,33]),(115601,680,[373,73]),
-    (115771,510,[451,31,211,61]),(115873,102,[]),(116009,34,[]),(116689,136,[]),(116791,255,[61,251,139,128]),(116927,17,[5,6,7]),(117437,68,[59,29]),(117539,34,[7,33,9,29]),(117709,204,[115,145,169,89]),(117811,10710,[8263,3529,7733,2629,4337,4181]),(118219,102,[19,73,31,23,5,11]),(118253,4,[]),(118423,153,[64]),(118457,17,[2]),(118661,340,[313,173,167,69,199,157,123,159,319,57,303,33]),
-    (118831,51,[16]),(118967,17,[15,10,3,1,4,9,8,7,14,11,2]),(119069,68,[]),(119783,17,[1,15,9,5,6,8,2]),(119851,34,[]),(119953,2142,[]),(120157,204,[41,71]),(120293,68,[65,21,43,33,7,19,53,23]),(120871,765,[706,397,536,334]),(121007,17,[3,10,12]),(121313,136,[123,83,117]),(121687,1,[]),(121721,10,[]),(121789,12,[7]),(121993,51,[]),
-    (122027,34,[15,9,7,25,29,31,13]),(122231,17,[15,14,4]),(122299,102,[91,49,65,55,83]),(122401,12240,[8557,8069,6913]),(122503,51,[16,49,8,22,11,13,43]),(122741,340,[57,239,149,159,101]),(123217,136,[45]),(123727,51,[1,38,31,23]),(123829,204,[145,151,95,121]),(123863,17,[6,13,1,16,10,14,12]),(123931,306,[]),(124067,34,[27,15,7]),(124339,34,[23,33,31]),(124543,51,[11]),(124577,136,[63,69]),
-    (124679,17,[3,12,10,15,13,7]),(124781,68,[65]),(124951,1785,[1639,1633,127,1612,1303]),(125053,68,[21,1,23]),(125597,4,[]),(126107,34,[7,9,13,23,27,25]),(126311,17,[2,6,14,10,15]),(126481,2040,[2033,1109,1667]),(126583,51,[28,47,11,32,37,40]),(126719,17,[13,7,11,12,1,8,9,3,4,15,5]),(126923,34,[5,31,7,29,21,1,27]),(127297,408,[]),(127331,238,[29]),(127399,51,[20,2,4,37,35]),(127637,68,[3,7,37,27]),
-    (127739,34,[27,5,21,19,13]),(127807,357,[265,31,10,157,256]),(128113,408,[89,263,169,175]),(128147,34,[15,23,19,9,33,11]),(128351,85,[7,57,59,24,14,1]),(128521,2142,[]),(128657,136,[33,83,107,5]),(128861,68,[29]),(129439,153,[104,76,5]),(129643,102,[89,65,67]),(130051,510,[407]),(130969,153,[139]),(131071,17,[16])]
-  obtain ⟨catalog,lst,periods,keyeq'⟩ := literal_root_catalogue
-  let blocks : List (List (ℕ × List ℕ × List ℕ)) := [
-    [(1,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[8,3,5,11,19,31,37,41,43,61,73,97,109,127,137,151,211,241,307,331,337,409,433,613,631,673,1021,1531,2017,2143,2521,2689,3061,3361,4421,4481,4999,6121,6427,6529,8161,9521,12241,12853,13441,21169,23041,23311,24481]),(1201,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59263,59399,60623,61507,64091,64499,65519,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[8,11,13,29,31,71,73,109,113,137,193,241,337,409,421,433,449,577,613,953,1009,1021,1321,1361,1429,1531,2017,2143,4421,4999,5153,5419,6121,6529,8161,9521,12241,13441,13669,20161,20231,29191]),(1681,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13159,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,64567,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,11,13,31,43,61,71,109,137,193,239,241,257,281,307,331,421,449,577,613,673,919,1009,1021,1321,1531,2017,2143,2521,2689,2857,4481,4999,5153,5419,5441,11119,12241,12853,13669,20161,23041,24481,26317,37441]),(1793,[3163,10847,11731,14009,14723,16253,17477,18803,21319,21523,22679,23189,23767,24923,25127,25943,27983,28663,28697,29207,29717,30839,31859,33287,36551,39883,40427,40597,41243,46309,49199,52259,52667,52973,53279,53891,53993,54673,58889,59093,59399,60623,61507,61949,64567,67763,67967,68477,70619,71843,73883,74597,74699,74903,75209,76943,78167,79901,80819,83267,84389,86939,89387,89659,89897,91019,93229,94079,94793,95507,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,122503,126107,126719],[4,8,3,13,31,37,41,43,73,97,103,239,307,409,421,433,449,577,631,673,953,1009,1153,1531,2143,2521,4481,4999,5153,5441,6529,11119,12241,12853,13669,17137,20161,20231,21169,23311,24481,34273]),(3361,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27847,27983,30703,30839,32063,33457,33967,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[3,5,7,11,31,41,43,71,103,109,113,151,181,211,241,257,281,307,331,337,409,449,577,613,673,1009,1153,1361,1429,2689,4481,4999,5153,5441,6121,6427,8161,12853,13441,16831,20161,20231,21169]),(3721,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[5,7,13,29,31,41,61,97,127,151,181,241,281,307,577,613,673,1009,1021,2017,2381,2857,3061,3361,4421,4481,5153,6121,6337,6427,8161,9521,10711,11119,12853,13669,21169,23311,26317,36721]),(4033,[443,647,6257,6359,6971,8807,10303,11867,16253,18191,20639,21523,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,96799,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[8,3,5,11,13,19,31,61,71,73,97,109,113,137,181,211,257,281,307,337,409,421,449,577,631,1021,1153,1361,1429,1531,2017,2381,2521,3571,4421,4481,4999,5419,5441,6121,6337,6427,10711,13441,13669,14281,14449,17137])],
-    [(4313,[1327,1667,4013,5407,6053,7583,9419,10133,17239,21013,22679,27983,30839,32063,33967,34919,35531,38183,38693,40087,40427,41039,41243,42943,43283,43487,48247,48383,48859,49199,50627,51239,52259,52667,52973,53891,53993,59093,59399,60317,61031,63377,66947,67763,68477,69191,70619,70823,74189,74869,74903,78031,80683,81023,81737,82757,84389,85103,90067,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,115363,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,8,13,29,31,37,41,43,97,103,113,181,193,211,239,241,257,281,331,337,433,449,577,631,673,919,953,1009,1021,1361,1429,2017,2143,2521,2689,2857,3571,4421,4481,4999,5419,5441,6121,6529,11119,14281,14449,17137,20161,20231,23311]),(5041,[443,647,1259,1973,2789,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,5,11,19,29,31,71,103,113,137,193,281,331,337,433,449,673,1021,1321,1361,1531,2381,3361,3571,4481,5419,5441,6121,6337,6529,8161,10711,12241,12853,13441,14449,20231,21169,23041,23311,24481,34511,37441,42841]),(5713,[647,1259,1973,2789,3299,6971,7583,8467,11867,13159,16253,19993,22271,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,44507,46819,52259,52667,53993,55829,57223,58243,59093,59399,60623,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,78779,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,101627,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,115057,118967,119783,123727,123863,125053,126719,126923],[4,5,7,11,29,37,41,61,71,73,97,103,109,113,137,151,181,193,239,241,257,331,421,433,449,919,1021,1153,1361,2143,2381,2521,2689,3571,4421,4481,4999,6121,6427,6529,8161,9521,10711,12241,12853,13441,14281,16831,20161,21169,23311]),(6241,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,65927,67049,70619,72047,74699,74903,75277,76603,76943,84457,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[8,3,5,11,43,73,103,151,193,239,241,281,577,919,953,1153,1321,1531,2143,2857,3361,3571,4481,4999,6121,6427,9521,13669,14449,16831,17137]),(6553,[3163,7243,10847,11731,14009,14723,16253,17477,18803,22679,23053,23189,24379,24923,25127,25943,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54163,54673,58889,59093,59399,60623,61949,64567,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,75209,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[3,7,31,37,41,73,103,109,113,151,181,193,211,241,421,577,613,919,1009,1153,1321,2017,2143,2857,3061,4421,5153,5419,5441,6427,6529,8161,12241,13669,14449,17137,20161,20231,21169,23041,36721]),(6721,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,45119,46309,52667,53993,55829,55931,56611,58243,59093,61099,61949,64499,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,86599,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[5,11,13,29,37,61,71,73,113,127,151,181,239,281,307,331,577,673,919,953,1009,1429,2017,2143,2381,2521,3361,3571,4481,4999,8161]),(7201,[1259,1327,4013,6053,9419,12377,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,37,61,103,109,211,257,281,307,421,449,613,919,953,1021,1153,1321,1429,1531,2521,2857,3571,4999,5153,6337,6427,6529,8161,9521,10711,11119,12241,12853,13669,14449,16831,17137])],
-    [(8401,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[4,3,13,19,41,61,71,73,109,127,151,181,211,307,331,337,449,577,919,1021,1321,1361,2017,2143,2521,3061,3361,3571,4421,4999,5419,5441,6427,9521,12241,13669,14281,20161,29191,34273,36721,38737]),(8761,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,43793,45119,46309,52667,53993,55829,56611,58243,59093,61099,61813,61949,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90407,91019,91733,95507,96527,102647,107747,108359,108529,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[8,7,29,37,61,73,109,127,137,151,193,257,337,409,433,631,673,1021,1153,2017,2521,2857,3061,3361,3571,4481,4999,5153,5441]),(8881,[137,1259,1327,3299,7039,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,59671,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,75583,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,13,19,29,71,97,103,109,113,127,151,211,239,257,307,331,409,433,449,613,631,1021,1153,1361,1531,2017,2143,2689,3061,3361,4481,4999,5153,5441,6121,6337,6427,8161,12241,13441,14281,16831,20161,21169,24481,26317,34511,38737,42841,45697,61681]),(9073,[1327,1667,4013,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,59093,59399,60317,61031,63377,63853,66947,67763,68477,69191,70619,70823,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,3,19,71,73,97,109,137,181,193,211,241,257,337,449,577,613,631,1009,1021,1153,1429,2521,2689,3061,6337,10711,14449,16831,17137,21169]),(9353,[103,137,647,1259,2789,4217,6869,9419,10303,11867,12343,14723,15131,15199,17783,20639,21557,22067,22543,23767,25127,25603,27337,27779,27983,28493,29207,29411,29683,30839,31859,32573,36551,39883,40903,41039,43487,43793,47057,48383,50423,51239,52667,53279,53993,56951,59093,59467,61099,63853,65587,67763,68749,69463,70823,74903,75787,76943,77249,78167,78439,81533,81737,81839,83437,85103,85817,86939,90203,90407,90917,91019,94079,96221,96527,97547,98873,100403,100811,104789,106727,108869,109379,109583,110603,111317,111827,112303,115363,118661,118967,121007,124679,126719,127399,127637],[8,3,7,11,19,29,37,41,61,71,73,97,109,151,211,239,257,281,307,331,337,409,433,953,1153,1361,2143,2521,2689,2857,3061,3361,4421,4481,5153,5419,6121,6427,8161,9521,10711,11119,12241,12853,14281,14449,20161,20231,21169,23041,24481,26317,29191,42841,54001]),(9721,[647,6053,7549,7583,8059,10949,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,83063,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,3,29,31,37,41,43,109,127,151,181,241,257,281,307,331,409,421,577,613,919,953,1009,1021,1321,1361,1531,2381,3571,4999,5153,6121,6337,6529,8161,11119,12241,12853]),(10441,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,7,13,19,37,61,73,97,103,181,257,281,307,331,433,449,613,631,919,1009,1021,1153,1321,2521,3361,4999,5153,5419,5441,6337,6427,6529,9521,10711,12241,13441,14449,17137,20161,20231,23311,24481,34511,36721,43691])],
-    [(10753,[443,647,1259,1973,2789,3911,6733,7039,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24923,25127,27031,29717,30091,30839,30941,31247,32063,33287,34919,38183,39373,39679,40087,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,70619,70823,71333,71843,72047,74903,76943,78167,80309,81703,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,97547,100811,104891,105503,106217,109583,111827,112643,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,7,41,43,71,97,103,113,137,151,181,193,211,239,257,577,613,631,673,953,1021,1321,1361,2143,2689,2857,3361,5153,5419,6121,6337,6427,6529,9521,10711,11119,12853,13669,14281,16831,20161,23041,29191,34273,34511,36721,37441]),(10921,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(11281,[1259,1327,3673,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,19,37,61,71,103,113,137,151,241,281,307,331,421,673,953,1009,1361,1429,1531,2143,2381,4999,5441,6427,6529,8161,10711,13441,13669,14281,16831,20161]),(11761,[647,6053,7549,7583,8059,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[8,3,7,11,29,31,41,113,127,181,211,257,307,331,337,409,421,613,919,953,1361,1531,2143,2381,2521,2857,5153,5441,6121,6337,8161,12853]),(11873,[137,1259,1327,3299,7583,9283,9419,10099,10847,11867,13397,13907,14621,14723,16763,17579,17783,22679,23189,24107,24379,29207,30839,31247,34919,35327,40529,41039,41243,44507,48383,50287,52667,53279,53993,54367,56543,59093,62323,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,77419,78167,79867,80309,80819,81023,81839,82757,84559,84967,85103,91733,92753,93263,96323,101117,102647,102953,106319,106727,108223,108461,109379,110603,110807,111317,113357,115499,116927,117539,118661,118967,120157,122027,124067,124679,126107,126719,126923],[4,8,3,5,7,19,29,31,41,61,73,97,109,113,127,151,181,239,281,307,331,421,433,631,673,919,1021,1429,2017,2381,2521,3061,3361,4481,4999,5419,5441,6121,9521,12241,12853,13669,14281,14449,17137,26317,29191,36721,37441,42841]),(12241,[239,647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,24379,25841,25943,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,54503,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[3,5,19,73,103,113,127,137,211,241,257,331,337,449,631,673,953,1009,1021,1321,1531,2381,2521,2857,3571,4421,5153,5419,5441,6121,6337,6427,8161,9521,12241,12853,13669,14281,17137,21169,23041,24481,34511]),(12961,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,65927,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[5,7,11,13,19,29,37,71,73,97,103,211,239,241,331,337,449,613,919,1009,1021,1153,1321,2017,2143,2381,2521,2689,3361,4421,4481,5419,5441,6121,6427,10711,13441,14281,14449,16831,20161,20231,21169,23311,26317,29191,34273,43691,51001,65537])],
-    [(13441,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,61507,64091,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,7,11,13,19,29,37,71,97,109,113,127,137,151,193,211,307,331,433,613,673,953,1009,1021,1153,1321,1361,1429,1531,2017,2521,2689,3361,3571,4421,4481,4999,5441,6529,9521,10711,11119,12241,12853,13441,14281,14449,16831,20161,20231,23041,23311,24481,26317,29191]),(13801,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[8,3,5,13,19,29,41,43,71,73,151,211,239,281,307,331,433,577,673,919,1009,1361,2017,2381,2521,2689,2857,3061,3361,4999,5419,5441,6121,6427,6529,13441]),(14761,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,64499,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,5,19,31,37,41,43,61,73,103,109,113,127,151,181,241,307,337,409,577,613,631,919,953,1153,1321,2689,2857,3571,5153,5419,6337,6529,9521,10711,11119,12241,12853,13441,14281,20231]),(15481,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59263,59399,60623,64091,64499,65519,67763,69463,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,85103,86599,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,113153,114343,118967,126583,126719,128147],[8,3,5,11,13,19,29,37,43,61,73,97,109,113,193,211,257,331,409,433,577,631,673,919,1429,1531,2017,2143,2689,3361,4421,4481,4999,5153,5419,10711,11119,12241,12853,14281,14449,17137,20161,21169,23041,26317,34273,34511,36721]),(15961,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,31,61,97,137,181,193,241,257,281,307,337,421,433,577,631,953,1009,1153,1321,2143,2381,2689,2857,3361,3571,4999,6121,6529,8161,10711,12853,13441,13669,14281,20161,21169,23311,26317,34273]),(16321,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[4,3,7,13,41,61,73,97,103,127,181,211,239,241,307,337,409,421,613,631,673,919,953,1009,1021,1153,1321,1361,1429,2143,2521,2857,3061,3361,5419,6121,6427,9521,13669,17137,20161,20231,21169,23041,29191,34273]),(16633,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[5,11,37,41,61,71,127,181,193,211,239,241,281,337,421,433,613,673,919,1009,1021,1321,1361,1531,2017,2143,2689,2857,3361,4421,5153,5441,6121,6337,6427,6529,9521,13669,14449,20231,23041,24481,26317,34273,37441,38737,43691,45697])],
-    [(16993,[1259,1327,1871,4013,6053,8807,9419,13907,14723,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,74189,74903,76603,78167,78439,81023,82723,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,102409,105503,107747,108631,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126923,127739],[8,7,11,13,19,29,37,41,71,73,109,127,137,181,193,241,257,281,307,331,337,409,433,449,577,613,631,1009,1021,1153,1429,1531,2017,2143,2521,3061,3571,4481,5441,6337,6427,9521,10711,11119,14281]),(17281,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,84967,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,101627,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,8,5,29,37,43,71,73,97,137,211,241,257,281,307,337,409,449,631,953,1021,1153,1321,1531,2143,2689,2857,3061,3571,5153,5419,5441,6121,8161,9521,12853,13441,13669,20161,20231,24481,26317,29191,34511]),(17641,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[3,5,7,11,31,41,43,71,103,109,113,151,181,211,241,257,281,307,331,337,409,449,577,613,673,1009,1153,1361,1429,2689,4481,4999,5153,5441,6121,6427,8161,12853,13441,16831,20161,20231,21169]),(18001,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[5,19,37,41,73,97,137,151,193,241,281,337,409,421,433,613,631,673,1009,1021,1321,2017,2381,2857,3571,4421,5153,5419,5441,6337,6529,10711,11119,12853,13441,13669,14449,16831,17137,20161,20231,23041,23311,24481,34273,34511]),(18481,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,75277,76603,76943,84457,84967,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[7,43,61,73,127,239,281,307,331,577,631,673,953,1021,1153,1321,1429,2017,2381,2857,3061,3361,3571,4421,4481,5153,5419,5441,6121,8161,9521,10711,12241,13441,13669,14281,14449,16831,20161,20231]),(18841,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17443,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,56747,59093,60317,64567,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,5,11,19,61,73,97,127,151,193,239,257,281,307,337,409,577,631,673,1361,1531,2017,2381,2521,2689,3361,4421,5441,6121,6337,12853,13441,13669,14281,16831]),(19801,[103,443,1259,1667,6359,8093,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90203,90407,91019,92243,96323,96697,107509,107747,108223,109379,110909,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,8,3,5,7,31,43,71,109,137,151,211,241,257,281,307,331,409,421,433,449,613,631,1021,1531,2017,2143,2381,2689,3361,3571,4421,4999,5153,5419,6427,9521,12241,12853,13441,14281,14449,16831])],
-    [(20833,[3163,7243,10847,11731,14009,14723,16253,17477,18803,20809,22679,23053,23189,24379,24923,25127,25943,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54673,58889,59093,59399,60623,61949,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,75209,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[3,7,31,37,41,73,103,109,113,151,181,193,211,241,421,577,613,919,1009,1153,1321,2017,2143,2857,3061,4421,5153,5419,5441,6427,6529,8161,12241,13669,14449,17137,20161,20231,21169,23041,36721]),(21001,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,45119,46309,52667,53993,55829,55931,56611,58243,59093,61099,61813,61949,64499,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[8,5,11,31,37,41,43,61,73,97,103,109,127,151,181,211,239,241,257,281,307,331,337,421,433,613,1009,1021,1361,2017,2143,3361,3571,4999,6121,6337]),(21841,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61813,65179,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[11,29,37,41,43,61,73,109,113,127,239,281,307,331,409,433,449,631,953,1021,1153,1321,1361,1531,2381,2521,2689,4421,4999,5441,6121,6337,9521,10711,12241,16831]),(21953,[443,2551,3299,10847,10949,11867,12343,14723,16763,17749,17783,19483,21523,22679,23189,24107,24413,26759,28867,30839,35327,40427,43283,45119,48247,52667,53959,53993,55829,55931,59093,61609,61949,64499,65179,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75277,77929,78439,80989,81023,81533,84559,86531,89591,90067,90203,90407,91019,91291,91733,95507,96527,96799,102647,106693,107747,108359,109583,110603,112507,116927,118219,119783,123727,123863,124339,126107,126311,128147],[8,5,7,11,29,41,43,61,97,103,109,113,151,181,241,257,307,449,577,631,919,953,1009,1153,1531,2143,2381,2857,3361,3571,4421,10711,14281,14449]),(22033,[647,1259,1973,2789,3299,6971,7583,8467,11867,12377,16253,22271,23087,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,52259,52667,53993,55829,58243,59093,59399,60623,62731,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807],[4,8,5,7,31,43,97,103,109,113,127,137,151,211,241,257,281,307,331,409,421,433,577,613,631,1009,1021,2017,2381,2521,2689,2857,3061,3361,3571,5153,5441,6121,6337,6427,6529,10711,11119,12241,12853,13441,14281]),(22681,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,3,7,11,19,31,37,43,71,73,151,193,239,241,257,281,307,337,409,433,577,953,1021,1531,2143,2521,2689,2857,3061,3361,4999,6121,6337,9521,10711,12853,13441,13669,14449,16831,23041,26317,38737]),(23521,[1259,1327,3673,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[3,5,11,13,37,41,43,61,71,73,97,103,109,113,151,193,211,239,241,257,307,337,409,449,577,1021,1153,1531,2017,2143,2381,2689,2857,3571,4481,6121,6337,6427,6529,9521,12241,20161,21169])],
-    [(23881,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[4,3,5,7,13,41,61,109,127,181,211,239,257,331,337,409,433,449,577,631,673,1009,1321,1429,2689,3061,3361,4481,5153,6337,6427,10711,11119,12853,14281,17137]),(24001,[647,6053,7549,7583,8059,10949,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,83063,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,7,11,29,37,43,71,109,137,181,241,281,409,421,433,449,613,631,953,1321,1361,2017,2143,2521,2689,4421,5153,6427,8161,9521,10711,13441]),(24473,[1259,1327,1871,4013,5407,6053,8467,9419,13907,14723,15199,16763,19483,19687,21557,24413,31859,33083,37537,38047,38183,40189,40427,41039,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58379,59093,59399,60623,62323,74189,74903,77929,78167,81023,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,105503,107747,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126481,126923,127739],[4,7,11,13,19,29,31,43,73,97,109,127,137,151,211,239,241,281,307,409,577,631,673,953,1009,1153,1321,1361,1429,2017,2381,2521,2689,2857,3061,3361,4421,4999,5441,6427,8161,9521,10711,13441]),(25201,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(25561,[1259,1327,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,37,61,103,109,211,257,281,307,421,449,613,919,953,1021,1153,1321,1429,1531,2521,2857,3571,4999,5153,6337,6427,6529,8161,9521,10711,11119,12241,12853,13669,14449,16831,17137]),(26041,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,3,7,11,13,19,29,31,37,41,71,73,97,113,127,181,193,241,257,281,307,337,409,449,613,919,1009,1321,2381,2857,3061,3361,3571,4421,4999,5153,5419,5441,8161,9521,10711,11119,12853,14449]),(26713,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,43283,45119,46309,51511,52667,53993,54163,55829,55931,58243,59093,61099,61949,64499,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75583,81023,81533,86531,89591,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,3,5,7,19,31,37,73,97,103,109,113,151,181,193,239,307,331,337,421,433,449,613,673,953,1321,1361,2017,2857,3361,3571,5419,5441,6337,8161])],
-    [(26881,[443,647,1871,6257,6359,8807,9011,10099,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,5,7,19,31,71,97,103,109,127,137,181,193,241,257,281,331,337,409,449,577,613,673,919,953,1021,1321,1361,1429,2017,2143,2381,2521,2857,3061,3361,4421,4999,5419,6121,6337,8161,12853,13669,14281,14449,20161,20231,23041,26317,29191]),(28081,[647,6053,7549,7583,8059,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[5,7,19,29,41,71,97,113,137,151,211,241,281,307,331,433,449,613,673,919,953,1021,1153,1321,1429,1531,2689,3061,3361,4421,4481,4999,5153,5419,5441,6337,8161,12853,13669,20161]),(28561,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[8,5,11,13,19,31,37,41,43,97,103,109,127,151,241,257,281,307,337,409,433,449,577,613,953,1361,1429,2017,2689,2857,3061,3571,4421,4999,5153,5441,8161,10711,12853,14449,23041,23311,26317,29191]),(29881,[1327,4013,5101,6053,7583,9419,10133,22679,24379,27983,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,54503,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[4,8,7,13,31,41,43,71,73,151,181,239,257,307,421,433,449,631,673,1021,1321,1429,2017,2381,3061,4999,5153,5441,6337,8161,9521,10711,11119,12853,14281,17137]),(30241,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,31,61,97,137,181,193,241,257,281,307,337,421,433,577,631,953,1009,1153,1321,2143,2381,2689,2857,3361,3571,4999,6121,6529,8161,10711,12853,13441,13669,14281,20161,21169,23311,26317,34273]),(30601,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[8,7,19,29,31,71,73,103,127,137,151,193,211,239,241,281,307,337,421,433,577,613,919,953,1009,1021,1531,2017,2857,3571,5153,5419,6337,6427,9521,10711,11119,12241,12853,16831,20161,23041,23311]),(30913,[137,1259,1327,3299,7039,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,75583,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[4,8,7,29,31,43,71,103,109,113,127,181,193,211,241,281,307,337,409,421,433,449,673,1009,1153,1361,1429,2143,2381,2689,2857,3061,4421,4999,5153,6121,6337,6427,6529,8161,13441,14281,14449,16831,23041,23311,24481,26317,34511,37441,38737,42841,45697,51001])],
-    [(31081,[2347,3299,4013,5407,6869,7583,9419,10847,13397,14519,16763,17443,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,56747,59093,60317,64567,65927,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,31,41,43,61,103,113,127,137,151,239,257,281,331,433,577,1009,1153,1361,1429,1531,2143,2381,2521,2689,3061,3571,4481,5153,5441,6427,9521,10711,12241,12853,13669,16831,20161]),(31921,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,64567,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,8,5,11,31,37,41,61,71,73,103,137,193,211,281,337,433,631,953,1009,1021,1321,1429,1531,2857,3061,5419,5441,6337,6427,8161,9521,10711,11119,12241,13441,14449,16831,17137,20161,20231,21169]),(33121,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[8,3,11,13,29,37,61,71,97,137,151,239,241,257,281,433,577,631,673,919,953,1021,1531,2017,2521,2689,3061,3361,4421,4481,4999,5153,5419,5441,6121,6427,6529,11119,13441,14449,21169]),(34081,[103,443,1259,1667,6359,8093,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61813,65179,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90203,90407,91019,92243,96323,107509,107747,108223,109379,110909,114547,122027,122503,123863,124679,126107,126719,127739],[5,19,29,37,41,73,127,137,181,211,257,281,307,421,631,1361,1531,2381,3571,5153,5441,6337,6427,6529,8161,10711,11119,14281]),(34273,[647,1259,1973,2789,3299,6971,7583,8467,11867,16253,19993,22271,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,44507,52259,52667,53993,55829,58243,59093,59399,60623,62731,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,78779,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,101627,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923],[8,11,29,41,71,113,151,193,211,257,307,331,433,449,577,613,919,953,2143,2689,3061,3571,4421,4999,5441,6337,6529,8161,9521,10711,11119,12241,13441,21169]),(35641,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,65213,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,8,3,5,11,13,29,31,37,41,43,71,109,151,181,193,241,281,421,433,449,577,613,919,1021,1361,1531,2017,2381,2521,2689,2857,3361,5153,5419,6121,6337,6427,9521,13441,13669,14281,14449,17137,20161,20231,21169,23041,23311,26317,34273,34511,37441,38737]),(35953,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13159,13397,14009,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,64567,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,13,19,29,37,73,97,127,241,257,281,409,953,1009,1153,2143,2381,2689,2857,3061,4481,4999,5419,5441,6427,9521,10711,12853,13669,14281,14449,16831,17137,20231,23041,23311,24481,34511,36721])],
-    [(36121,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[8,5,11,19,29,37,41,43,71,109,127,181,193,239,241,257,331,421,449,577,613,673,1021,1153,2689,2857,3361,4421,5153,5419,6427,6529,8161,9521,10711,13441,13669]),(36961,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,5,19,29,31,41,43,61,71,97,109,113,151,211,239,241,281,337,421,433,577,631,953,1021,1153,1361,1429,1531,2381,2521,2689,3361,4999,5419,6121,6427,8161,10711,12241,12853,16831,17137,20231,21169,23041,23311,34273,34511]),(37441,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(38161,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,96697,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,7,19,37,41,43,61,73,109,127,137,193,239,241,257,409,449,613,919,953,1021,1153,1321,1429,1531,2381,2521,2689,3061,3361,3571,4421,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,12241,13441,13669,14449,16831,17137,20161]),(39001,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[3,13,29,37,43,61,71,73,97,103,109,181,211,239,257,281,307,331,337,433,577,613,631,673,919,1153,1321,1361,1531,2143,2521,2689,3361,4421,4481,4999,5153,6121,6529,8161,9521,10711,11119,12853,13441,14281,14449,16831,20161,20231,23041,23311,24481,29191,37441]),(39121,[443,647,1871,6257,6359,9011,10099,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83063,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,7,11,13,31,41,43,71,103,109,137,193,241,281,337,577,631,673,953,1009,1021,1321,1361,1429,2017,2381,2689,2857,3361,4421,8161,11119,13441,13669,14449,17137]),(39313,[443,647,1259,1973,2789,3911,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24923,25127,27031,29717,30091,30839,30941,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,69463,70619,70823,71333,71843,72047,74903,76943,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,97547,100811,104891,105503,106217,109583,111827,112643,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[3,11,13,31,37,41,61,73,113,127,137,181,193,239,241,257,307,331,337,409,421,449,613,673,919,1009,1021,1321,2017,2521,2857,3061,3571,4481,5153,5419,6121,9521,13441,13669,17137,20161,20231,21169,23041,23311,29191,34511,36721])],
-    [(39961,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,67763,69463,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,84967,85103,86599,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,113153,114343,118967,126583,126719,128147],[8,3,5,11,19,37,43,71,73,193,281,331,421,433,613,631,673,919,953,1009,1361,1429,1531,2143,3061,3571,5419,5441,6337,6427,8161,9521,10711,11119,12241,12853,13441,13669,14281,14449,17137,20161,20231,21169,23041,34273]),(40321,[647,6053,7549,7583,8059,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,3,5,11,13,19,29,31,43,97,103,113,127,137,151,281,331,409,449,613,953,1021,1153,1361,1429,2017,2521,2689,3571,4481,5153,5419,6121,6337,6427,10711,12853]),(40993,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,40801,43283,45119,46309,51511,52667,53993,55829,55931,58243,59093,61099,61949,64499,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,81023,81533,86531,86599,89591,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,3,5,7,19,31,37,73,97,103,109,113,151,181,193,239,307,331,337,421,433,449,613,673,953,1321,1361,2017,2857,3361,3571,5419,5441,6337,8161]),(41521,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,65927,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[29,31,37,43,103,113,241,257,281,307,337,409,433,449,631,919,1009,1021,1153,1321,1531,2017,2143,2857,3061,3571,4481,4999,5419,5441,6427,6529,8161,9521,10711,11119,13669,16831,17137,20161,20231,21169,23041,23311,26317,29191,34511,37441,38737,42841,51001]),(42001,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,46819,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,8,3,7,29,31,37,71,113,281,307,337,613,631,673,1009,1021,1321,1361,1429,2143,2381,2689,2857,3061,3361,3571,4999,5153,5441,6121,6337,6427,6529,9521,11119,14281,14449,17137,21169,24481,29191]),(42113,[443,647,6257,6359,6971,8807,10303,11867,16253,18191,20639,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,48757,52667,52769,53993,54877,56237,56543,56747,58379,59093,60623,62323,65519,71129,71503,71843,72047,73679,73883,77317,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,117709,118967,120293,122231,123727,125053,126719,126923,127739,128113,129643],[8,3,7,13,41,103,127,137,151,181,193,307,409,421,433,449,631,953,1009,1021,1429,2143,2381,2689,2857,3061,3361,4481,5419,6121,6529,8161,9521,12241,13441,14449,17137,20231,21169]),(42841,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[8,3,5,11,19,31,37,41,43,61,73,97,109,127,137,151,211,241,307,331,337,409,433,613,631,673,1021,1531,2017,2143,2521,2689,3061,3361,4421,4481,4999,6121,6427,6529,8161,9521,12241,12853,13441,21169,23041,23311,24481])],
-    [(43201,[443,647,1531,1871,6257,6359,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,7,11,13,31,41,43,71,103,109,137,193,241,281,337,577,631,673,953,1009,1021,1321,1361,1429,2017,2381,2689,2857,3361,4421,8161,11119,13441,13669,14449,17137]),(44041,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59263,59399,60623,61507,64091,64499,65519,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[8,7,13,19,29,31,37,61,97,151,181,193,281,307,337,409,421,613,953,1361,1531,2017,2521,2689,3061,3361,5419,6427,6529,8161,10711,12853,13441,13669,14281,16831,17137,20161,23041,23311,24481,26317]),(44161,[1327,4013,5101,6053,7583,9419,10133,22679,24379,27983,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,54503,57427,59093,59399,60317,63377,63853,64567,66947,67763,68477,70619,70823,71741,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[4,3,5,7,13,29,41,61,71,73,103,109,137,193,307,409,449,613,673,919,1021,1153,1531,2143,2381,2689,2857,3061,3571,4421,4481,4999,5419,6121,6337,6427,8161,10711,11119,13669,16831,17137,24481]),(44633,[3163,10847,11731,14009,14723,16253,17477,18803,21319,21523,22679,23189,23767,24923,25127,25943,27983,28663,28697,29207,29717,30839,31859,33287,36551,39883,40427,40597,41243,46309,49199,52259,52667,52973,53279,53891,53993,54673,58889,59093,59399,60623,61507,61949,64567,67763,67967,68477,70619,71843,73883,74597,74699,74903,75209,76943,78167,79901,80819,83267,84389,86939,89387,89659,89897,91019,93229,94079,94793,95507,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,122503,126107,126719],[8,3,7,29,31,37,41,43,61,71,97,103,113,127,137,193,241,281,307,337,577,673,1009,1321,1429,1531,2017,3061,3361,4421,4481,5153,5419,6121,6337,6529,9521,12241,12853,16831,20231,21169,23311,26317,34511]),(46033,[647,6053,6971,7549,7583,8059,13397,13907,22067,23767,24821,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,51341,52259,53993,54503,56237,56713,58243,59093,60317,61031,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89591,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,3,5,7,13,19,31,43,73,97,113,137,193,239,241,257,307,337,409,421,433,449,577,631,919,1429,1531,2017,2689,2857,3061,4421,4481,4999,5153,5419,6337,6427,6529,8161,10711,12241,14281,23041]),(46201,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27847,27983,30703,30839,32063,33457,33967,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[3,5,7,11,31,41,43,71,103,109,113,151,181,211,241,257,281,307,331,337,409,449,577,613,673,1009,1153,1361,1429,2689,4481,4999,5153,5441,6121,6427,8161,12853,13441,16831,20161,20231,21169]),(46561,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[11,31,37,41,43,61,71,113,127,137,281,331,421,433,449,613,631,673,919,953,1321,1429,2143,2381,2521,2689,2857,3361,4999,5153,5419,6121,6337,6427,6529,12241,13441,13669,14281,17137,20231,23311,24481,26317,29191,34273,37441])],
-    [(47041,[409,647,1259,3877,3911,7243,10337,10847,14621,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,76603,76943,84457,84967,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115057,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[3,5,11,13,19,31,41,73,113,127,151,193,239,241,307,337,433,449,613,673,1153,1321,1361,1429,2017,2381,2857,4999,5153,5419,5441,6427,6529,9521,11119,12853,13669,14281,16831]),(47233,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65587,65927,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,110909,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[5,11,13,31,37,41,61,71,97,109,113,211,257,281,331,337,409,421,433,449,613,631,1153,1321,1429,1531,2143,2521,2857,3361,3571,4421,5419,5441,6337,6427,8161,9521,13669,14281,20161,20231,21169,23041,29191,34273,36721,37441,42841,43691,45697]),(47881,[443,647,1259,1973,2789,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,5,11,19,29,31,71,103,113,137,193,281,331,337,433,449,673,1021,1321,1361,1531,2381,3361,3571,4481,5419,5441,6121,6337,6529,8161,10711,12241,12853,13441,14449,20231,21169,23041,23311,24481,34511,37441,42841]),(49081,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,65927,67049,70619,72047,74699,74903,75277,76603,76943,84457,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[5,13,19,31,37,41,43,61,71,97,103,113,127,137,181,193,211,241,421,433,613,673,1021,1153,2521,2689,2857,3361,3571,4481,5419,6121,6337,6427,6529,8161,9521,12241,13441,13669,14281,23041]),(49201,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,25943,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,36653,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[4,8,3,5,13,19,29,31,37,41,43,61,71,73,97,113,127,181,239,257,281,409,421,433,613,631,673,919,1009,1361,1429,1531,2017,2689,2857,3061,3571,4421,4999,5419,5441,10711,11119,12241,12853,13441,13669,14281,14449,16831,23041,23311,29191,34273]),(49393,[3163,7243,10847,11731,14009,14723,16253,17477,18803,22679,23053,23189,24379,24923,25127,25943,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54163,54673,58889,59093,59399,60623,61949,64567,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,75209,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[3,7,31,37,41,73,103,109,113,151,181,193,211,241,421,577,613,919,1009,1153,1321,2017,2143,2857,3061,4421,5153,5419,5441,6427,6529,8161,12241,13669,14449,17137,20161,20231,21169,23041,36721]),(49673,[443,647,919,2789,3299,3571,7583,8059,8297,8467,12071,13397,13907,16763,19381,20639,21319,22067,25127,28697,28867,29411,31247,33287,38183,41957,43283,43691,43997,45833,49199,50423,51239,52259,53959,53993,55829,59093,59467,60317,61099,71843,74597,74903,76603,76943,78167,80819,85103,86939,87959,91121,91529,95507,96323,96527,100403,102647,105503,107747,109379,109583,111317,114547,115499,117539,118661,120293,123863,124339,128147,128657,131071],[4,5,13,19,29,31,37,61,73,97,103,113,137,181,211,239,281,307,331,337,409,421,433,577,613,673,1153,1361,1429,1531,2017,2381,2521,2857,4999,5153,10711,11119,12853,14281])],
-    [(50041,[1259,1327,4013,6053,9419,12377,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[5,7,13,29,37,41,71,103,109,113,127,239,241,257,331,433,449,613,631,1153,1361,1531,2017,2143,2381,2689,3571,4481,4999,6427,9521,10711,11119,12241,14281,14449,16831,20161]),(50401,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,96697,100913,103769,104959,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,7,19,37,41,43,61,73,109,127,137,193,239,241,257,409,449,613,919,953,1021,1153,1321,1429,1531,2381,2521,2689,3061,3361,3571,4421,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,12241,13441,13669,14449,16831,17137,20161]),(51601,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,43793,45119,46309,52667,53993,55829,56611,58243,59093,61099,61813,61949,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90407,91019,91733,95507,96527,102647,107747,108359,108529,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,8,7,11,13,37,43,61,71,103,113,151,241,281,307,331,613,631,1009,1021,1321,1361,2381,2521,2689,2857,3361,3571,4481,4999,10711]),(51913,[1327,1667,4013,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,59093,59399,60317,61031,63377,63853,66947,67763,68477,69191,70619,70823,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,3,7,31,37,61,73,103,109,113,181,193,241,257,337,409,421,631,919,953,1009,1021,1153,1531,2143,2689,2857,3061,3361,3571,4421,4481,5153,6337,6427,6529,8161,9521,10711,12853,13441,14281,17137,26317]),(52081,[1259,1327,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107713,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[8,11,29,31,41,61,71,73,109,127,151,181,239,241,281,337,409,433,449,613,631,953,1009,1321,1429,2017,2143,2521,2857,3361,4481,5419,5441,6529,8161,9521,10711,11119,12241,12853,13441,13669,16831,21169]),(52193,[103,137,647,1259,2789,4217,6869,9419,10303,11867,12343,14723,15131,15199,17783,20639,21557,22067,22543,23767,25127,25603,27337,27779,27983,28493,29207,29411,29683,30839,31859,32573,36551,39883,40903,41039,43487,43793,47057,48383,50423,51239,52667,53279,53993,56951,59093,59467,61099,63853,65587,67763,68749,69463,70823,74903,75787,76943,78167,78439,81533,81737,81839,83437,85103,85817,86939,90203,90407,90917,91019,94079,96221,96527,97547,98873,100403,100811,104789,106727,108869,109379,109583,110603,111317,111827,112303,115363,118661,118967,121007,124679,126719,127399,127637],[8,3,7,11,41,43,61,73,127,193,211,331,337,449,577,919,953,1021,1153,1531,2017,2143,2381,2689,2857,3061,3361,3571,4421,6121,6337,12241,12853,13441,13669,14449,17137,21169,24481,26317,29191,34273,36721,42841,43691,51001,61681]),(52273,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13397,14009,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,29,41,43,61,73,127,181,193,241,257,307,331,421,613,631,919,953,1153,1361,2521,2689,3571,4481,4999,5419,6121,6337,6427,10711,11119,12241,13669,14281,14449,17137,20231,21169,29191,34511])],
-    [(52561,[647,6053,7549,7583,8059,10949,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,80309,81839,83063,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,3,29,31,37,41,43,109,127,151,181,241,257,281,307,331,409,421,577,613,919,953,1009,1021,1321,1361,1531,2381,3571,4999,5153,6121,6337,6529,8161,11119,12241,12853]),(53281,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,3,5,7,11,19,37,41,103,109,151,239,307,331,337,577,919,953,1153,1361,1531,2143,2521,2689,2857,3361,3571,4481,4999,5153,5419,5441,6121,6427,6529,8161,9521,11119,12241,12853,16831,20161,21169,24481,26317,29191,34511]),(53761,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(54121,[1259,1327,3673,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,19,37,61,71,103,113,137,151,241,281,307,331,421,673,953,1009,1361,1429,1531,2143,2381,4999,5441,6427,6529,8161,10711,13441,13669,14281,16831,20161]),(54241,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,46819,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,67763,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,84967,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,13,29,61,73,127,181,193,211,241,281,331,449,577,613,673,953,1153,1361,1531,2017,2143,3061,3571,4481,5153,5441,6121,6427,6529,11119,13441,14449,17137,20161]),(54713,[137,1259,1327,3299,7583,9283,9419,10099,10847,11867,13397,13907,14621,14723,16763,17579,17783,22679,23189,24107,24379,29207,30839,31247,34919,35327,40529,41039,41243,44507,48383,50287,52667,53279,53993,54367,56543,59093,62323,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,77419,78167,79867,80309,80819,81023,81839,82757,84559,84967,85103,91733,92753,93263,96323,101117,102647,102953,106319,106727,108223,108461,109379,110603,110807,111317,113357,115499,116927,117539,118661,118967,120157,122027,124067,124679,126107,126719,126923],[4,8,3,5,7,13,19,31,37,43,61,71,73,97,103,151,193,211,241,257,307,331,421,449,577,613,631,673,919,1021,1153,1531,2017,2143,2689,3061,3361,3571,4999,5153,5419,6121,6337,6427,6529,8161,10711,11119,12853,13669,14449,17137,24481,36721,37441,38737]),(55081,[239,647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,24379,25841,25943,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,54503,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[5,19,29,37,43,61,71,73,97,103,109,113,127,137,151,181,193,241,257,331,337,409,631,1321,1361,1531,2143,3061,3571,4421,4999,5419,5441,6121,6529,9521,10711,11119,12241,12853,13669,14281,14449,20161,23311,24481,29191,34273])],
-    [(55441,[443,647,1531,1871,6257,6359,8807,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,7,11,13,31,41,43,71,103,109,137,193,241,281,337,577,631,673,953,1009,1021,1321,1361,1429,2017,2381,2689,2857,3361,4421,8161,11119,13441,13669,14449,17137]),(55801,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,65927,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,13,19,29,71,97,103,109,113,127,151,211,239,257,307,331,409,433,449,613,631,1021,1153,1361,1531,2017,2143,2689,3061,3361,4481,4999,5153,5441,6121,6337,6427,8161,12241,13441,14281,16831,20161,21169,24481,26317,34511,38737,42841,45697,61681]),(56113,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61813,65179,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[4,3,5,11,13,19,37,61,73,127,137,181,193,239,307,331,337,433,449,631,1021,1153,2017,2381,2521,2689,3571,4999,5153,5419,6337,6529,8161,10711,12853,13441,13669,17137,20161]),(56281,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,61507,64091,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,113153,114343,118967,126583,126719,128147],[4,7,11,13,19,29,37,71,97,109,113,127,137,151,193,211,307,331,433,613,673,953,1009,1021,1153,1321,1361,1429,1531,2017,2521,2689,3361,3571,4421,4481,4999,5441,6529,9521,10711,11119,12241,12853,13441,14281,14449,16831,20161,20231,23041,23311,24481,26317,29191]),(56641,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[5,11,19,29,31,37,43,71,97,109,151,193,239,241,257,281,307,331,409,433,613,631,673,919,953,1009,1021,1153,1361,1429,2521,2689,3061,4481,4999,6121,6337,6529,8161,11119,12241]),(57121,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,13159,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,46819,52259,52667,53993,55829,57223,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,115057,118967,119783,123727,123863,125053,126719,126923,128351],[5,13,41,61,71,73,103,137,181,239,307,409,421,613,919,1009,1021,1153,1321,1361,1429,2143,4999,5153,5419,5441,6121,6337,6427,8161,11119,12241,12853,13441,13669,14449,16831,20161,23041,23311,29191,34273]),(57313,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,40801,43283,43793,45119,46309,51511,52667,53993,54163,55829,58243,59093,61099,61949,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75583,81023,81533,86531,89591,90407,91019,91733,95507,96527,102647,107747,108359,108529,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[5,11,13,19,43,71,97,137,211,239,241,307,337,449,613,631,673,1153,1321,1361,1429,2689,2857,3361,5419,6427,6529,9521,13441])],
-    [(57601,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,64499,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,8,41,43,61,71,73,103,109,127,137,151,193,211,239,331,421,613,673,953,1021,1321,1361,1429,1531,2143,3571,4999,5419,5441,6337,6427,8161,10711,14449,17137]),(58321,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59263,59399,60623,64091,64499,65519,67763,69463,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,85103,86599,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[8,11,13,29,31,71,73,109,113,137,193,241,337,409,421,433,449,577,613,953,1009,1021,1321,1361,1429,1531,2017,2143,4421,4999,5153,5419,6121,6529,8161,9521,12241,13441,13669,20161,20231,29191]),(58801,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,31,61,97,137,181,193,241,257,281,307,337,421,433,577,631,953,1009,1153,1321,2143,2381,2689,2857,3361,3571,4999,6121,6529,8161,10711,12853,13441,13669,14281,20161,21169,23311,26317,34273]),(59161,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[4,3,7,13,41,61,73,97,103,127,181,211,239,241,307,337,409,421,613,631,673,919,953,1009,1021,1153,1321,1361,1429,2143,2521,2857,3061,3361,5419,6121,6427,9521,13669,17137,20161,20231,21169,23041,29191,34273]),(59281,[409,647,1259,3877,3911,7243,10337,10847,14621,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,48383,50423,50627,51749,53993,54367,54979,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,76603,76943,84457,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115057,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[8,5,7,11,29,31,37,41,71,97,113,127,137,151,211,239,241,307,331,337,449,919,953,1321,1361,1531,2143,2381,2857,3361,4999,5419,6337,11119,12853,13669,16831]),(59473,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[13,31,97,109,113,127,181,193,239,241,257,331,409,449,631,673,919,1009,1021,1153,1361,1429,2017,2521,2689,3571,5153,5419,6121,6529,8161,14281,14449,20161,21169,24481,26317,29191,36721,38737,42841]),(60121,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,84967,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,101627,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[13,19,31,37,41,61,71,103,109,113,193,281,331,433,577,919,1021,1153,1321,1429,2521,2689,3361,3571,5153,5441,6337,6427,6529,9521,10711,11119,12241,12853,13441,14449,16831,20231,21169,24481,29191,34273,42841,51001])],
-    [(60481,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,8,3,7,37,43,61,73,109,113,137,151,181,193,241,257,307,331,409,433,449,577,613,631,673,953,1021,1153,1321,1361,1531,2689,2857,3061,4481,4999,5153,5419,6121,6337,9521,10711,11119,12241,12853,14449,17137]),(61153,[443,647,6257,6359,6971,8807,10099,10303,11867,16253,18191,20639,21523,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,96799,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[8,3,7,19,29,37,61,103,113,127,137,151,239,241,257,331,337,433,631,673,919,953,1021,1153,1361,1429,2521,2689,2857,3061,3361,3571,4421,5419,5441,6121,8161,13441,14281,16831,17137,23311]),(61321,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,75277,76603,76943,84457,84967,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[7,43,61,73,127,239,281,307,331,577,631,673,953,1021,1153,1321,1429,2017,2381,2857,3061,3361,3571,4421,4481,5153,5419,5441,6121,8161,9521,10711,12241,13441,13669,14281,14449,16831,20161,20231]),(61681,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17443,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,56747,59093,60317,64567,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[8,3,5,11,13,31,43,71,97,103,109,137,151,211,281,307,331,449,631,673,919,1321,1361,1429,1531,2143,2381,2521,2689,3361,4481,5153,5441,6121,6337,6427,9521,11119,12241,12853,13441,13669,14281,23041]),(62161,[443,647,1259,1973,2789,6733,7039,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40087,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,68171,70619,70823,71333,71843,72047,74903,76943,78167,80309,81703,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,5,11,13,31,41,73,103,109,127,137,151,211,239,281,307,331,337,421,577,631,919,953,1009,1153,1321,1361,2017,2143,2521,3061,3361,4421,4481,5419,5441,6337,6529,8161,9521,12853,14281,14449,16831,20161,26317,29191,37441,42841,45697]),(62273,[647,1259,7039,10337,10847,17443,18191,20639,21319,21863,23087,25127,26759,27983,29717,32063,35531,40427,40597,41039,42331,43283,43997,47533,48383,48859,50423,50627,51749,53993,54367,55829,58379,59093,61609,61949,67049,68239,70619,72047,74699,74903,76943,82723,86531,86837,86939,87959,91019,92957,96527,97547,97649,101117,106013,106319,111827,112507,112643,113357,114343,115499,118457,118967,119783,120293,126311,127399,127739,128147],[4,8,5,11,29,43,61,71,73,97,103,193,239,241,281,331,613,631,919,1021,1321,1361,1429,1531,2017,2381,2689,3361,4421,4481,5153,5419,5441,6427,10711]),(62641,[103,443,1259,1667,6359,8093,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90203,90407,91019,92243,96323,96697,107509,107747,108223,109379,110909,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,8,3,5,7,31,43,71,109,137,151,211,241,257,281,307,331,409,421,433,449,613,631,1021,1531,2017,2143,2381,2689,3361,3571,4421,4999,5153,5419,6427,9521,12241,12853,13441,14281,14449,16831])],
-    [(63841,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,45119,46309,52667,53993,55829,55931,56611,58243,59093,61099,61813,61949,64499,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[8,5,11,31,37,41,43,61,73,97,103,109,127,151,181,211,239,241,257,281,307,331,337,421,433,613,1009,1021,1361,2017,2143,3361,3571,4999,6121,6337]),(64201,[443,647,1259,1973,2789,11867,12343,12547,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,65213,66947,67967,68171,70619,70823,71333,71843,72047,74903,76943,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,109583,111827,112643,115771,117539,117709,118967,119783,120871,122027,122503,123829,126107,126719,128147],[5,11,29,37,41,43,113,127,181,193,239,241,257,281,331,409,433,577,631,919,1021,1531,2381,2521,2689,5153,6121,6337,6427,6529,8161,10711,11119,12853,16831,17137,20231,21169,23041,24481,29191]),(64321,[1259,1327,4013,6053,9419,12377,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,19,37,61,71,103,113,137,151,241,281,307,331,421,673,953,1009,1361,1429,1531,2143,2381,4999,5441,6427,6529,8161,10711,13441,13669,14281,16831,20161]),(64513,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13397,14009,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[7,11,37,41,43,61,73,97,109,113,137,181,193,211,241,421,433,613,673,953,1021,1321,1361,1531,2381,2521,3061,3571,4421,4481,5441,6337,6427,8161,9521,10711,11119,12241,12853,13669,16831,20161,20231,21169,23041,23311,29191,38737,43691]),(64793,[443,2551,3299,10847,10949,11867,12343,14723,16763,17749,17783,19483,21523,22679,23189,24107,24413,26759,28867,30839,35327,40427,43283,45119,48247,52667,53959,53993,55829,55931,59093,61609,61949,64499,65179,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75277,77929,78439,80989,81023,81533,84559,86531,89591,90067,90203,90407,91019,91291,91733,95507,96527,96799,102647,106693,107747,108359,109583,110603,112507,116927,118219,119783,123727,123863,124339,126107,126311,128147],[4,7,13,19,43,61,73,103,127,151,193,241,257,281,307,331,337,409,421,433,577,613,631,673,919,1009,1153,1361,1531,2017,2381,2521,2689,3061,3361,3571,4421,4999,5153,6121,6427,6529,8161,9521,10711,13669,16831]),(65521,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,3,7,11,19,31,37,43,71,73,151,193,239,241,257,281,307,337,409,433,577,953,1021,1531,2143,2521,2689,2857,3061,3361,4999,6121,6337,9521,10711,12853,13441,13669,14449,16831,23041,26317,38737]),(66193,[1327,1667,4013,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,59093,59399,60317,61031,63377,63853,64567,66947,67763,68477,69191,70619,70823,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[8,5,13,19,29,37,61,71,73,137,181,211,257,281,307,409,631,953,1009,1021,1153,1361,1429,2017,2143,2381,2689,3061,3361,3571,4421,5441,6337,6529,12853,13441,13669,23041,23311,24481])],
-    [(66361,[1259,1327,3673,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,13,71,73,113,127,137,151,193,211,241,449,1021,2381,3061,3571,4421,5153,6427,6529,8161,9521,10711,11119,12853,13669,14281,17137,23311]),(66721,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[8,3,7,11,19,43,73,109,127,193,211,239,257,281,307,331,449,613,631,953,1009,1021,1531,2143,2381,2689,2857,3061,3361,4481,5153,5441,6121,6427,6529,10711,11119,12241,12853,14281,14449]),(67393,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,18191,21523,21863,22067,22679,23189,24107,24923,29207,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,52259,52973,53993,54367,54469,56747,59093,60317,61031,67763,67967,68477,73883,74189,74869,82349,82757,83267,87959,89387,90407,91631,92243,92957,96527,96697,99689,106319,108223,109583,110569,110603,110807,113357,114343,115601,116927,118219,119783,122503,126719,126923,127739],[4,11,19,29,31,41,71,97,103,109,113,127,137,151,181,193,239,241,257,307,331,337,409,449,577,613,953,1153,1361,2017,3061,3361,4421,4999,5153,5419,5441,6121,6337,9521,10711,13669,14281]),(67681,[443,647,1531,1871,6257,6359,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83063,83267,87959,89387,91393,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[13,19,37,41,43,61,71,73,103,109,113,137,239,257,307,337,433,577,613,1009,1021,1153,1321,1429,2017,2381,2857,3061,4421,4481,4999,5153,5441,6121,6427,6529,11119,12241,13441,14449,20161,21169,23311]),(68041,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[8,3,31,41,43,61,73,97,103,127,151,181,211,239,241,331,433,449,613,631,673,1009,1021,1321,1361,1429,1531,2017,2143,2381,2689,4421,5153,6427,10711,12241,16831,23311,34273,34511,36721,42841,45697,54001,61681]),(68401,[1259,1327,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,37,61,103,109,211,257,281,307,421,449,613,919,953,1021,1153,1321,1429,1531,2521,2857,3571,4999,5153,6337,6427,6529,8161,9521,10711,11119,12241,12853,13669,14449,16831,17137]),(68881,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[8,3,5,29,31,37,41,61,73,97,103,109,127,137,151,193,241,307,331,421,631,919,953,1361,1429,2017,2381,2521,2857,3061,3571,4421,4481,6121,6337,6529,9521,10711,11119,12241,13669,14281])],
-    [(69361,[239,647,1259,1973,2789,3299,3911,7583,8467,9011,11867,13159,15131,16253,24379,25841,25943,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,46819,52259,52667,53993,54503,55829,57223,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,115057,118967,119783,123727,123863,125053,126719,126923,128351],[4,8,3,11,13,19,29,31,41,73,103,151,193,211,241,257,281,307,331,421,577,613,631,673,953,1021,1429,2017,2143,2689,2857,3061,3361,6121,6337,6427,6529,8161,9521,10711,12241,13441,14449,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511]),(69553,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,40801,43283,45119,46309,51511,52667,53993,54163,55829,55931,58243,59093,61099,61949,64499,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75583,81023,81533,86531,89591,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,8,7,19,29,41,61,71,103,113,137,151,181,193,241,281,449,577,673,1009,1021,1153,1321,1361,2689,2857,4481,4999,5153,6121,6337,6529,9521,11119]),(69833,[103,409,613,647,6053,6971,7583,8059,11833,12547,13397,13907,22067,24821,24923,28697,33287,34919,36857,38183,38693,39883,43997,45119,49199,51307,51341,52259,53993,54503,56237,59093,60317,61031,65519,67763,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89591,89897,90203,91733,92957,93229,97547,99689,99859,100403,101117,102953,106013,107033,108359,109583,111623,114479,118967,120293,122027,122231,122299,123863,124339,124781,126311,126923,129643],[4,7,11,31,41,61,71,127,137,181,239,307,421,449,577,673,919,1009,1021,1153,1361,1531,2381,2689,2857,3361,4421,4481,4999,5441,6121,6337,6427,9521,10711,13669,16831,20161]),(70921,[647,6053,7549,7583,8059,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[8,3,5,11,29,73,109,113,127,137,181,193,211,241,337,409,433,613,631,673,919,1009,1361,2381,2521,2857,3061,3361,3571,4421,4481,5153,5419,6529,9521,10711,11119]),(71401,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[4,8,5,13,19,41,43,71,73,103,109,137,193,239,331,337,577,631,673,1021,1361,1531,2521,2689,3061,3361,4421,5419,6121,6337,9521,11119,12241,12853,14449,16831,20161,20231,21169,26317,36721]),(71761,[443,647,1871,6257,6359,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46819,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,67933,71129,71843,72047,73679,73883,76603,78439,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,13,19,29,37,71,97,103,109,151,239,281,307,331,421,433,449,613,673,953,1321,1531,2017,2143,2381,2521,2857,4481,6121,6337,9521,12241,13441,14281,14449,16831,17137,20231,21169]),(72353,[647,1259,1973,2789,3299,6971,7243,7583,11867,16253,22271,23767,23971,26759,31247,31859,32063,34919,35327,35837,41243,42943,43487,43691,44507,48859,52259,52667,53993,55829,57427,59093,59399,60623,65519,66947,67763,67967,68171,68477,71129,73679,75787,75821,76943,78779,80819,80989,81023,84389,86531,86837,87517,90407,91019,91529,92107,92957,93263,93739,95507,96017,96799,99859,101627,104891,105503,106727,107033,109379,110603,110807,111317,112643,118967,119783,123863,125053,126719,126923,127399],[8,5,7,11,31,37,61,109,127,211,239,241,257,331,409,421,449,1009,1429,1531,2143,2521,2689,3061,3571,4999,5419,6121,6337,6529,8161,10711,12241,13441,20231])],
-    [(72433,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,96697,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[8,19,29,37,71,97,113,137,151,211,239,241,257,307,331,337,577,613,631,673,1009,1321,1429,2017,2143,2381,2689,3061,3361,3571,4421,4999,6121,6427,8161,10711,11119,12241,14281,20161,21169]),(72721,[1327,4013,5101,6053,7583,9419,10133,22679,24379,27983,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,54503,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[3,13,31,37,41,61,71,109,113,137,193,239,241,331,409,421,577,613,953,1153,1361,1429,1531,2017,2381,2689,2857,4481,5419,5441,6121,8161,12241,14281,14449]),(73081,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,13,19,29,37,73,97,127,241,257,281,409,953,1009,1153,2143,2381,2689,2857,3061,4481,4999,5419,5441,6427,9521,10711,12853,13669,14281,14449,16831,17137,20231,23041,23311,24481,34511,36721]),(73441,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[4,8,3,5,13,29,37,61,71,97,113,127,151,211,241,281,307,331,421,449,613,631,919,953,1009,1021,1153,1531,2143,2689,2857,4481,5419,5441,8161,9521,11119,12853,14281,20161,20231,23041,29191,36721]),(74401,[443,647,1259,1973,2789,6733,7039,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40087,40427,41243,43487,45119,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,66947,67967,68171,70619,70823,71333,71843,72047,74903,76943,78167,80309,81703,81839,82757,83267,84967,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,101627,105503,106217,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[3,5,13,19,29,37,41,97,109,127,137,193,211,241,307,331,337,409,421,449,631,673,919,953,1021,1153,1321,1361,1531,2521,2857,3061,3361,4421,5441,6427,8161,9521,13441,14449,20161,20231,21169,34273,42841]),(75961,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,5,11,19,61,73,97,127,151,193,239,257,281,307,337,409,577,631,673,1361,1531,2017,2381,2521,2689,3361,4421,5441,6121,6337,12853,13441,13669,14281,16831]),(76273,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,18191,18701,20639,22067,22543,24107,24413,24923,25603,28493,32233,37061,40427,41243,42331,45833,46751,46819,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,83471,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,98737,102647,104381,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,124951,126583,126719,128147],[4,5,7,37,41,61,127,181,193,239,241,257,337,409,421,433,613,631,673,919,1009,1021,1153,1361,2143,2381,2521,2689,2857,3061,3571,4481,4999,6427,9521,10711,11119,12241,13441,13669,16831,17137,20161,20231,21169,23311,26317,29191,37441])],
-    [(77113,[647,1259,1973,2789,3299,6971,7583,8467,11867,16253,19993,22271,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,44507,52259,52667,53993,55829,58243,59093,59399,60623,62731,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,78779,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,101627,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923],[5,11,19,71,97,103,127,151,181,241,257,307,331,337,409,449,577,613,631,919,1009,1021,1153,2143,2521,4421,4481,4999,6121,6337,6427,8161,9521,11119,13441,13669,14281,16831,23041]),(77473,[443,647,6257,6359,6971,10303,11867,16253,18191,20639,21523,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,96799,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,3,7,11,13,37,41,61,71,73,103,113,137,151,211,257,281,307,331,337,449,631,673,919,1021,1153,1361,2521,2689,3361,3571,4481,5153,5419,5441,6121,6337,6427,6529,9521,10711,11119,12853,13441,14281,16831]),(77761,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,25943,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,36653,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,7,29,31,37,41,43,71,103,127,151,239,281,337,433,449,577,613,919,1321,1361,1531,2017,2689,2857,3061,3361,4421,4481,5153,6427,12241,12853,13669,14449,17137,20161,23311,24481,42841]),(78481,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,65213,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,8,3,5,11,13,29,31,37,41,43,71,109,151,181,193,241,281,421,433,449,577,613,919,1021,1361,1531,2017,2381,2521,2689,2857,3361,5153,5419,6121,6337,6427,9521,13441,13669,14281,14449,17137,20161,20231,21169,23041,23311,26317,34273,34511,37441,38737]),(78961,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[8,5,11,19,29,37,41,43,71,109,127,181,193,239,241,257,331,421,449,577,613,673,1021,1153,2689,2857,3361,4421,5153,5419,6427,6529,8161,9521,10711,13441,13669]),(80281,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(80641,[1259,1327,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[3,7,11,29,43,61,73,97,127,151,193,211,307,331,337,409,433,577,613,631,1021,1361,2857,4999,6121,6337,6529,10711,11119,14281,14449,16831,21169])],
-    [(81313,[409,647,1259,3877,7243,10337,10847,18191,20639,21863,23087,25127,26759,27983,29717,32063,35531,40427,41039,41719,42331,43283,43997,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,76603,76943,84457,84967,86531,86599,86837,86939,87959,91019,91291,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115057,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[8,5,11,19,29,31,41,43,71,109,127,151,181,193,241,421,433,577,613,631,919,1021,1153,1429,1531,2017,2521,2689,3361,3571,4421,4999,5419,5441,6121,6337,6427,6529,10711,13441]),(81841,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[4,7,11,13,29,31,43,61,71,73,97,103,109,113,127,151,181,257,281,307,331,337,409,421,433,577,613,631,673,953,1009,1153,1429,2017,2143,2521,3061,3361,4421,4481,5153,6121,6427,6529,8161,9521,10711,13441,13669,14281,14449,20161,21169,23041,23311,24481,26317,34273,34511]),(82153,[443,647,1259,1973,2789,3911,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24923,25127,27031,29717,30091,30839,30941,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,69463,70619,70823,71333,71843,72047,74903,76943,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,97547,100811,104891,105503,106217,109583,111827,112643,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[3,11,13,31,37,41,61,73,113,127,137,181,193,239,241,257,307,331,337,409,421,449,613,673,919,1009,1021,1321,2017,2521,2857,3061,3571,4481,5153,5419,6121,9521,13441,13669,17137,20161,20231,21169,23041,23311,29191,34511,36721]),(82321,[137,1259,1327,3299,7039,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,59671,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,75583,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(82513,[1327,4013,6053,7583,9419,10133,22679,24379,25943,27983,30703,30839,30941,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,58787,59093,59399,60317,61031,63377,63853,66947,67763,68477,69191,70619,70823,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[8,3,5,7,11,13,19,31,41,73,103,109,127,137,257,331,409,421,433,613,631,673,919,953,1009,1321,2017,2143,2857,4999,10711,12853,13441,13669,14449,20231,23041,23311]),(82801,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,67763,69463,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,84967,85103,86599,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,13,29,61,73,127,181,193,211,241,281,331,449,577,613,673,953,1153,1361,1531,2017,2143,3061,3571,4481,5153,5441,6121,6427,6529,11119,13441,14449,17137,20161]),(83161,[647,6053,7549,7583,8059,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,7,11,13,37,41,43,61,73,97,103,109,127,211,241,307,421,433,577,613,631,673,953,1009,1021,1429,1531,2521,2857,3061,3361,5419,5441,6121,6337,6427,10711,11119,13669])],
-    [(84001,[443,647,1871,6257,6359,8807,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46819,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,67933,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,3,7,31,37,71,97,103,137,151,281,307,331,409,421,449,577,613,631,673,919,953,1153,1361,1531,2017,2143,2521,3571,4481,4999,5153,5419,9521,10711,12241,13669,14281,16831,20161,20231,23041,23311]),(84361,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,65927,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[29,31,37,43,103,113,241,257,281,307,337,409,433,449,631,919,1009,1021,1153,1321,1531,2017,2143,2857,3061,3571,4481,4999,5419,5441,6427,6529,8161,9521,10711,11119,13669,16831,17137,20161,20231,21169,23041,23311,26317,29191,34511,37441,38737,42841,51001]),(84673,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,96697,100913,103769,104959,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[3,7,13,29,31,37,71,73,113,127,151,193,241,257,307,337,409,433,449,613,673,919,1009,1321,1429,1531,2017,2381,2857,3061,3361,4421,4481,4999,5153,5419,5441,6529,9521,11119,12853,13441,24481]),(84953,[443,647,6257,6359,6971,8807,10303,11867,16253,18191,20639,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,48757,52667,52769,53993,54877,56237,56543,56747,58379,59093,60623,62323,65519,71129,71503,71843,72047,73679,73883,77317,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,117709,118967,120293,122231,123727,125053,126719,126923,127739,128113,129643],[4,3,13,19,29,37,41,43,61,73,103,127,151,181,193,241,409,449,577,613,673,953,1021,1153,1429,2381,3571,4421,4481,5153,5441,6337,6529,11119,12241,13441,14281,14449,24481]),(85681,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[8,11,19,31,37,43,61,71,73,97,109,127,137,151,181,239,241,257,281,337,421,433,449,577,919,953,1009,1021,1153,1321,2017,2143,2689,2857,3061,3571,4421,5419,6121,6337,6427,10711,11119,12241,13441,13669,16831,20161,26317,34273]),(87361,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13159,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,64567,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,11,31,37,41,43,71,73,103,151,181,193,211,241,281,307,331,421,433,449,673,1021,1361,1531,2143,2521,2689,3061,3361,3571,4421,5153,5419,6337,6427,8161,10711,12853,14281,20161,20231,21169,23041,24481,29191,38737]),(89041,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27847,27983,30703,30839,32063,33457,33967,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[5,11,29,31,37,43,61,103,113,127,137,151,281,307,331,421,433,449,631,673,919,953,1009,2143,2381,2521,2689,4481,4999,5153,5419,5441,6121,6529,9521,11119,12853,13441,14281,17137,20231,23041,23311,29191])],
-    [(89401,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[11,31,37,41,43,61,71,113,127,137,281,331,421,433,449,613,631,673,919,953,1321,1429,2143,2381,2521,2689,2857,3361,4999,5153,5419,6121,6337,6427,6529,12241,13441,13669,14281,17137,20231,23311,24481,26317,29191,34273,37441]),(89713,[443,647,6257,6359,6971,8807,10303,11867,16253,18191,20639,21523,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,96799,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[8,3,5,11,13,19,31,61,71,73,97,109,113,137,181,211,257,281,307,337,409,421,449,577,631,1021,1153,1361,1429,1531,2017,2381,2521,3571,4421,4481,4999,5419,5441,6121,6337,6427,10711,13441,13669,14281,14449,17137]),(89993,[1327,1667,4013,5407,6053,7583,9419,10133,17239,21013,22679,27983,30839,32063,33967,34919,35531,38183,38693,40087,40427,41039,41243,42943,43283,43487,48247,48383,48859,49199,50627,51239,52259,52667,52973,53891,53993,59093,59399,60317,61031,63377,66947,67763,68477,69191,70619,70823,74189,74869,74903,78031,80683,81023,81737,82757,84389,85103,90067,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,115363,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,3,5,11,13,29,31,37,97,103,109,113,137,181,239,257,281,307,421,433,577,919,953,1361,2017,2143,2521,2857,3361,4421,4481,4999,5419,6121,6337,6427,6529,8161,10711,12241,12853,13441,14281,14449,16831,20161,34273]),(90721,[443,647,1259,1973,2789,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,5,11,19,29,31,71,103,113,137,193,281,331,337,433,449,673,1021,1321,1361,1531,2381,3361,3571,4481,5419,5441,6121,6337,6529,8161,10711,12241,12853,13441,14449,20231,21169,23041,23311,24481,34511,37441,42841]),(91393,[647,1259,1973,2789,3299,6971,7583,8467,11867,13159,16253,19993,22271,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,44507,46819,52259,52667,53993,55829,57223,58243,59093,59399,60623,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,78779,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,101627,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,115057,118967,119783,123727,123863,125053,126719,126923],[3,5,11,19,29,41,71,103,109,113,181,193,239,257,281,421,433,449,613,631,673,1153,1361,1429,1531,2017,2689,2857,3361,4421,5441,6337,6427,6529,8161,11119,12853,14281,14449,16831,20161,21169,24481]),(91921,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,65927,67049,70619,72047,74699,74903,75277,76603,76943,84457,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[4,3,7,11,19,29,37,71,73,103,109,113,127,151,239,257,307,421,449,577,613,919,1021,1153,1321,1429,2017,2143,2381,2521,2857,3361,4421,4481,4999,5441,6121,6337,6427,6529,8161,9521,12241,14281,16831,20161]),(92233,[3163,7243,10847,11731,14009,14723,16253,17477,18803,22679,23053,23189,24379,24923,25127,25943,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54163,54673,58889,59093,59399,60623,61949,64567,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,75209,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[8,3,5,13,19,31,37,41,43,61,71,73,97,103,109,113,127,137,151,211,241,257,281,337,421,433,577,919,953,1009,1153,1321,1429,2143,2381,2857,3061,4999,5153,5441,6427,6529,9521,12853,13441,13669,14449,16831,20231,23041,24481,29191,34273,34511,37441])],
-    [(92401,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,45119,46309,52667,53993,55829,55931,56611,58243,59093,61099,61949,64499,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,86599,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[8,5,11,31,37,41,43,61,73,97,103,109,127,151,181,211,239,241,257,281,307,331,337,421,433,613,1009,1021,1361,2017,2143,3361,3571,4999,6121,6337]),(92513,[443,647,919,2789,3299,3571,7583,8059,8297,8467,12071,13397,13907,16763,19381,20639,21319,22067,25127,28697,28867,29411,31247,33287,38183,41957,43283,43691,43997,45833,49199,50423,51239,52259,53959,53993,55829,59093,59467,60317,61099,71843,74597,74903,76603,76943,78167,80819,85103,86939,87959,91121,91529,95507,96323,96527,100403,102647,105503,107747,109379,109583,111317,114547,115499,117539,118661,120293,123863,124339,128147,128657,131071],[8,11,19,43,61,71,103,109,113,137,151,193,211,281,307,337,421,449,577,613,631,953,1009,1321,1361,1531,2143,2857,3361,4421,4481,5153,5441,6337,6427,6529,9521,10711,12241]),(92881,[1259,1327,4013,6053,9419,12377,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[8,3,11,13,31,43,61,97,113,127,181,193,241,257,281,337,449,673,919,1361,2017,2143,2381,3361,3571,4421,4481,5153,6427,9521,12853,14449,26317]),(93241,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,96697,100913,103769,104959,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,7,19,37,41,43,61,73,109,127,137,193,239,241,257,409,449,613,919,953,1021,1153,1321,1429,1531,2381,2521,2689,3061,3361,3571,4421,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,12241,13441,13669,14449,16831,17137,20161]),(94081,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[4,3,13,19,41,61,71,73,109,127,151,181,211,307,331,337,449,577,919,1021,1321,1361,2017,2143,2521,3061,3361,3571,4421,4999,5419,5441,6427,9521,12241,13669,14281,20161,29191,34273,36721,38737]),(94441,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,43793,45119,46309,52667,53993,55829,56611,58243,59093,61099,61813,61949,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90407,91019,91733,95507,96527,102647,107747,108359,108529,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,5,11,31,41,61,109,113,127,137,193,211,281,331,337,409,421,433,613,1009,1153,1321,2143,2521,2689,2857,3361,4999,6337]),(94561,[137,1259,1327,3299,7039,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,59671,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,75583,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,13,19,29,71,97,103,109,113,127,151,211,239,257,307,331,409,433,449,613,631,1021,1153,1361,1531,2017,2143,2689,3061,3361,4481,4999,5153,5441,6121,6337,6427,8161,12241,13441,14281,16831,20161,21169,24481,26317,34511,38737,42841,45697,61681])],
-    [(94753,[1327,1667,4013,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,59093,59399,60317,61031,63377,63853,66947,67763,68477,69191,70619,70823,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,3,19,71,73,97,109,137,181,193,211,241,257,337,449,577,613,631,1009,1021,1153,1429,2521,2689,3061,6337,10711,14449,16831,17137,21169]),(95033,[103,137,647,1259,2789,4217,6869,9419,10303,11867,12343,14723,15131,15199,17783,20639,21557,22067,22543,23767,25127,25603,27337,27779,27983,28493,29207,29411,29683,30839,31859,32573,36551,39883,40903,41039,43487,43793,47057,48383,50423,51239,52667,53279,53993,56951,59093,59467,61099,63853,65587,67763,68749,69463,70823,74903,75787,76943,77249,78167,78439,81533,81737,81839,83437,85103,85817,86939,90203,90407,90917,91019,94079,96221,96527,97547,98873,100403,100811,104789,106727,108869,109379,109583,110603,111317,111827,112303,115363,118661,118967,121007,124679,126719,127399,127637],[8,3,7,11,19,29,37,41,61,71,73,97,109,151,211,239,257,281,307,331,337,409,433,953,1153,1361,2143,2521,2689,2857,3061,3361,4421,4481,5153,5419,6121,6427,8161,9521,10711,11119,12241,12853,14281,14449,20161,20231,21169,23041,24481,26317,29191,42841,54001]),(95401,[647,6053,7549,7583,8059,10949,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,83063,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,3,29,31,37,41,43,109,127,151,181,241,257,281,307,331,409,421,577,613,919,953,1009,1021,1321,1361,1531,2381,3571,4999,5153,6121,6337,6529,8161,11119,12241,12853]),(96121,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,5,7,31,37,41,43,73,97,127,193,307,337,433,577,613,631,919,1153,1361,1429,2143,2521,2689,2857,3061,4481,4999,5153,5441,6337,6427,12241,13441,13669,16831,20231,21169,23041,29191,34511,92737]),(96433,[443,647,1259,1973,2789,3911,6733,7039,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24923,25127,27031,29717,30091,30839,30941,31247,32063,33287,34919,38183,39373,39679,40087,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,70619,70823,71333,71843,72047,74903,76943,78167,80309,81703,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,97547,100811,104891,105503,106217,109583,111827,112643,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,7,11,13,29,37,41,43,61,71,97,137,181,211,241,257,281,409,613,673,919,1009,1021,1153,1361,1429,1531,3061,3571,4421,4999,5153,5419,5441,6121,6529,9521,10711,12241,12853,16831,20161,21169,26317,29191,34511,43691]),(96601,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691]),(96961,[1259,1327,3673,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,19,37,61,71,103,113,137,151,241,281,307,331,421,673,953,1009,1361,1429,1531,2143,2381,4999,5441,6427,6529,8161,10711,13441,13669,14281,16831,20161])],
-    [(97441,[647,6053,7549,7583,8059,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,5,7,13,19,41,43,97,103,137,151,181,211,257,281,307,337,421,449,919,1021,1153,1429,1531,2017,2143,2381,2689,2857,3571,4481,5419,5441,6427,8161,10711]),(97921,[239,647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,24379,25841,25943,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,54503,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[3,5,19,73,103,113,127,137,211,241,257,331,337,449,631,673,953,1009,1021,1321,1531,2381,2521,2857,3571,4421,5153,5419,5441,6121,6337,6427,8161,9521,12241,12853,13669,14281,17137,21169,23041,24481,34511]),(98641,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,65927,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[5,7,11,13,19,29,37,71,73,97,103,211,239,241,331,337,449,613,919,1009,1021,1153,1321,2017,2143,2381,2521,2689,3361,4421,4481,5419,5441,6121,6427,10711,13441,14281,14449,16831,20161,20231,21169,23311,26317,29191,34273,43691,51001,65537]),(99121,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,61507,64091,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,7,11,13,19,29,37,71,97,109,113,127,137,151,193,211,307,331,433,613,673,953,1009,1021,1153,1321,1361,1429,1531,2017,2521,2689,3361,3571,4421,4481,4999,5441,6529,9521,10711,11119,12241,12853,13441,14281,14449,16831,20161,20231,23041,23311,24481,26317,29191]),(99481,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[5,11,19,29,31,37,43,71,97,109,151,193,239,241,257,281,307,331,409,433,613,631,673,919,953,1009,1021,1153,1361,1429,2521,2689,3061,4481,4999,6121,6337,6529,8161,11119,12241]),(100441,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,64499,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,5,11,19,61,73,97,127,151,193,239,257,281,307,337,409,577,631,673,1361,1531,2017,2381,2521,2689,3361,4421,5441,6121,6337,12853,13441,13669,14281,16831]),(101161,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59263,59399,60623,64091,64499,65519,67763,69463,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,85103,86599,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,7,11,19,29,31,37,73,109,113,127,193,211,257,281,307,337,409,421,433,577,613,631,673,1021,1153,1321,1361,1429,2381,2521,2689,4421,4481,4999,5153,5419,5441,6337,11119,12241,13441,14449,17137,20161,20231,23041,23311,34273,38737])],
-    [(101641,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,31,61,97,137,181,193,241,257,281,307,337,421,433,577,631,953,1009,1153,1321,2143,2381,2689,2857,3361,3571,4999,6121,6529,8161,10711,12853,13441,13669,14281,20161,21169,23311,26317,34273]),(102313,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[13,31,97,109,113,127,181,193,239,241,257,331,409,449,631,673,919,1009,1021,1153,1361,1429,2017,2521,2689,3571,5153,5419,6121,6529,8161,14281,14449,20161,21169,24481,26317,29191,36721,38737,42841]),(102593,[103,443,647,1259,2789,3299,4013,4217,6359,9419,10133,12071,13397,14009,17239,22067,22679,23767,24107,26759,27779,27983,30839,31247,32029,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,59263,64499,64567,65519,70313,71843,72047,74597,74699,74869,75209,75991,81839,82757,83267,84967,85103,87959,88469,89897,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,124067,124679,126311,126583,126719,128147],[8,13,19,61,109,113,137,151,241,281,331,337,449,613,953,1009,1321,1531,2143,2381,2521,2689,3361,3571,4421,4481,5153,5441,6337,6427,6529,8161,9521,10711,12241,13441,16831,20231,23041,26317,29191,34273,38737]),(102673,[1259,1327,1871,4013,6053,8807,9419,13907,14723,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,74189,74903,76603,78167,78439,81023,82723,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,102409,105503,107747,108631,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,7,11,31,43,73,103,137,151,211,239,241,281,307,331,409,421,433,449,577,631,673,919,953,1009,1021,1429,1531,2381,2857,3361,4999,5419,6121,6337,6427,6529,8161,11119,14449,17137]),(102961,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,84967,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,101627,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,3,5,13,31,97,103,127,137,151,193,241,281,307,337,409,421,577,613,631,673,1429,2017,2143,2689,2857,3361,4421,4481,5441,6337,12241,13669,17137,20161,23041,26317,29191,34273,42841,43691,45697]),(103321,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[3,5,7,11,31,41,43,71,103,109,113,151,181,211,241,257,281,307,331,337,409,449,577,613,673,1009,1153,1361,1429,2689,4481,4999,5153,5441,6121,6427,8161,12853,13441,16831,20161,20231,21169]),(103681,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[4,8,13,19,29,31,37,43,61,73,97,109,127,137,181,193,211,241,257,281,337,433,449,613,631,1009,1531,2017,2143,2521,2689,2857,3361,3571,4421,6121,6337,9521,11119,12853,13441,14281,14449,16831,17137,21169,24481,29191,34273,37441])],
-    [(104161,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,75277,76603,76943,84457,84967,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[7,43,61,73,127,239,281,307,331,577,631,673,953,1021,1153,1321,1429,2017,2381,2857,3061,3361,3571,4421,4481,5153,5419,5441,6121,8161,9521,10711,12241,13441,13669,14281,14449,16831,20161,20231]),(104521,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17443,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,56747,59093,60317,64567,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[5,37,61,71,73,97,103,127,151,181,257,281,307,331,409,421,613,631,673,919,953,1009,1153,1321,1361,1429,1531,2689,3571,4421,5419,5441,6121,6427,11119,12241,13669,17137]),(106513,[3163,7243,10847,11731,14009,14723,16253,17477,18803,20809,22679,23053,23189,24379,24923,25127,25943,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54673,58889,59093,59399,60623,61949,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,75209,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[5,43,97,103,109,193,211,241,331,409,433,449,673,1009,1153,1321,2143,2689,3361,3571,4481,4999,5441,6529,8161,9521,10711,12241,14449,17137,21169,23041,26317,29191,34273,34511]),(106681,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,45119,46309,52667,53993,55829,55931,56611,58243,59093,61099,61813,61949,64499,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,8,7,11,13,37,43,61,71,103,113,151,241,281,307,331,613,631,1009,1021,1321,1361,2381,2521,2689,2857,3361,3571,4481,4999,10711]),(107353,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13397,14009,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[7,11,37,41,43,61,73,97,109,113,137,181,193,211,241,421,433,613,673,953,1021,1321,1361,1531,2381,2521,3061,3571,4421,4481,5441,6337,6427,8161,9521,10711,11119,12241,12853,13669,16831,20161,20231,21169,23041,23311,29191,38737,43691]),(107521,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61813,65179,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[5,19,29,37,41,73,127,137,181,211,257,281,307,421,631,1361,1531,2381,3571,5153,5441,6337,6427,6529,8161,10711,11119,14281]),(107713,[647,1259,1973,2789,3299,6971,7583,8467,11867,12377,16253,22271,23087,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,52259,52667,53993,55829,58243,59093,59399,60623,62731,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807],[8,3,7,11,13,19,29,37,43,109,151,181,211,281,307,331,337,409,421,673,919,1009,1321,1429,1531,2017,2143,2381,2689,3361,4481,4999,5419,5441,6121,6337,6529,11119,12853,13669,14449,16831,20161,21169,23311])],
-    [(109201,[1259,1327,3673,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[3,5,11,13,37,41,43,61,71,73,97,103,109,113,151,193,211,239,241,257,307,337,409,449,577,1021,1153,1531,2017,2143,2381,2689,2857,3571,4481,6121,6337,6427,6529,9521,12241,20161,21169]),(109561,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[4,5,19,29,31,37,41,43,61,71,109,113,137,151,193,241,281,307,331,421,449,631,1009,1021,1153,1321,1361,1531,2017,2381,2521,2689,2857,3061,3571,4481,5419,6337,6529,11119,12241,13441]),(109681,[647,6053,7549,7583,8059,10949,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,80309,81839,83063,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,3,7,73,97,103,113,151,211,239,257,331,409,613,631,673,953,1153,1429,1531,2017,2143,2521,2689,2857,3061,3361,4421,4481,5153,5441,6121,6427,9521,11119,12241]),(110153,[1259,1327,1871,4013,5407,6053,8467,9419,13907,14723,15199,16763,19483,19687,21557,24413,31859,33083,37537,38047,38183,40189,40427,41039,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58379,59093,59399,60623,62323,74189,74903,77929,78167,81023,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,105503,107747,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126481,126923,127739],[5,7,19,61,71,73,109,113,127,151,193,211,241,281,307,337,409,433,449,577,613,631,673,919,953,1021,1321,1361,1429,2017,2143,2521,3061,4481,5419,5441,6337,8161,11119,12853]),(110881,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[8,3,31,41,43,61,73,97,103,127,151,181,211,239,241,331,433,449,613,631,673,1009,1021,1321,1361,1429,1531,2017,2143,2381,2689,4421,5153,6427,10711,12241,16831,23311,34273,34511,36721,42841,45697,54001,61681]),(111721,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,3,7,11,13,19,29,31,37,41,71,73,97,113,127,181,193,241,257,281,307,337,409,449,613,919,1009,1321,2381,2857,3061,3361,3571,4421,4999,5153,5419,5441,8161,9521,10711,11119,12853,14449]),(112393,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,43283,45119,46309,51511,52667,53993,54163,55829,55931,58243,59093,61099,61949,64499,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75583,81023,81533,86531,89591,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,3,5,7,19,31,37,73,97,103,109,113,151,181,193,239,307,331,337,421,433,449,613,673,953,1321,1361,2017,2857,3361,3571,5419,5441,6337,8161])],
-    [(112561,[443,647,1871,6257,6359,8807,9011,10099,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,7,11,13,31,41,43,71,103,109,137,193,241,281,337,577,631,673,953,1009,1021,1321,1361,1429,2017,2381,2689,2857,3361,4421,8161,11119,13441,13669,14449,17137]),(113761,[647,6053,7549,7583,8059,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,7,11,29,37,43,71,109,137,181,241,281,409,421,433,449,613,631,953,1321,1361,2017,2143,2521,2689,4421,5153,6427,8161,9521,10711,13441]),(114241,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[4,8,5,13,19,41,43,71,73,103,109,137,193,239,331,337,577,631,673,1021,1361,1531,2521,2689,3061,3361,4421,5419,6121,6337,9521,11119,12241,12853,14449,16831,20161,20231,21169,26317,36721]),(114913,[1259,1327,1871,4013,6053,9419,13907,14723,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,74189,74903,76603,78167,78439,81023,82723,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,102409,105503,107747,108631,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,3,5,7,11,13,31,37,71,73,113,151,181,193,211,239,331,337,409,449,577,631,673,919,1429,1531,2017,2143,2521,2689,5153,5441,6427,8161,9521,10711,12241,12853,16831]),(115561,[1327,4013,5101,6053,7583,9419,10133,22679,24379,27983,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,54503,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[3,13,31,37,41,61,71,109,113,137,193,239,241,331,409,421,577,613,953,1153,1361,1429,1531,2017,2381,2689,2857,4481,5419,5441,6121,8161,12241,14281,14449]),(115921,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,31,61,97,137,181,193,241,257,281,307,337,421,433,577,631,953,1009,1153,1321,2143,2381,2689,2857,3361,3571,4999,6121,6529,8161,10711,12853,13441,13669,14281,20161,21169,23311,26317,34273]),(116281,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[8,7,19,29,31,71,73,103,127,137,151,193,211,239,241,281,307,337,421,433,577,613,919,953,1009,1021,1531,2017,2857,3571,5153,5419,6337,6427,9521,10711,11119,12241,12853,16831,20161,23041,23311])],
-    [(116593,[137,1259,1327,3299,7039,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,75583,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[8,3,7,11,19,29,31,41,71,73,97,103,109,127,193,211,281,307,409,433,449,577,613,673,953,1021,2017,2143,2521,2689,3061,3361,4421,4481,4999,5419,6337,11119,12853,13669,14281,16831,17137,20161,21169,23311,24481,34273,34511,36721,37441,38737,43691]),(116761,[2347,3299,4013,5407,6869,7583,9419,10847,13397,14519,16763,17443,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,56747,59093,60317,64567,65927,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[7,13,31,43,61,103,109,113,127,151,181,211,241,257,307,409,421,449,577,613,631,673,919,953,1009,1021,1153,1531,2017,2143,2857,4481,5419,6337,11119,13441,13669,14281,14449,16831,20231]),(117601,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,64567,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[8,7,29,31,73,97,137,193,241,281,331,337,421,433,577,631,919,1021,2143,2521,2689,2857,3061,4481,4999,5419,6121,6427,6529,9521,10711,14449,20161,20231,23041]),(118801,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[5,37,61,71,73,97,103,127,151,181,257,281,307,331,409,421,613,631,673,919,953,1009,1153,1321,1361,1429,1531,2689,3571,4421,5419,5441,6121,6427,11119,12241,13669,17137]),(119761,[103,443,1259,1667,6359,8093,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61813,65179,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90203,90407,91019,92243,96323,107509,107747,108223,109379,110909,114547,122027,122503,123863,124679,126107,126719,127739],[8,5,7,11,13,37,41,61,73,97,113,137,181,193,239,257,331,409,577,613,673,953,1009,1361,2143,2381,4421,5153,6427,8161,9521,10711,12241,12853,13441,16831,20161,20231]),(119953,[647,1259,1973,2789,3299,6971,7583,8467,11867,16253,19993,22271,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,44507,52259,52667,53993,55829,58243,59093,59399,60623,62731,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,78779,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,101627,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923],[5,7,11,13,29,37,61,73,97,137,193,211,257,331,409,421,613,1009,1021,1153,1321,1429,1531,2143,2521,2689,3061,3571,5153,5419,5441,6121,8161,10711,11119,12853,13441,14281,14449,16831,17137,20161,20231]),(120601,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,25943,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,36653,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[4,8,3,5,13,19,29,31,37,41,43,61,71,73,97,113,127,181,239,257,281,409,421,433,613,631,673,919,1009,1361,1429,1531,2017,2689,2857,3061,3571,4421,4999,5419,5441,10711,11119,12241,12853,13441,13669,14281,14449,16831,23041,23311,29191,34273])],
-    [(121321,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,65213,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,8,3,5,11,13,29,31,37,41,43,71,109,151,181,193,241,281,421,433,449,577,613,919,1021,1361,1531,2017,2381,2521,2689,2857,3361,5153,5419,6121,6337,6427,9521,13441,13669,14281,14449,17137,20161,20231,21169,23041,23311,26317,34273,34511,37441,38737]),(121633,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13159,13397,14009,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,64567,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,13,19,29,37,73,97,127,241,257,281,409,953,1009,1153,2143,2381,2689,2857,3061,4481,4999,5419,5441,6427,9521,10711,12853,13669,14281,14449,16831,17137,20231,23041,23311,24481,34511,36721]),(121801,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[8,3,5,7,11,29,37,41,43,109,137,181,193,239,331,421,449,613,953,1009,1021,1361,2143,2689,2857,3061,3361,3571,4481,6121,6337,8161,12241,12853,14449]),(122641,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,5,19,29,31,41,43,61,71,97,109,113,151,211,239,241,281,337,421,433,577,631,953,1021,1153,1361,1429,1531,2381,2521,2689,3361,4999,5419,6121,6427,8161,10711,12241,12853,16831,17137,20231,21169,23041,23311,34273,34511]),(122753,[103,443,1259,3469,5407,6359,8807,12343,13159,13907,17783,18973,20639,22067,22679,25127,27983,28867,29717,34919,35837,43283,45119,48281,49199,49811,50627,53993,56509,56543,56747,58379,58889,59093,59399,60623,61099,65587,67763,68749,73679,73883,73951,74597,74699,78167,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,99859,100913,103769,107509,107747,109379,114547,122027,123863,124679,126107,126583,126719,127739],[4,8,3,11,31,43,61,97,113,127,281,307,421,449,577,613,631,919,1153,1361,1531,2017,2381,2689,2857,3361,4421,5153,5419,5441,6337,6427,6529,8161,10711,12241]),(122833,[3163,7243,10847,11731,14009,14723,16253,17477,18803,22679,23053,23189,24379,24923,25127,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54163,54673,58549,58787,58889,59093,59399,60623,61643,61949,64567,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,90679,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[4,3,7,19,61,71,97,109,113,137,193,211,241,281,331,337,449,577,673,1153,1429,1531,2017,2143,2381,2857,3061,4481,4999,5153,5419,5441,6427,10711,12853,13669,14281,16831,20231,21169,23311,34511,36721,42841]),(123121,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,7,19,29,41,61,71,73,97,103,109,151,193,211,281,307,331,337,421,433,613,673,1009,1021,1321,1361,1429,2143,2381,2521,2689,3061,3361,4999,5419,6529,10711,11119,12241,13669,14449,16831,17137,20231,21169,23311,24481,29191,34273,36721,43691])],
-    [(123481,[1259,1327,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[5,7,13,29,37,41,71,103,109,113,127,239,241,257,331,433,449,613,631,1153,1361,1531,2017,2143,2381,2689,3571,4481,4999,6427,9521,10711,11119,12241,14281,14449,16831,20161]),(123841,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,96697,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[3,5,19,37,43,73,97,109,113,127,137,151,211,239,257,331,337,421,449,613,673,953,1009,1021,1153,1321,1361,1531,2143,2521,2857,3361,4421,5419,6337,6427,6529,9521,11119,12241,14281,16831,20231]),(124681,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[8,19,29,61,73,97,103,113,151,193,211,239,257,331,337,409,421,577,631,919,953,1429,1531,2381,2521,2689,3061,3361,3571,4481,4999,5153,5441,6121,6337,6529,11119,12853,13441,13669,14449,16831,17137,20161,20231,23311,24481,29191,34273,38737]),(124801,[443,647,1871,6257,6359,9011,10099,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83063,83267,87959,89387,91393,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,7,11,13,31,41,43,71,103,109,137,193,241,281,337,577,631,673,953,1009,1021,1321,1361,1429,2017,2381,2689,2857,3361,4421,8161,11119,13441,13669,14449,17137]),(124993,[443,647,1259,1973,2789,3911,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24923,25127,27031,29717,30091,30839,30941,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,69463,70619,70823,71333,71843,72047,74903,76943,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,97547,100811,104891,105503,106217,109583,111827,112643,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,8,7,13,19,29,37,43,61,71,73,97,103,113,137,181,193,211,239,257,307,421,449,631,919,953,1021,1321,1361,1531,2381,3361,4421,5153,6427,12241,13441,20161,20231,23311,34273,34511,37441]),(126001,[647,6053,7549,7583,8059,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,7,11,13,37,41,43,61,73,97,103,109,127,211,241,307,421,433,577,613,631,673,953,1009,1021,1429,1531,2521,2857,3061,3361,5419,5441,6121,6337,6427,10711,11119,13669]),(127201,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,65927,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[29,31,37,43,103,113,241,257,281,307,337,409,433,449,631,919,1009,1021,1153,1321,1531,2017,2143,2857,3061,3571,4481,4999,5419,5441,6427,6529,8161,9521,10711,11119,13669,16831,17137,20161,20231,21169,23041,23311,26317,29191,34511,37441,38737,42841,51001])],
-    [(127513,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,96697,100913,103769,104959,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[11,43,73,127,151,211,239,241,307,331,337,409,421,919,953,1009,1021,1153,1321,1531,2017,2143,2689,2857,4481,4999,6337,6427,11119,12241,12853,13441,14281,23311]),(127681,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,46819,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[5,7,13,29,31,37,41,109,113,137,151,257,307,337,409,421,433,577,613,631,673,919,953,1009,1021,1321,1429,2143,2381,2521,2689,2857,3061,3361,3571,4421,4481,4999,5153,5441,6337,6529,11119,12853,13669,14281,14449,17137,20161,21169,23311,24481,26317]),(128521,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[8,11,19,31,37,43,61,71,73,97,109,127,137,151,181,239,241,257,281,337,421,433,449,577,919,953,1009,1021,1153,1321,2017,2143,2689,2857,3061,3571,4421,5419,6121,6337,6427,10711,11119,12241,13441,13669,16831,20161,26317,34273]),(128881,[443,647,1531,1871,6257,6359,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,19,29,61,103,113,127,241,257,331,421,449,613,919,953,1021,2017,2143,2381,2521,2689,3061,3361,3571,4421,4481,4999,5419,5441,6337,11119,13441,14281,14449,16831,20231,24481]),(129721,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59263,59399,60623,61507,64091,64499,65519,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,113153,114343,118967,126583,126719,128147],[8,3,5,11,31,37,41,61,71,181,193,239,241,281,307,409,421,577,631,919,953,1321,2017,2143,2381,2689,2857,3061,3361,4421,4481,4999,5441,6121,8161,9521,10711,11119,13441,13669,14449,16831,20161,20231,21169,23041,23311,54001]),(129841,[1327,4013,5101,6053,7583,9419,10133,22679,24379,27983,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,54503,57427,59093,59399,60317,63377,63853,64567,66947,67763,68477,70619,70823,71741,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[3,13,31,37,41,61,71,109,113,137,193,239,241,331,409,421,577,613,953,1153,1361,1429,1531,2017,2381,2689,2857,4481,5419,5441,6121,8161,12241,14281,14449]),(130313,[3163,10847,11731,14009,14723,16253,17477,18803,21319,21523,22679,23189,23767,24923,25127,25943,27983,28663,28697,29207,29717,30839,31859,33287,36551,39883,40427,40597,41243,46309,49199,52259,52667,52973,53279,53891,53993,54673,58889,59093,59399,60623,61507,61949,64567,67763,67967,68477,70619,71843,73883,74597,74699,74903,75209,76943,78167,79901,80819,83267,84389,86939,89387,89659,89897,91019,93229,94079,94793,95507,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,122503,126107,126719],[4,8,3,13,31,37,41,43,73,97,103,239,307,409,421,433,449,577,631,673,953,1009,1153,1531,2143,2521,4481,4999,5153,5441,6529,11119,12241,12853,13669,17137,20161,20231,21169,23311,24481,34273])],
-    [(131713,[647,6053,6971,7549,7583,8059,13397,13907,22067,23767,24821,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,51341,52259,53993,54503,56237,56713,58243,59093,60317,61031,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89591,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[3,5,7,29,31,37,61,103,109,151,181,193,239,281,331,409,449,613,919,1021,1429,1531,2381,2521,2689,3361,4421,4999,5153,5419,6121,6427,9521,10711,13441,13669,14281,14449]),(131881,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27847,27983,30703,30839,32063,33457,33967,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,8,3,19,31,37,41,43,61,73,109,113,137,193,241,449,631,673,919,953,1531,2143,2381,2521,2689,2857,3061,4481,4999,5153,6337,6427,6529,8161,10711,12241,13669,14281,17137,20231,23041,26317]),(132241,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[5,7,13,29,31,41,61,97,127,151,181,241,281,307,577,613,673,1009,1021,2017,2381,2857,3061,3361,4421,4481,5153,6121,6337,6427,8161,9521,10711,11119,12853,13669,21169,23311,26317,36721]),(132721,[409,647,1259,3877,3911,7243,10337,10847,14621,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,76603,76943,84457,84967,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115057,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[4,8,3,5,19,31,41,73,97,103,109,137,211,241,257,331,337,421,577,613,953,1021,1153,1361,1429,1531,2017,2521,4421,4481,5419,5441,6121,6427,6529,8161,9521,11119,12241,12853,13669,14281,20161]),(132833,[1327,1667,4013,5407,6053,7583,9419,10133,17239,21013,22679,27983,30839,32063,33967,34919,35531,38183,38693,40087,40427,41039,41243,42943,43283,43487,48247,48383,48859,49199,50627,51239,52259,52667,52973,53891,53993,59093,59399,60317,61031,63377,66947,67763,68477,69191,70619,70823,74189,74869,74903,78031,80683,81023,81737,82757,84389,85103,90067,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,115363,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,8,13,29,31,37,41,43,97,103,113,181,193,211,239,241,257,281,331,337,433,449,577,631,673,919,953,1009,1021,1361,1429,2017,2143,2521,2689,2857,3571,4421,4481,4999,5419,5441,6121,6529,11119,14281,14449,17137,20161,20231,23311]),(132913,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65587,65927,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,110909,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[4,3,5,7,19,29,31,41,61,71,181,193,211,241,281,337,409,433,449,577,613,631,919,953,1009,1021,1153,1321,1531,2143,2381,2521,4421,4481,4999,5153,5419,6529,8161,9521,11119,12241,12853,13441,14449,17137,24481,29191,37441,42841,43691,54001]),(133561,[443,647,1259,1973,2789,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,11,13,31,37,41,97,103,137,181,211,281,337,421,449,577,613,631,673,919,953,1009,1153,1361,1429,2143,2521,2689,2857,3061,4421,4481,5419,5441,6121,6529,8161,9521,11119,13441,14281,14449,21169,23041,23311,24481,26317,43691])],
-    [(134761,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,65927,67049,70619,72047,74699,74903,75277,76603,76943,84457,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[8,3,5,11,43,73,103,151,193,239,241,281,577,919,953,1153,1321,1531,2143,2857,3361,3571,4481,4999,6121,6427,9521,13669,14449,16831,17137]),(134881,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,25943,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,36653,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[4,8,5,7,13,31,71,73,103,181,211,239,257,307,331,409,421,433,449,577,613,631,673,919,953,1429,2017,2143,2381,2689,3361,4421,4999,5153,5419,5441,6121,6337,12241,12853,14281,21169,23041,24481,29191,34511,45697]),(135073,[3163,7243,10847,11731,14009,14723,16253,17477,18803,22679,23053,23189,24379,24923,25127,25943,27337,27983,28697,29207,29717,30839,31859,33287,36551,39883,40427,41243,46309,49199,52259,52667,52973,53279,53891,53993,54163,54673,58889,59093,59399,60623,61949,64567,65587,67763,67967,68477,70619,71843,73883,74597,74699,74869,74903,75209,76943,77929,78167,79901,80819,83267,84389,84559,86939,89387,89897,91019,93229,94079,94793,95507,96799,97649,100267,102647,104789,106217,106319,106727,108359,109583,111827,114547,114649,115499,118967,119783,122027,126107,126719],[8,3,5,13,19,31,37,41,43,61,71,73,97,103,109,113,127,137,151,211,241,257,281,337,421,433,577,919,953,1009,1153,1321,1429,2143,2381,2857,3061,4999,5153,5441,6427,6529,9521,12853,13441,13669,14449,16831,20231,23041,24481,29191,34273,34511,37441]),(135353,[443,647,919,2789,3299,3571,7583,8059,8297,8467,12071,13397,13907,16763,19381,20639,21319,22067,25127,28697,28867,29411,31247,33287,38183,41957,43283,43691,43997,45833,49199,50423,51239,52259,53959,53993,55829,59093,59467,60317,61099,71843,74597,74903,76603,76943,78167,80819,85103,86939,87959,91121,91529,95507,96323,96527,100403,102647,105503,107747,109379,109583,111317,114547,115499,117539,118661,120293,123863,124339,128147,128657,131071],[4,8,3,5,7,13,19,31,37,41,43,61,109,127,137,239,281,307,421,433,449,613,673,953,1009,1021,1321,1361,1531,2017,2143,2381,2521,3061,4421,4481,6427,8161,10711,11119,12853,13441,13669]),(136081,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,96697,100913,103769,104959,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,7,19,37,41,43,61,73,109,127,137,193,239,241,257,409,449,613,919,953,1021,1153,1321,1429,1531,2381,2521,2689,3061,3361,3571,4421,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,12241,13441,13669,14449,16831,17137,20161]),(136921,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,77249,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[8,3,7,13,19,31,37,71,73,97,109,127,151,181,211,241,409,613,631,953,1009,1321,1361,2017,2381,2521,3061,5419,6427,6529,10711,13669,14281,14449,16831,20161,21169,23041,29191,34273,34511,36721,37441,38737,42841]),(137281,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,43793,45119,46309,52667,53993,55829,56611,58243,59093,61099,61813,61949,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90407,91019,91733,95507,96527,102647,107747,108359,108529,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,5,11,31,41,61,109,113,127,137,193,211,281,331,337,409,421,433,613,1009,1153,1321,2143,2521,2689,2857,3361,4999,6337])],
-    [(137593,[1327,1667,4013,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,59093,59399,60317,61031,63377,63853,66947,67763,68477,69191,70619,70823,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[8,5,13,19,29,37,61,71,73,137,181,211,257,281,307,409,631,953,1009,1021,1153,1361,1429,2017,2143,2381,2689,3061,3361,3571,4421,5441,6337,6529,12853,13441,13669,23041,23311,24481]),(137761,[1259,1327,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[8,3,7,31,41,43,71,97,109,181,193,211,239,241,281,307,331,449,577,953,1009,1021,1321,1361,1429,2017,2143,2521,3361,4481,4999,5419,5441,6121,6337,8161,9521,12241,12853,13441,13669,14281,14449]),(137953,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13397,14009,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[8,3,5,7,29,41,43,61,73,127,181,193,241,257,307,331,421,613,631,919,953,1153,1361,2521,2689,3571,4481,4999,5419,6121,6337,6427,10711,11119,12241,13669,14281,14449,17137,20231,21169,29191,34511]),(138241,[647,6053,7549,7583,8059,10949,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,83063,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,8,3,29,31,37,41,43,109,127,151,181,241,257,281,307,331,409,421,577,613,919,953,1009,1021,1321,1361,1531,2381,3571,4999,5153,6121,6337,6529,8161,11119,12241,12853]),(138961,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,3,5,7,11,19,37,41,103,109,151,239,307,331,337,577,919,953,1153,1361,1531,2143,2521,2689,2857,3361,3571,4481,4999,5153,5419,5441,6121,6427,6529,8161,9521,11119,12241,12853,16831,20161,21169,24481,26317,29191,34511]),(139441,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[29,31,37,43,103,113,241,257,281,307,337,409,433,449,631,919,1009,1021,1153,1321,1531,2017,2143,2857,3061,3571,4481,4999,5419,5441,6427,6529,8161,9521,10711,11119,13669,16831,17137,20161,20231,21169,23041,23311,26317,29191,34511,37441,38737,42841,51001]),(139801,[1259,1327,3673,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,3,7,29,41,43,97,109,137,181,193,211,257,331,337,449,577,613,631,919,1153,1321,1531,2017,2143,2381,2689,2857,3061,4421,5153,5441,6121,6337,6427,10711,13669,14281,16831,20231,23041,23311])],
-    [(139921,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,46819,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,67763,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,84967,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,3,5,11,29,31,41,73,113,151,193,241,257,281,337,449,613,919,1009,1021,1321,1429,1531,2017,2143,2521,4481,4999,5153,5419,6427,6529,8161,12241,12853,13441,20231,23311,26317]),(140393,[137,1259,1327,3299,7583,9283,9419,10099,10847,11867,13397,13907,14621,14723,16763,17579,17783,22679,23189,24107,24379,29207,30839,31247,34919,35327,40529,41039,41243,44507,48383,50287,52667,53279,53993,54367,56543,59093,62323,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,77419,78167,79867,80309,80819,81023,81839,82757,84559,84967,85103,91733,92753,93263,96323,101117,102647,102953,106319,106727,108223,108461,109379,110603,110807,111317,113357,115499,116927,117539,118661,118967,120157,122027,124067,124679,126107,126719,126923],[4,8,5,7,11,29,31,37,41,61,97,127,151,181,193,241,257,281,307,331,337,613,631,673,919,953,1021,1153,1361,2017,5153,5419,6337,6427,6529,8161,9521,11119,12853,13669,14449,16831,17137,21169,23041,23311]),(140761,[239,647,1259,1973,2789,3299,3911,7583,8467,9011,11867,15131,16253,24379,25841,25943,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,54503,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[5,19,29,37,43,61,71,73,97,103,109,113,127,137,151,181,193,241,257,331,337,409,631,1321,1361,1531,2143,3061,3571,4421,4999,5419,5441,6121,6529,9521,10711,11119,12241,12853,13669,14281,14449,20161,23311,24481,29191,34273]),(141121,[443,647,1531,1871,6257,6359,8807,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[3,7,19,29,37,73,103,113,127,137,193,281,331,421,449,577,613,631,673,953,1009,1321,1361,1429,2521,2689,2857,3061,3571,4481,5419,6337,8161,12241,13441,13669,14449,20161,23041,26317]),(141481,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,65927,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[5,7,11,13,19,29,37,71,73,97,103,211,239,241,331,337,449,613,919,1009,1021,1153,1321,2017,2143,2381,2521,2689,3361,4421,4481,5419,5441,6121,6427,10711,13441,14281,14449,16831,20161,20231,21169,23311,26317,29191,34273,43691,51001,65537]),(141793,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61813,65179,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[4,8,7,19,31,41,43,61,71,97,109,113,127,137,151,211,257,307,337,421,449,631,673,919,1009,1021,1361,1531,2017,2143,2381,2689,2857,3361,3571,5153,6121,9521,10711,12241]),(141961,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,20129,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,61507,64091,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77419,77929,78167,81023,82757,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,7,11,13,19,29,37,71,97,109,113,127,137,151,193,211,307,331,433,613,673,953,1009,1021,1153,1321,1361,1429,1531,2017,2521,2689,3361,3571,4421,4481,4999,5441,6529,9521,10711,11119,12241,12853,13441,14281,14449,16831,20161,20231,23041,23311,24481,26317,29191])],
-    [(142321,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71809,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[8,5,7,11,13,37,41,109,127,137,181,193,211,241,257,281,307,409,421,433,673,953,1321,2017,3361,4421,4481,4999,5153,5419,5441,6121,6337,6427,8161,9521,11119,12853,14281]),(142801,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,13159,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,46819,52259,52667,53993,55829,57223,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,115057,118967,119783,123727,123863,125053,126719,126923,128351],[5,13,41,61,71,73,103,137,181,239,307,409,421,613,919,1009,1021,1153,1321,1361,1429,2143,4999,5153,5419,5441,6121,6337,6427,8161,11119,12241,12853,13441,13669,14449,16831,20161,23041,23311,29191,34273]),(142993,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,40801,43283,43793,45119,46309,51511,52667,53993,54163,55829,58243,59093,61099,61949,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75583,81023,81533,86531,89591,90407,91019,91733,95507,96527,102647,107747,108359,108529,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[3,5,11,13,19,41,43,61,97,109,113,151,181,193,211,239,281,337,421,449,673,919,953,1321,1531,2143,2857,4999,5153,5441,6121,6337,6529,10711]),(143281,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,64499,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,5,11,19,61,73,97,127,151,193,239,257,281,307,337,409,577,631,673,1361,1531,2017,2381,2521,2689,3361,4421,5441,6121,6337,12853,13441,13669,14281,16831]),(144481,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54469,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92413,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,110909,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[3,5,13,19,31,43,61,71,103,109,113,137,181,193,211,239,241,281,307,613,673,919,1153,1321,1361,2143,2381,2857,3061,3361,3571,4421,4999,5419,5441,6121,6337,6427,6529,8161,12241,12853,14281,14449,16831,17137,20161,20231,23041,38737,51001]),(144841,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[8,7,13,31,37,41,43,71,73,97,103,109,113,137,211,257,281,331,433,577,631,953,1153,1429,2017,2857,3061,4421,5419,6529,8161,11119,12241,12853,13441,14281,20161,23311,24481]),(144961,[409,647,1259,3877,3911,7243,10337,10847,14621,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,48383,50423,50627,51749,53993,54367,54979,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,76603,76943,84457,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115057,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[4,5,7,13,29,31,37,41,71,103,109,193,241,257,337,421,433,577,673,919,1021,1361,2143,2521,3361,4421,4481,5153,5419,6121,6337,8161,11119,12241,12853,13669,20161])],
-    [(145153,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14621,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30839,31247,32029,34919,35327,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65587,66029,67967,70619,71843,72047,72931,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,96323,96799,101117,102647,102953,106319,106727,108461,109379,110603,110807,111317,113357,114343,115499,116927,117539,118661,118967,122027,124067,124679,126107,126719,126923],[5,11,37,41,61,71,127,181,193,211,239,241,281,337,421,433,613,673,919,1009,1021,1321,1361,1531,2017,2143,2689,2857,3361,4421,5153,5441,6121,6337,6427,6529,9521,13669,14449,20231,23041,24481,26317,34273,37441,38737,43691,45697]),(145433,[103,443,647,1259,2789,3299,4013,4217,6359,9419,10133,12071,13397,14009,17239,22067,22679,23767,24107,26759,27779,27983,30839,31247,32029,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,59263,64499,64567,65519,70313,71843,72047,74597,74699,74869,75209,75991,81839,82757,83267,84967,85103,87959,88469,89897,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,124067,124679,126311,126583,126719,128147],[11,13,19,29,43,61,71,97,151,181,193,211,241,281,337,409,613,953,1021,1153,1429,1531,2143,2381,2521,2857,4999,5419,6121,6337,6427,8161,10711,11119,12241,13669,14449,20161,20231,21169,24481,29191,42841]),(145801,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,84967,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,101627,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,11,37,41,97,103,151,211,239,241,257,281,307,331,433,449,613,919,953,1153,1361,2017,2381,2521,3061,3361,3571,4421,4481,6121,6337,6427,8161,11119,12241,13441,13669,14281,14449,16831,23041,26317,29191,38737]),(146161,[1327,1667,4013,5101,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,8,3,7,37,43,61,73,109,113,137,151,181,193,241,257,307,331,409,433,449,577,613,631,673,953,1021,1153,1321,1361,1531,2689,2857,3061,4481,4999,5153,5419,6121,6337,9521,10711,11119,12241,12853,14449,17137]),(146521,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,13397,14009,14621,20707,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,56237,56543,56747,58379,58787,59093,61099,61609,65519,70313,71707,71843,72047,74597,74699,75991,77929,78779,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,107033,107747,108359,108869,109379,109583,111827,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[4,8,11,13,19,29,41,71,73,97,109,113,181,193,211,241,257,331,337,421,673,919,953,1009,1321,1429,1531,2017,2381,3571,4421,4999,5153,5419,6427,6529,9521,11119,12241,12853,13669,14449,16831,20231,21169,23311,26317]),(146833,[443,647,6257,6359,6971,8807,10099,10303,11867,16253,18191,20639,21523,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,96799,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[5,7,13,31,37,61,71,73,109,113,127,151,211,239,241,257,307,331,433,613,673,919,1009,1321,1361,1429,2143,2381,2521,3061,3361,3571,4421,4481,5419,5441,6529,10711,11119,12241,12853,13441,13669,16831,21169]),(147001,[409,647,1259,3877,3911,7243,10337,10847,14621,19891,20639,21863,22441,23087,25127,26759,27983,28051,29717,30431,32063,35531,40427,41039,41719,42331,43283,43997,46819,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,75277,76603,76943,84457,84967,86599,86837,86939,87959,91019,92311,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[7,43,61,73,127,239,281,307,331,577,631,673,953,1021,1153,1321,1429,2017,2381,2857,3061,3361,3571,4421,4481,5153,5419,5441,6121,8161,9521,10711,12241,13441,13669,14281,14449,16831,20161,20231])],
-    [(147841,[443,647,1259,1973,2789,6733,7039,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40087,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,68171,70619,70823,71333,71843,72047,74903,76943,78167,80309,81703,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,5,11,13,31,41,73,103,109,127,137,151,211,239,281,307,331,337,421,577,631,919,953,1009,1153,1321,1361,2017,2143,2521,3061,3361,4421,4481,5419,5441,6337,6529,8161,9521,12853,14281,14449,16831,20161,26317,29191,37441,42841,45697]),(148321,[103,443,1259,1667,6359,8093,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90203,90407,91019,92243,96323,96697,107509,107747,108223,109379,110909,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,8,3,5,7,31,43,71,109,137,151,211,241,257,281,307,331,409,421,433,449,613,631,1021,1531,2017,2143,2381,2689,3361,3571,4421,4999,5153,5419,6427,9521,12241,12853,13441,14281,14449,16831]),(149521,[443,1871,3299,6971,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,26861,28867,30839,35327,40427,43283,45119,46309,52667,53993,55829,55931,56611,58243,59093,61099,61813,61949,64499,65519,65587,66029,67049,71503,72047,73679,74189,81023,81533,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,8,13,37,71,97,103,109,127,137,151,181,239,257,307,409,421,433,577,613,631,919,1009,1153,1361,1531,2143,2381,2689,2857,3571,4421,4481,5153,5419,5441,6427,6529,12241]),(149881,[443,647,1259,1973,2789,11867,12343,12547,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,65213,66947,67967,68171,70619,70823,71333,71843,72047,74903,76943,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,109583,111827,112643,115771,117539,117709,118967,119783,120871,122027,122503,123829,126107,126719,128147],[4,11,29,31,41,43,97,103,193,241,257,281,331,337,433,613,631,673,919,1009,1021,1321,1531,2689,3061,4421,4999,5441,6121,6427,10711,13441,13669,14281,16831,20161,23311,24481,26317,38737]),(150001,[1259,1327,4013,6053,9419,12377,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107713,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[3,11,13,19,29,37,41,103,127,137,151,211,239,433,631,673,919,1009,1021,1321,1531,2017,2521,2689,2857,4481,4999,5153,5441,6337,6427,10711,12853,13441,16831,17137]),(150193,[443,647,1259,2789,3299,4013,4217,5407,6359,8467,9419,10133,12071,13397,14009,21319,21523,22067,22679,24107,26759,27779,27983,30839,31247,32573,33287,34919,38693,39883,41243,41957,49199,50423,51239,53993,54503,54979,56237,56543,56747,58379,59093,61099,61609,64499,65519,70313,71707,71843,72047,74597,74699,75209,75991,77929,79867,81839,82757,83267,85103,87959,88469,89897,90067,90407,91019,92243,92957,94079,96323,96527,104891,107033,107747,108359,108869,109379,109583,110909,111827,112031,118967,119783,122027,122231,122299,122503,124067,124679,126311,126719,128147],[5,7,19,37,41,43,61,103,109,113,127,181,193,211,239,281,307,337,409,421,449,577,613,953,1009,1021,1153,1429,1531,2143,2381,2689,3061,3571,4481,4999,5153,6337,6427,10711,12853,14281,16831,20161,21169,23041,26317,34273,34511,37441]),(150473,[443,2551,3299,10847,10949,11867,12343,14723,16763,17749,17783,19483,21523,22679,23189,24107,24413,26759,28867,30839,35327,40427,43283,45119,48247,52667,53959,53993,55829,55931,59093,61609,61949,64499,65179,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75277,77929,78439,80989,81023,81533,84559,86531,89591,90067,90203,90407,91019,91291,91733,95507,96527,96799,102647,106693,107747,108359,109583,110603,112507,116927,118219,119783,123727,123863,124339,126107,126311,128147],[8,5,7,11,29,41,43,61,97,103,109,113,151,181,241,257,307,449,577,631,919,953,1009,1153,1531,2143,2381,2857,3361,3571,4421,10711,14281,14449])],
-    [(151201,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,43793,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90203,90407,90917,91019,94079,96527,97547,98873,100403,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[8,5,11,13,19,29,31,41,61,71,113,127,151,181,193,241,257,307,421,613,953,1009,1153,1321,1429,2017,2143,2521,2857,6337,6529,8161,9521,10711,12241,13441,14281,16831,17137,20161,20231,23041,23311,26317,29191,36721,37441,42841]),(151873,[1327,1667,4013,6053,7583,9419,10133,22679,24379,27983,30703,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,59093,59399,60317,61031,63377,63853,64567,66947,67763,68477,69191,70619,70823,74189,74903,78439,80683,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,100913,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,127331,128861],[4,3,19,71,73,97,109,137,181,193,211,241,257,337,449,577,613,631,1009,1021,1153,1429,2521,2689,3061,6337,10711,14449,16831,17137,21169]),(152041,[1259,1327,3673,4013,6053,9419,13907,14723,15131,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,62731,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,13,71,73,113,127,137,151,193,211,241,449,1021,2381,3061,3571,4421,5153,6427,6529,8161,9521,10711,11119,12853,13669,14281,17137,23311]),(152401,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[4,5,19,29,31,37,41,43,61,71,109,113,137,151,193,241,281,307,331,421,449,631,1009,1021,1153,1321,1361,1531,2017,2381,2521,2689,2857,3061,3571,4481,5419,6337,6529,11119,12241,13441]),(152993,[1259,1327,1871,4013,5407,6053,8467,9419,13907,14723,15199,16763,19483,19687,21557,24413,31859,33083,37537,38047,38183,40189,40427,41039,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58379,59093,59399,60623,62323,74189,74903,77929,78167,81023,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,105503,107747,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126481,126923,127739],[5,7,19,61,71,73,109,113,127,151,193,211,241,281,307,337,409,433,449,577,613,631,673,919,953,1021,1321,1361,1429,2017,2143,2521,3061,4481,5419,5441,6337,8161,11119,12853]),(153073,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,18191,21523,21863,22067,22679,23189,24107,24923,29207,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,52259,52973,53993,54367,54469,56747,59093,60317,61031,67763,67967,68477,73883,74189,74869,82349,82757,83267,87959,89387,90407,91631,92243,92957,96527,96697,99689,106319,108223,109583,110569,110603,110807,113357,114343,115601,116927,118219,119783,122503,126719,126923,127739],[4,11,19,29,31,41,71,97,103,109,113,127,137,151,181,193,239,241,257,307,331,337,409,449,577,613,953,1153,1361,2017,3061,3361,4421,4999,5153,5419,5441,6121,6337,9521,10711,13669,14281]),(153361,[443,647,1531,1871,6257,6359,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83063,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[13,19,37,41,43,61,71,73,103,109,113,137,239,257,307,337,433,577,613,1009,1021,1153,1321,1429,2017,2381,2857,3061,4421,4481,4999,5153,5441,6121,6427,6529,11119,12241,13441,14449,20161,21169,23311])],
-    [(153721,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[8,3,31,41,43,61,73,97,103,127,151,181,211,239,241,331,433,449,613,631,673,1009,1021,1321,1361,1429,1531,2017,2143,2381,2689,4421,5153,6427,10711,12241,16831,23311,34273,34511,36721,42841,45697,54001,61681]),(154081,[1259,1327,4013,6053,8807,9419,13907,14723,15131,15199,16763,17239,19687,21557,23087,24379,24413,31859,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59399,59671,60623,61609,62323,74189,74903,76603,78167,78439,80071,81023,82723,83267,84389,88469,89387,90407,93229,94793,95507,96323,96731,100403,100811,102409,105503,107747,111317,113357,115499,115771,116791,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,8,3,5,7,11,13,29,31,37,61,73,103,109,113,127,151,193,239,337,421,631,1009,1021,1321,1361,2689,3361,4481,5153,5419,6337,6427,8161,9521,10711,12853,13441,14281,20231,23041]),(154561,[647,6053,7039,7549,7583,8059,8263,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,43997,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,79867,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,3,7,11,13,19,29,31,37,41,71,73,97,113,127,181,193,241,257,281,307,337,409,449,613,919,1009,1321,2381,2857,3061,3361,3571,4421,4999,5153,5419,5441,8161,9521,10711,11119,12853,14449]),(155041,[239,647,1259,1973,2789,3299,3911,7583,8467,9011,11867,13159,15131,16253,24379,25841,25943,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,46819,52259,52667,53993,54503,55829,57223,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,115057,118967,119783,123727,123863,125053,126719,126923,128351],[4,8,3,11,13,19,29,31,41,73,103,151,193,211,241,257,281,307,331,421,577,613,631,673,953,1021,1429,2017,2143,2689,2857,3061,3361,6121,6337,6427,6529,8161,9521,10711,12241,13441,14449,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511]),(155233,[443,3299,10847,10949,11867,12343,14723,16763,17783,22679,23053,23189,23767,23971,24107,24413,26759,28867,30839,35327,40427,40801,43283,45119,46309,51511,52667,53993,54163,55829,55931,58243,59093,61099,61949,64499,65519,65587,66029,67049,68171,69191,71503,72047,73679,74189,75583,81023,81533,86531,89591,90203,90407,91019,91733,95507,96527,102647,107747,108359,109583,110603,116927,119783,122299,123863,124339,126107,126311,126583,128147],[4,3,5,7,19,31,37,73,97,103,109,113,151,181,193,239,307,331,337,421,433,449,613,673,953,1321,1361,2017,2857,3361,3571,5419,5441,6337,8161]),(155513,[103,409,613,647,6053,6971,7583,8059,11833,12547,13397,13907,22067,24821,24923,28697,33287,34919,36857,38183,38693,39883,43997,45119,49199,51307,51341,52259,53993,54503,56237,59093,60317,61031,65519,67763,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89591,89897,90203,91733,92957,93229,97547,99689,99859,100403,101117,102953,106013,107033,108359,109583,111623,114479,118967,120293,122027,122231,122299,123863,124339,124781,126311,126923,129643],[3,5,19,37,43,71,113,127,137,151,181,239,257,281,307,331,337,449,577,631,673,953,1009,1429,2017,2143,3061,3571,4999,5153,5419,6121,6427,6529,9521,10711,11119,12241,12853,13441]),(156601,[647,6053,7549,7583,8059,13397,13907,22067,23087,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,91733,92957,93229,97547,99689,100403,101117,101627,102953,106013,107033,108359,109583,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[11,19,31,71,103,109,113,127,137,151,181,211,241,307,409,577,613,631,673,1009,1321,1531,2017,2381,2857,3061,4481,5419,6337,6427,6529,8161,10711,12241])],
-    [(157081,[647,1259,1973,2789,3299,3911,7583,8263,8467,9011,11867,15131,16253,19993,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44507,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,78779,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,101627,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,128351],[4,8,7,19,31,37,41,43,97,103,109,137,151,181,211,241,257,421,1153,1321,1361,2017,2143,2521,3571,4421,4481,5441,6121,6337,8161,9521,12853,13441,13669,20161,20231,26317,34511]),(157441,[443,647,1871,6257,6359,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46819,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,67933,71129,71843,72047,73679,73883,76603,78439,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,8,3,29,41,43,61,73,97,113,137,151,257,281,331,337,421,449,577,673,953,1009,1021,1153,1429,1531,2143,2521,3061,4421,4999,5153,5441,6337,6427,6529,9521,11119,14281,16831,17137,20161,20231,23311]),(157753,[1259,1327,1871,4013,6053,9419,13907,14723,15199,16763,17239,19687,21557,24379,24413,31859,33083,37537,38047,38183,40427,41039,41719,41957,43487,45119,48383,50423,52259,52667,52769,53993,55829,56237,56543,56747,58243,58379,59093,59263,59399,60623,61609,62323,74189,74903,76603,78167,78439,81023,82723,83267,83471,84389,88469,89387,89591,90407,93229,94793,95507,96323,100403,102409,105503,107747,108631,111317,113357,115499,118967,121007,123863,124067,124679,126107,126311,126923,127739],[4,3,5,7,11,13,31,37,71,73,113,151,181,193,211,239,331,337,409,449,577,631,673,919,1429,1531,2017,2143,2521,2689,5153,5441,6427,8161,9521,10711,12241,12853,16831]),(158113,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,96697,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[3,7,11,13,19,29,31,37,73,97,109,113,127,137,151,181,193,239,241,307,409,421,433,631,673,919,1321,1361,1429,1531,2017,2689,3361,3571,4999,5153,5419,6121,6337,6427,6529,8161,10711,13441,13669,14281,14449,16831]),(158401,[1327,4013,5101,6053,7583,9419,10133,22679,24379,27983,30839,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,44711,47533,48383,49199,50627,51239,52259,52667,52973,53993,54503,57427,59093,59399,60317,63377,63853,66947,67763,68477,70619,70823,71741,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,105503,108359,109379,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[29,31,37,41,61,103,109,137,181,241,257,307,449,577,631,919,953,1009,1321,2017,2143,2381,3061,4421,4481,4999,5441,6121,6529,8161,11119,12241,12853,13669,14281,16831,20161]),(159121,[647,1259,1973,2789,3299,3911,7583,8467,9011,11867,12377,15131,16253,23087,24379,25841,26759,31247,31859,32029,32063,34919,35327,35837,36551,41243,43487,43691,44711,46751,52259,52667,53993,55829,58243,58991,59093,59399,60623,62731,65519,66947,67763,67967,68477,71129,71707,71741,73679,75787,76603,76943,77317,78439,80819,81023,84389,86837,89591,90407,91019,91529,92957,93263,93739,95507,96017,96731,104347,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923,127807,128351],[8,7,19,29,31,71,73,103,127,137,151,193,211,239,241,281,307,337,421,433,577,613,919,953,1009,1021,1531,2017,2857,3571,5153,5419,6337,6427,9521,10711,11119,12241,12853,16831,20161,23041,23311]),(159601,[2347,3299,4013,5407,6869,7583,9419,10847,13397,14519,16763,17443,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,45119,49199,50423,51511,52259,52973,53993,54367,56747,59093,60317,64567,65927,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,11,19,37,71,103,181,193,239,331,337,421,577,613,919,953,1009,1153,1321,1429,2017,2381,2521,3361,3571,5419,6337,6427,11119,12241,12853,13441,14281,16831,17137])],
-    [(160081,[443,647,1259,1973,2789,6733,7039,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40087,40427,41243,43487,45119,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,66947,67967,68171,70619,70823,71333,71843,72047,74903,76943,78167,80309,81703,81839,82757,83267,84967,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,101627,105503,106217,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[3,5,13,19,29,37,41,97,109,127,137,193,211,241,307,331,337,409,421,449,631,673,919,953,1021,1153,1321,1361,1531,2521,2857,3061,3361,4421,5441,6427,8161,9521,13441,14449,20161,20231,21169,34273,42841]),(161641,[2347,3299,4013,5407,6869,7583,9419,10847,13397,16763,17579,21523,21863,22067,22679,23189,24107,24923,29207,29411,29717,31247,31859,34919,35531,35837,38183,39883,41039,42943,43283,43997,44507,45119,49199,50423,51511,52259,52973,53993,54367,54469,56747,59093,60317,67763,67967,68477,69191,73883,74189,74869,82349,82757,83267,87959,89387,90407,92243,92957,96527,96697,96731,99689,106319,108223,109583,110569,110603,110807,113357,114343,116927,118219,119783,122503,126719,126923,127739],[4,3,5,11,19,61,73,97,127,151,193,239,257,281,307,337,409,577,631,673,1361,1531,2017,2381,2521,2689,3361,4421,5441,6121,6337,12853,13441,13669,14281,16831]),(161953,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14519,14723,17579,18191,18701,20639,22067,22543,24107,24413,24923,25603,28493,32233,37061,40427,41243,42331,45833,46751,46819,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,65519,65927,67763,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,83471,84559,85103,87959,88843,90067,92957,93263,93739,94079,95813,98737,102647,104381,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,124951,126583,126719,128147],[4,8,3,5,11,19,29,31,37,43,61,73,97,127,137,151,181,211,241,257,281,331,337,409,433,449,919,953,1153,1429,1531,2381,3361,3571,4481,6121,8161,12241,13669,16831,17137,20231,21169,23041,24481,26317,29191,38737]),(162793,[647,1259,1973,2789,3299,6971,7583,8467,11867,16253,19993,22271,24379,26759,31247,31859,32029,32063,34919,35327,35837,41243,43487,43691,44507,52259,52667,53993,55829,58243,59093,59399,60623,62731,65519,66947,67763,67967,68171,68477,71129,71707,73679,75787,75821,76603,76943,77317,78439,78779,80819,81023,84389,86531,86837,90407,91019,91529,92957,93263,93739,95507,96017,101627,104347,104891,105503,106727,107033,108223,109379,110603,110807,111317,112643,118967,119783,123727,123863,125053,126719,126923],[8,11,29,41,71,113,151,193,211,257,307,331,433,449,577,613,919,953,2143,2689,3061,3571,4421,4999,5441,6337,6529,8161,9521,10711,11119,12241,13441,21169]),(163153,[443,647,6257,6359,6971,10303,11867,16253,18191,20639,21523,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,52667,52769,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,71129,71843,72047,73679,73883,76603,78439,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,96799,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[5,7,11,13,29,41,43,61,73,103,113,151,193,281,307,331,421,449,613,631,1009,1361,1429,1531,2143,2857,3361,3571,4421,4481,4999,6337,6529,12853,13441,14281,20161]),(163441,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,25943,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,36653,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,55897,56509,59093,67763,68239,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637],[4,8,3,5,13,19,29,31,37,41,43,61,71,73,97,113,127,181,239,257,281,409,421,433,613,631,673,919,1009,1361,1429,1531,2017,2689,2857,3061,3571,4421,4999,5419,5441,10711,11119,12241,12853,13441,13669,14281,14449,16831,23041,23311,29191,34273]),(164161,[443,647,1259,1973,2789,11867,12343,13397,16763,17477,20639,21523,21863,24107,24821,24923,25127,27031,29717,30091,30839,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,59093,59399,60623,62323,65213,66947,67967,68171,69463,70619,70823,71333,71843,72047,74903,76943,78031,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,94351,97547,100811,105503,106217,108631,109583,111827,112643,115771,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[4,8,3,5,11,13,29,31,37,41,43,71,109,151,181,193,241,281,421,433,449,577,613,919,1021,1361,1531,2017,2381,2521,2689,2857,3361,5153,5419,6121,6337,6427,9521,13441,13669,14281,14449,17137,20161,20231,21169,23041,23311,26317,34273,34511,37441,38737])],
-    [(164641,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,100913,103769,107509,107747,108223,109379,114547,122027,122503,123863,124679,126107,126719,127739],[8,5,11,19,29,37,41,43,71,109,127,181,193,239,241,257,331,421,449,577,613,673,1021,1153,2689,2857,3361,4421,5153,5419,6427,6529,8161,9521,10711,13441,13669]),(165961,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54163,54367,56543,58243,59093,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,5,11,19,29,31,37,41,71,73,97,109,127,151,181,193,239,281,421,433,449,631,673,919,953,1009,1321,1531,2381,2521,3061,3361,4421,4481,4999,6121,6337,6427,9521,11119,12853,13669,14281,20161,20231,21169,26317,29191,34273,34511,37441,45697,65537]),(166681,[103,443,1259,6359,8807,9011,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,37571,39679,41719,43283,45119,47533,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,61643,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,80683,81023,81839,83267,83471,86939,87959,88469,89387,90407,91019,92243,96323,96697,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[4,7,19,37,41,43,61,73,109,127,137,193,239,241,257,409,449,613,919,953,1021,1153,1321,1429,1531,2381,2521,2689,3061,3361,3571,4421,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,12241,13441,13669,14449,16831,17137,20161]),(166993,[409,647,1259,3877,7243,10337,10847,18191,20639,21863,23087,25127,26759,27983,29717,32063,35531,40427,41039,41719,42331,43283,43997,48383,50423,50627,51749,53993,54367,55829,56101,57427,58379,59093,59467,61099,61949,67049,70619,72047,74699,74903,76603,76943,84457,84967,86531,86599,86837,86939,87959,91019,91291,92957,96527,97547,97649,101117,101797,106013,106319,108223,111827,112643,113357,115057,115499,118219,118457,118967,119783,120293,123829,126311,127739,128147],[3,5,7,13,19,31,41,61,71,73,97,113,193,211,239,241,257,281,337,421,449,613,673,919,1021,1361,1531,2143,2521,2689,3361,3571,4481,4999,5153,5419,6427,6529,8161,9521,10711,12853,14449]),(167521,[137,647,1259,2789,3877,4217,6869,8467,9419,10303,11867,12343,14723,15199,17783,20639,21319,21523,21557,22067,23053,25127,27779,27983,28493,29207,29683,30839,31859,32573,34171,36007,39883,40903,41039,43487,47057,48383,49369,50423,51239,52667,53279,53959,53993,54163,55897,56509,59093,67763,68749,70823,74903,75787,76943,78167,78643,81533,81737,81839,85103,85817,86939,90407,91019,94079,96527,97547,98873,100403,101627,101797,104381,104789,104891,106727,108869,109379,109583,110603,111317,111827,118967,121007,124679,126583,126719,127399,127637,130969],[4,8,3,13,29,41,71,97,103,109,113,127,181,193,239,257,307,409,421,449,631,953,1021,1321,1361,1429,1531,2017,2143,2381,2689,4421,4481,5153,5419,6121,6337,6427,6529,9521,11119,12241,12853,13441,14281,14449,16831,17137,20231,23311,24481,36721]),(167833,[443,647,1259,1973,2789,3911,10949,11867,12343,13397,16763,17477,20639,21523,21863,24107,24923,25127,27031,29717,30091,30839,30941,31247,32063,33287,34919,38183,39373,39679,40427,41243,43487,45119,47363,49199,50627,51239,51307,52667,53279,53993,56747,58379,58549,59093,59399,60623,62323,66947,67967,69463,70619,70823,71333,71843,72047,74903,76943,78167,80309,81839,82757,83267,87959,88469,89659,90067,90407,91019,92243,92753,94079,97547,100811,104891,105503,106217,109583,111827,112643,117539,117709,118967,119783,122027,122503,123829,126107,126719,128147],[8,7,29,31,37,43,61,73,113,127,137,151,181,193,281,409,421,449,613,631,953,1021,1321,1361,1531,2017,2521,2689,3361,3571,4421,4999,5153,5419,5441,6121,6529,9521,11119,12853,13441,16831,17137,21169,23041,23311,24481,38737]),(168001,[137,1259,1327,3299,7039,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,44507,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,59671,61099,65111,65587,66029,67967,70619,71843,72047,73679,74597,74699,75583,76943,78167,80309,80819,81023,81839,82757,85103,88843,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[4,8,3,5,11,13,37,41,61,109,151,193,239,241,281,307,421,433,449,673,919,1153,1361,1429,2017,3061,4421,4481,4999,5441,6121,6427,6529,11119,12241,13441,13669,14281,17137,20161,24481,26317,36721,51001,65537])],
-    [(168193,[1327,4013,6053,7583,9419,10133,22679,24379,25943,27983,30703,30839,30941,32063,33457,34919,35531,38183,38693,40427,40597,41039,41243,42943,43283,43487,47533,48383,49199,50627,51239,52259,52667,52973,53891,53993,57427,58787,59093,59399,60317,61031,63377,63853,66947,67763,68477,69191,70619,70823,74189,74903,78439,80989,81023,81737,82757,84389,85103,90407,91019,92243,93263,93739,95507,96323,97003,97649,100403,104381,105503,108359,109379,110501,114547,117437,117539,121007,122027,123863,124679,126719,126923,128861],[5,7,11,41,43,61,71,73,97,103,127,137,193,211,239,241,257,307,331,337,421,433,1021,1321,1361,1429,1531,2017,2689,3361,3571,4481,5153,5419,6121,6427,11119,14449,16831,21169]),(168481,[103,443,647,1973,3299,5849,6359,7243,7583,13397,14723,17579,20639,22067,22271,22543,24107,24413,24923,25603,28493,32233,40427,41243,42331,45833,48383,49199,52259,52973,53891,53959,53993,54673,56747,57427,59093,59399,60623,64091,65519,67763,69463,69497,70619,71129,71333,72047,74699,76943,77929,78167,81023,82757,84559,84967,85103,86599,87959,88843,90067,92957,93263,93739,94079,95813,96731,97241,98737,102647,105503,106319,106727,107747,108359,108869,109379,110603,111317,111827,112643,114343,118967,126583,126719,128147],[4,13,29,61,73,127,181,193,211,241,281,331,449,577,613,673,953,1153,1361,1531,2017,2143,3061,3571,4481,5153,5441,6121,6427,6529,11119,13441,14449,17137,20161]),(168841,[647,6053,7549,7583,8059,13397,13907,22067,23767,24923,28051,28697,33287,34919,36857,38183,38693,39883,40087,43997,44371,45119,48247,49199,51307,52259,53993,54503,56237,56713,58243,59093,60317,65519,67763,71503,71707,71843,73679,73883,74699,75991,80309,81839,86837,86939,88469,89897,90203,91733,92957,93229,97547,99689,100403,101117,102953,106013,107033,108359,109583,111623,114479,115771,118219,118967,120293,122027,122231,123727,123863,124339,124781,126311,126923],[4,3,5,11,13,19,29,31,43,97,103,113,127,137,151,281,331,409,449,613,953,1021,1153,1361,1429,2017,2521,2689,3571,4481,5153,5419,6121,6337,6427,10711,12853]),(169681,[443,647,1871,6257,6359,8807,9011,10303,11867,12071,16253,20639,21523,22441,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46819,46853,48179,52667,52769,53381,53993,54877,55897,56237,56543,56747,58379,59093,60623,65519,67933,71129,71843,72047,73679,73883,76603,78439,80207,80819,83267,87959,89387,93263,93739,94079,94351,95507,96323,96799,98669,100267,100403,101117,102647,107509,107747,108359,108869,109583,118967,120293,122231,122299,125053,126719,126923,127399,127739],[4,3,7,31,37,71,97,103,137,151,281,307,331,409,421,449,577,613,631,673,919,953,1153,1361,1531,2017,2143,2521,3571,4481,4999,5153,5419,9521,10711,12241,13669,14281,16831,20161,20231,23041,23311]),(170041,[137,1259,1327,3299,7583,9419,10847,11867,13397,13907,14723,16763,17239,17579,17783,21319,21523,22679,23189,23767,24107,24379,29173,29207,30431,30839,31247,32029,34919,35327,36551,37571,40189,40529,41039,41243,48247,48383,50287,52667,53279,53993,54367,56543,58243,59093,61099,65111,65587,65927,66029,67933,67967,70619,71843,72047,73679,74597,74699,76943,78167,80309,80819,81023,81839,82757,85103,88843,90203,91733,92753,93263,94351,96323,96799,101117,102647,102953,106319,106727,109379,110603,110807,110909,111317,113357,114343,115499,115771,116927,117539,118967,122027,124067,124679,126107,126719,126923],[29,31,37,43,103,113,241,257,281,307,337,409,433,449,631,919,1009,1021,1153,1321,1531,2017,2143,2857,3061,3571,4481,4999,5419,5441,6427,6529,8161,9521,10711,11119,13669,16831,17137,20161,20231,21169,23041,23311,26317,29191,34511,37441,38737,42841,51001]),(170353,[103,443,1259,6359,8807,11527,12343,13907,17783,20639,22067,22679,25127,27983,28663,28867,29717,33967,34919,35837,39679,41719,43283,45119,47533,48281,48859,49199,49811,50627,53993,55897,56543,56747,58379,58889,59093,59399,60623,60793,64567,65587,67763,68749,71503,71707,73679,73883,74597,74699,78167,81023,81839,83267,86939,87959,88469,89387,90407,91019,92243,96323,96697,100913,103769,104959,107509,107747,108223,109379,114547,118423,122027,122503,123863,124679,126107,126719,127739],[8,3,11,29,31,37,61,71,109,151,211,257,307,331,409,421,433,449,577,613,631,673,919,953,1009,1021,1153,1361,1531,2381,3061,3361,4421,5153,5419,6121,6427,6529,8161,10711,11119,12241,13441,14281,14449,16831]),(170633,[443,647,6257,6359,6971,8807,10303,11867,16253,18191,20639,24107,24413,24889,24923,25127,30839,32573,33287,34919,35837,38693,40427,41957,43487,43997,45119,46853,48179,48757,52667,52769,53993,54877,56237,56543,56747,58379,59093,60623,62323,65519,71129,71503,71843,72047,73679,73883,77317,78439,80207,80819,83267,83471,87959,89387,93263,93739,94079,95507,96323,98669,100267,100403,101117,102647,107441,107509,107747,108359,108869,109583,117709,118967,120293,122231,123727,125053,126719,126923,127739,128113,129643],[8,3,5,13,19,41,43,61,97,103,109,127,151,239,241,257,281,421,449,631,673,1021,1153,1321,1361,2017,2381,2521,2857,4999,5419,5441,6121,6337,6427,6529,9521,11119,12853,14281,16831,17137,20161,20231,23041])]]
-  let hard := blocks.flatten
-  let pm := (fun (a e m : ℕ) => Nat.rec (motive := fun _ => ℕ → ℕ) (fun _ => 1%m) (fun _ f n => (f (n/2))^2 * a^(n%2) % m) (e.log2+1) e)
-  let fast (m n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
-    else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
-    else if n%m=0 then 0 else if pm (n%m) (m/2) m=1 then 1 else -1
-  let test (r : ℕ × List ℕ × List ℕ) :=
-    (keys.all (fun t => !decide (r.1%t.2.1 ∈ t.2.2) || decide (t.1 ∈ r.2.1)) &&
-      r.2.2.all (fun m => decide (m ∈ ([3,4,5,7,8,11,13,19,29,31,37,41,43,61,71,73,97,103,109,113,127,137,151,181,193,211,239,241,257,281,307,331,337,409,421,433,449,577,613,631,673,919,953,1009,1021,1153,1321,1361,1429,1531,2017,2143,2381,2521,2689,2857,3061,3361,3571,4421,4481,4999,5153,5419,5441,6121,6337,6427,6529,8161,9521,10711,11119,12241,12853,13441,13669,14281,14449,16831,17137,20161,20231,21169,23041,23311,24481,26317,29191,34273,34511,36721,37441,38737,42841,43691,45697,51001,54001,61681,65537,92737] : List ℕ)))) &&
-    ((r.2.1.all (fun q => (r.2.2.map (fun m => fast m q)).prod == 1) &&
-      r.2.2.all (fun m => decide (3 ≤ m))) &&
-      ((r.2.2.map (fun m => fast m (F ((pm 2 (r.1+171360) m+m-3)%m)))).prod == -1))
-  have checks : ∀ block ∈ blocks, block.all test=true := by
-    iterate 51
-      refine verify_cons ?_ ?_
-      · decide +kernel
-    exact fun _ h => (List.not_mem_nil h).elim
-  have atRow (r) (hr : r ∈ hard) : test r=true := by
-    obtain ⟨block,hb,hh⟩ := List.mem_flatten.mp hr
-    exact List.all_eq_true.mp (checks _ hb) _ hh
-  let key (e : ℕ × ℕ × List ℕ × ℕ × List ℕ) := (e.1,Nat.gcd e.2.1 171360,e.2.2.1)
-  have keyeq : catalog.map key=keys := keyeq'
-  have rowsOk : ∀ r ∈ hard, ∀ t ∈ catalog, r.1%(Nat.gcd t.2.1 171360) ∈ t.2.2.1 → t.1 ∈ r.2.1 := by
-    intro r hr t ht allowed
-    have present : key t ∈ keys := keyeq ▸ List.mem_map_of_mem (f:=key) ht
-    have h := List.all_eq_true.mp (Bool.and_eq_true_iff.mp (Bool.and_eq_true_iff.mp (atRow _ hr)).1).1 (key t) present
-    change (!decide (r.1%(Nat.gcd t.2.1 171360) ∈ t.2.2.1) || decide (t.1 ∈ r.2.1))=true at h
-    simpa only [decide_eq_true allowed,Bool.not_true,Bool.false_or,decide_eq_true_eq] using h
-  have mods (r) (hr : r ∈ hard) (m) (hm : m ∈ r.2.2) := seventeen_modulus
-    (of_decide_eq_true (List.all_eq_true.mp (Bool.and_eq_true_iff.mp (Bool.and_eq_true_iff.mp (atRow _ hr)).1).2 m hm))
-  have vals (r) (hr : r ∈ hard) := seventeen_fast_row r pm seventeen_powMod_eq (Bool.and_eq_true_iff.mp (atRow _ hr)).2
-  exact ⟨catalog,hard,rfl,lst,periods,rowsOk,mods,vals⟩
 
-set_option maxRecDepth 32768 in
-set_option synthInstance.maxSize 512 in
-set_option maxHeartbeats 20000000 in
 /-- Every seventeenth power with Mersenne index greater than 131073 has a two-prime witness. -/
 theorem mersenne_seventeen_large_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b)
     (hb : 131073 < b)
-    (coarseRule : (¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧ q ∣ p^17+d ∧ s ∣ p^17+d) →
-      b%2520 ∈ ([1,361,673,841,1201,1321,1513,1681,1793,1873,2161] : List ℕ)) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧
+    (coarseRule : (¬∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d) →
+      b%2520 ∈ ([1,361,673,841,1201,1321,1513,1681,1793,1873,2161] : List ℕ)) : ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧
     q ∣ p^17+d ∧ s ∣ p^17+d := by
   by_contra missing
+  have rems := coarseRule missing
+  have reduced0 : b%2520=1 := by
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at rems
+    rcases rems with h|h|h|h|h|h|h|h|h|h|h
+    · exact h
+    · exact (missing (case17_2520_361 pp.pos base h)).elim
+    · exact (missing (case17_2520_673 pp.pos base h)).elim
+    · exact (missing (case17_2520_841 pp.pos base h)).elim
+    · exact (missing (case17_2520_1201 pp.pos base h)).elim
+    · exact (missing (case17_2520_1321 pp.pos base h)).elim
+    · exact (missing (case17_2520_1513 pp.pos base h)).elim
+    · exact (missing (case17_2520_1681 pp.pos base h)).elim
+    · exact (missing (case17_2520_1793 pp.pos base h)).elim
+    · exact (missing (case17_2520_1873 pp.pos base h)).elim
+    · exact (missing (case17_2520_2161 pp.pos base h)).elim
   have ep : p=2^b-1 := by omega
   have pb : b.Prime := (Nat.prime_of_pow_sub_one_prime (by omega) (ep ▸ pp)).2
-  let x := p-2
-  have xp : p=x+2 := by dsimp [x]; have := pp.two_le; omega
-  have bx : x+3=2^b := by omega
-  let F (y : ℕ) := ((((((((((((((((1*y+30)*y+424)*y+3744)*y+23104)*y+105600)*y+369664)*y+1010688)*y+2180608)*y+3724288)*y+5017600)*y+5275648)*y+4243456)*y+2523136)*y+1048576)*y+262144)*y+65536)
-  have fc {m i j : ℕ} (h : Nat.ModEq m i j) : Nat.ModEq m (F i) (F j) := seventeen_fold h [30,424,3744,23104,105600,369664,1010688,2180608,3724288,5017600,5275648,4243456,2523136,1048576,262144,65536] (Nat.ModEq.refl 1)
-  have fac : p^17+131072=(p+2)*F x := by rw [xp]; dsimp [F]; ring
-  have d8 : 8 ∣ 2^b := pow_dvd_pow (2:ℕ) (show 3≤b by omega)
-  have xm : Nat.ModEq 8 x 5 := by change x%8=5; omega
-  have f8 : F x%8=7 := (fc xm).trans (by decide +kernel : Nat.ModEq 8 (F 5) 7)
-  obtain ⟨q,pq,hq,dq⟩ := mersenne_left_factor pb (show 131073 < b by omega) (by omega)
-  have dl : q ∣ p+2 := by convert dq using 1; omega
-  have common {s : ℕ} (d1 : s ∣ p+2) (d2 : s ∣ F x) : s ∣ 1114112 := by
-    have ident : F x+262144*(p+2)=1114112+(p+2)*(131072*x^1+229376*x^2+573440*x^3+917504*x^4+1089536*x^5+982016*x^6+685568*x^7+373760*x^8+159232*x^9+52608*x^10+13248*x^11+2464*x^12+320*x^13+26*x^14+1*x^15) := by rw [xp]; dsimp [F]; ring
-    have both := dvd_add d2 (dvd_mul_of_dvd_right d1 262144)
-    rw [ident] at both
-    exact (Nat.dvd_add_iff_left (dvd_mul_of_dvd_left d1 _)).mpr both
-  have only (s : ℕ) (ps : s.Prime) (ds : s ∣ F x) : s ≤ 131073 := by
-    by_contra! high
-    have diff : q≠s := by
-      rintro rfl
-      have mem := pq.mem_primeFactors (common dl ds) (by decide)
-      have tab : (1114112:ℕ).primeFactors={2,17} := by decide +kernel
-      rw [tab] at mem; simp only [Finset.mem_insert,Finset.mem_singleton] at mem; omega
-    exact missing ⟨131072,q,s,pq,ps,diff,hq,high,fac ▸ dvd_mul_of_dvd_left dl _,fac ▸ dvd_mul_of_dvd_right ds _⟩
-  -- Each root record stores the prime, order, generator, and a bitmap of the 17 realized logarithms.
-  let char (m n : ℕ) : ℤ := if m=4 then (if n%2=0 then 0 else if n%4=1 then 1 else -1)
-    else if m=8 then (if n%2=0 then 0 else if n%8=1 ∨ n%8=7 then 1 else -1)
-    else if n%m=0 then 0 else if ((n%m)^(m/2))%m=1 then 1 else -1
-  obtain ⟨catalog,hard,ids,lst,periods,rowsOk,moduli,vals⟩ := seventeen_certificate
-  have co (o : ℕ) (ho : 0 < o) (ob : o < b) : (b%o).Coprime o := by
-    have h := pb.coprime_iff_not_dvd.mpr (show ¬b ∣ o by intro d; have := Nat.le_of_dvd ho d; omega)
-    change Nat.gcd (b%o) o=1
-    rw [←Nat.gcd_rec o b,Nat.gcd_comm]
-    exact h
-  have surviving := (seventeen_direct_or_remaining pb hb (coarseRule missing)).resolve_left (fun w => missing (ep ▸ w))
-  rw [← ids] at surviving
-  obtain ⟨row,hr,rb⟩ := List.mem_map.mp surviving
-  change row.1=b%171360 at rb
-  have sup (s : ℕ) (ps : s.Prime) (ds : s ∣ F x) : s ∈ row.2.1 := by
-    have le := only s ps ds
-    have nd : ¬s ∣ p+2 := by
-      intro dd
-      have dL : s ∣ 2^b+1 := by convert dd using 1; omega
-      have three := fifth_order pb (pb.odd_of_ne_two (by omega)) ps dL (by omega)
-      subst s
-      have mem := (by decide : Nat.Prime 3).mem_primeFactors (common dd ds) (by decide)
-      have tab : (1114112:ℕ).primeFactors={2,17} := by decide +kernel
-      rw [tab] at mem; simp at mem
-    have s2 : s≠2 := by rintro rfl; omega
-    have mult : s ∣ p^17+131072 := fac ▸ dvd_mul_of_dvd_right ds _
-    obtain ⟨j,hj⟩ := seventeen_order ps s2 mult nd
-    have sj : s=17*j+1 := by have := ps.two_le; omega
-    obtain ⟨⟨s',o,R,w,logs⟩,hm,es⟩ : ∃ e ∈ catalog,e.1=s := by rw [sj]; exact lst _ (List.mem_range.mpr (by omega)) (sj ▸ ps)
-    change s'=s at es
-    subst s'
-    obtain ⟨op,ou,per,proper,wt,w1,cases⟩ := periods _ hm
-    change 0<o at op
-    change o≤131073 at ou
-    change 2^o%s=1 at per
-    let _ : Fact s.Prime := ⟨ps⟩
-    let _ : Fact (Nat.Prime 17) := ⟨by decide⟩
-    have mod1 (u : ℕ) : (u:ZMod s)=1 ↔ u%s=1 := by
-      simpa only [Nat.cast_one,Nat.mod_eq_of_lt ps.one_lt] using ZMod.natCast_eq_natCast_iff' u 1 s
-    have aone : (2:ZMod s)^o=1 := by simpa only [Nat.cast_pow,Nat.cast_ofNat] using (mod1 _).mpr per
-    have aord : orderOf (2:ZMod s)=o := orderOf_eq_of_pow_and_pow_div_prime op aone (by
-      intro j pj dj h
-      have ng := proper j (pj.mem_primeFactors dj op.ne')
-      exact ng ((mod1 _).mp (by simpa only [Nat.cast_pow,Nat.cast_ofNat] using h)))
-    have h2 : (2:ZMod s) ≠ 0 := by
-      intro h
-      exact s2 ((Nat.prime_dvd_prime_iff_eq ps Nat.prime_two).mp ((ZMod.natCast_eq_zero_iff 2 s).mp h))
-    let z : ZMod s := -(p:ZMod s)/2
-    have zero := (ZMod.natCast_eq_zero_iff _ _).mpr mult
-    push_cast at zero
-    have z13 : z^17=1 := by dsimp [z]; rw [div_pow,div_eq_iff (pow_ne_zero _ h2)]; linear_combination -zero
-    have primitive : IsPrimitiveRoot (w:ZMod s) 17 := IsPrimitiveRoot.iff_orderOf.mpr (orderOf_eq_prime
-      (by simpa only [Nat.cast_pow] using (mod1 _).mpr wt) (fun h => w1 ((mod1 _).mp h)))
-    obtain ⟨i,hi,iw⟩ := primitive.eq_pow_of_pow_eq_one z13
-    let Y := (s+1-(2*w^i)%s)%s
-    have min : (2*w^i)%s ≤ s+1 := by have := Nat.mod_lt (2*w^i) ps.pos; omega
-    have Yeq : (Y:ZMod s)=(2:ZMod s)^b := by
-      dsimp only [Y]
-      rw [ZMod.natCast_mod,Nat.cast_sub min,Nat.cast_add,ZMod.natCast_self,Nat.cast_one,ZMod.natCast_mod,Nat.cast_mul,Nat.cast_pow]
-      have bp := congrArg (fun n : ℕ => (n:ZMod s)) base
-      push_cast at bp
-      have iw' : (w:ZMod s)^i*2= -(p:ZMod s) := (eq_div_iff h2).mp iw
-      push_cast
-      linear_combination bp - iw'
-    let t := logs.getD i o
-    have c := cases ⟨i,hi⟩
-    change (if t<o then 2^t%s=Y ∧ (t.Coprime o → t%(Nat.gcd o 171360)∈R) else Y^o%s≠1) at c
-    have com : (b%o)%(Nat.gcd o 171360)∈R := by
-      by_cases lt : t<o
-      · rw [if_pos lt] at c
-        obtain ⟨logt,accept⟩ := c
-        have ylt : Y<s := Nat.mod_lt _ ps.pos
-        have cast : ((2^t:ℕ):ZMod s)=(Y:ZMod s) := (ZMod.natCast_eq_natCast_iff' _ _ s).mpr (by rwa [Nat.mod_eq_of_lt ylt])
-        push_cast at cast
-        have fin : IsOfFinOrder (2:ZMod s) := isOfFinOrder_iff_pow_eq_one.mpr ⟨o,op,aone⟩
-        have same := fin.pow_eq_pow_iff_modEq.mp (cast.trans Yeq)
-        rw [aord] at same
-        change t%o=b%o at same
-        rw [Nat.mod_eq_of_lt lt] at same
-        rw [←same]
-        exact accept (same ▸ co o op (by omega))
-      · rw [if_neg lt] at c
-        exfalso
-        apply c
-        apply (mod1 _).mp
-        rw [Nat.cast_pow,Yeq,←pow_mul,Nat.mul_comm,pow_mul,aone,one_pow]
-    apply rowsOk _ hr _ hm
-    change row.1%(Nat.gcd o 171360) ∈ R
-    rw [rb,Nat.mod_mod_of_dvd _ (Nat.gcd_dvd_right _ _)]
-    rwa [Nat.mod_mod_of_dvd _ (Nat.gcd_dvd_left _ _)] at com
-  have mods := moduli row hr
-  obtain ⟨good,bad⟩ := vals _ hr
-  let chi (n : ℕ) := (row.2.2.map (fun m => char m n)).prod
-  have mul (u v : ℕ) : chi (u*v)=chi u*chi v := by
-    have gen (l : List ℕ) (hl : ∀ m ∈ l, m=4 ∨ m=8 ∨ (m.Prime ∧ 2 < m)) :
-        (l.map (fun m => char m (u*v))).prod=(l.map (fun m => char m u)).prod*(l.map (fun m => char m v)).prod := by
-      induction l with
-      | nil => simp
-      | cons m tail ih =>
-        simp only [List.map_cons,List.prod_cons]
-        rw [show char m (u*v)=char m u*char m v from thirteen_character_mul m (hl _ (by simp)) u v,
-          ih (fun s hs => hl s (by simp [hs]))]
-        ring
-    exact gen _ (by intro m hm; rcases mods m hm with h|h|⟨a,b,_⟩; exact Or.inl h; exact Or.inr (Or.inl h); exact Or.inr (Or.inr ⟨a,b⟩))
-  have same (m : ℕ) (hm : m ∈ row.2.2) : char m (F x)=char m (F ((2^(row.1+171360)-3)%m)) := by
-    exact seventeen_char_congr (fc (seventeen_lift_congr bx rb (by omega) (mods m hm)))
-  have eq : (row.2.2.map (fun m => char m (F x)))=(row.2.2.map (fun m => char m (F ((2^(row.1+171360)-3)%m)))) :=
-    List.map_congr_left (fun m hm => same m hm)
-  have value : chi (F x) = -1 := congrArg List.prod eq |>.trans bad
-  have one : chi 1=1 := by
-    have h := mul 1 (F x)
-    rw [one_mul,value] at h
+  have form : b%42840=1+2520*((b/2520)%17) := by omega
+  have indiv : b%17≠0 := by
+    intro z
+    have eq := (Nat.prime_dvd_prime_iff_eq (by decide : Nat.Prime 17) pb).mp (Nat.dvd_of_mod_eq_zero z)
     omega
-  have pos : chi (F x)=1 := by
-    have gen (l : List ℕ) (hl : ∀ s ∈ l,s ∈ row.2.1) : chi l.prod=1 := by
-      induction l with
-      | nil => exact one
-      | cons s t ih =>
-        rw [List.prod_cons,mul,show chi s=1 from good s (hl s (by simp)),one_mul]
-        exact ih (fun u hu => hl u (by simp [hu]))
-    have h := gen (F x).primeFactorsList (fun s hs => sup s (Nat.prime_of_mem_primeFactorsList hs) (Nat.dvd_of_mem_primeFactorsList hs))
-    rwa [Nat.prod_primeFactorsList (show F x≠0 by omega)] at h
-  change (row.2.2.map (fun m => char m (F x))).prod=1 at pos
-  rw [eq,bad] at pos
-  contradiction
+  have rems2 : b%42840 ∈ [1,2521,5041,7561,12601,15121,17641,20161,22681,25201,27721,30241,32761,35281,37801,40321] := by
+    have tab : ∀ t ∈ List.range 17, (1+2520*t)%17≠0 → 1+2520*t ∈ [1,2521,5041,7561,12601,15121,17641,20161,22681,25201,27721,30241,32761,35281,37801,40321] := by decide +kernel
+    have z : b%42840%17≠0 := by rwa [Nat.mod_mod_of_dvd _ (by decide : 17∣42840)]
+    rw [form] at z ⊢
+    exact tab _ (List.mem_range.mpr (Nat.mod_lt _ (by decide))) z
+  have reduced1 : b%42840=1 := by
+    simp only [List.mem_cons,List.not_mem_nil,or_false] at rems2
+    rcases rems2 with h|h|h|h|h|h|h|h|h|h|h|h|h|h|h|h
+    · exact h
+    · exact (missing (case17_42840_2521 pp.pos base h)).elim
+    · exact (missing (case17_42840_5041 pp.pos base h)).elim
+    · exact (missing (case17_42840_7561 pp.pos base h)).elim
+    · exact (missing (case17_42840_12601 pp.pos base h)).elim
+    · exact (missing (case17_42840_15121 pp.pos base h)).elim
+    · exact (missing (case17_42840_17641 pp.pos base h)).elim
+    · exact (missing (case17_42840_20161 pp.pos base h)).elim
+    · exact (missing (case17_42840_22681 pp.pos base h)).elim
+    · exact (missing (case17_42840_25201 pp.pos base h)).elim
+    · exact (missing (case17_42840_27721 pp.pos base h)).elim
+    · exact (missing (case17_42840_30241 pp.pos base h)).elim
+    · exact (missing (case17_42840_32761 pp.pos base h)).elim
+    · exact (missing (case17_42840_35281 pp.pos base h)).elim
+    · exact (missing (case17_42840_37801 pp.pos base h)).elim
+    · exact (missing (case17_42840_40321 pp.pos base h)).elim
+  exact missing (seventeen_last_compact_witness pp base hb reduced1)
 
 theorem mersenne_seventeenth_witness {p b : ℕ} (pp : p.Prime) (base : p+1=2^b) :
-    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧ q ∣ p^17+d ∧ s ∣ p^17+d := by
+    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q ∣ p^17+d ∧ s ∣ p^17+d := by
   have ep : p=2^b-1 := by omega
   have b1 : b≠1 := by rintro rfl; norm_num at base; have := pp.two_le; omega
   have pb := (Nat.prime_of_pow_sub_one_prime b1 (ep ▸ pp)).2
@@ -1545,31 +2262,66 @@ theorem seventeenth_power_exclusion {n x : ℕ} (hx : 1 < x)
   have rearr : n+(d+1)=p^17+d := by omega
   exact two_primes (k:=d+1) (by omega) pq ps ne hq hs (rearr ▸ dq) (rearr ▸ ds) sol
 
-/-- The next prime exponent, nineteen. -/
-def H1 : Prop := ∃ B : ℕ, ∀ p : ℕ, p.Prime → Odd p → 3 < p →
-    (∃ b : ℕ, p+1=2^b ∧ (2^(b-1) ∣ 18 → ∃ t : ℕ, 18=2^t)) →
-    (p=7 → ∃ m : ℕ, m.Prime ∧ 19=2*m+1) → B < p^19 →
-    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧ q ∣ p^19+d ∧ s ∣ p^19+d
 
-/-- The prime exponents from twenty-three onwards. -/
-def H2 : Prop := ∃ B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → 3 < p → r.Prime → 23 ≤ r →
+/-- The remaining prime exponents congruent to 1 modulo three, beyond any chosen cutoff. -/
+def H1 : Prop := ∃ P R B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → 31 < p → P < p →
+    r.Prime → 23 ≤ r → R < r → r%3=1 → 2*(r-1) ≤ 3*p →
     (∃ b : ℕ, p+1=2^b ∧ (2^(b-1) ∣ r-1 → ∃ t : ℕ, r-1=2^t)) →
-    (p=7 → ∃ m : ℕ, m.Prime ∧ r=2*m+1) → B < p^r →
-    ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧ q ∣ p^r+d ∧ s ∣ p^r+d
+    B < p^r → ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q∣p^r+d ∧ s∣p^r+d
+
+/-- The remaining prime exponents congruent to 2 modulo three, beyond any chosen cutoff. -/
+def H2 : Prop := ∃ P R B : ℕ, ∀ p r : ℕ, p.Prime → Odd p → 31 < p → P < p →
+    r.Prime → 23 ≤ r → R < r → r%3=2 → 2*(r-2) ≤ 3*p^2 →
+    (∃ b : ℕ, p+1=2^b ∧ (2^(b-1) ∣ r-1 → ∃ t : ℕ, r-1=2^t)) →
+    B < p^r → ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1 < q ∧ d+1 < s ∧ q∣p^r+d ∧ s∣p^r+d
 
 theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2.H3 := by
-  rintro ⟨A, nineteen⟩ ⟨B, later⟩
-  refine ⟨max A B, ?_⟩
-  rintro p r pp op hp pr low ⟨b,base,align,_⟩ seven large
-  by_cases h : r=17
-  · subst r
-    exact mersenne_seventeenth_witness pp base
-  by_cases h19 : r=19
-  · subst r
-    exact nineteen p pp op hp ⟨b,base,align⟩ seven (lt_of_le_of_lt (le_max_left ..) large)
-  have high : 23 ≤ r := by
+  rintro ⟨P,R,A,left⟩ ⟨Q,S,B,right⟩
+  let X := max (max P Q) 31
+  let Y := max (max R S) 23
+  obtain ⟨C,hC⟩ := Erdos889.UniformPowers.finite_prime_threshold X
+  obtain ⟨D,hD⟩ := Erdos889.UniformPowers.bounded_power_exclusion Y
+  refine ⟨max (max A B) (max C D)+1,?_⟩
+  rintro p r pp op hp pr low ⟨b,base,align,_⟩ _ large
+  by_contra missing
+  have hAB := Nat.le_max_left (max A B) (max C D)
+  have hCD := Nat.le_max_right (max A B) (max C D)
+  have hA := Nat.le_max_left A B
+  have hB := Nat.le_max_right A B
+  have h1 := Nat.le_max_left C D
+  have h2 := Nat.le_max_right C D
+  have eq : p^r-1+1=p^r := by omega
+  have sol := Erdos889.Missing.predecessor_solution_of_missing (by omega : 1 < p^r) missing
+  have bigp : X < p := by
     by_contra! small
-    interval_cases r <;> contradiction
-  exact later p r pp op hp pr high ⟨b,base,align⟩ seven (lt_of_le_of_lt (le_max_right ..) large)
+    have dp := hC (p^r-1) (by omega) sol p small pp
+    have dr := dvd_pow_self p (by omega : r≠0)
+    have dn : p∣(p^r-1)+1 := eq.symm ▸ dr
+    have d1 := (Nat.dvd_add_iff_right dp).mpr dn
+    exact pp.not_dvd_one d1
+  have bigr : Y < r := by
+    by_contra! small
+    exact hD (p^r-1) p r (by omega) pp.one_lt (by omega) small eq sol
+  have x1 := Nat.le_max_left P Q
+  have x2 := Nat.le_max_right P Q
+  have x3 := Nat.le_max_left (max P Q) 31
+  have x4 := Nat.le_max_right (max P Q) 31
+  have y1 := Nat.le_max_left R S
+  have y2 := Nat.le_max_right R S
+  have y3 := Nat.le_max_left (max R S) 23
+  have y4 := Nat.le_max_right (max R S) 23
+  dsimp only [X] at bigp
+  dsimp only [Y] at bigr
+  by_cases hm : r%3=1
+  · exact missing (left p r pp op (by omega) (by omega) pr (by omega) (by omega) hm
+      (Erdos889.PrimitivePowers.power_missing_exponent_linear (by omega) op hm missing)
+      ⟨b,base,align⟩ (by omega))
+  · have nz : r%3≠0 := by
+      intro z
+      have h := (Nat.prime_dvd_prime_iff_eq Nat.prime_three pr).mp (Nat.dvd_of_mod_eq_zero z)
+      omega
+    exact missing (right p r pp op (by omega) (by omega) pr (by omega) (by omega) (by omega)
+      (Erdos889.PrimitivePowers.power_missing_exponent_bound (by omega) op pr (by omega) missing)
+      ⟨b,base,align⟩ (by omega))
 
 end OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2_H3_R1
