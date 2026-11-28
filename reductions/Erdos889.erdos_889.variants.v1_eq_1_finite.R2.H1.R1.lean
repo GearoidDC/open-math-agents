@@ -5,6 +5,8 @@ import Mathlib.Tactic
 import Mathlib.NumberTheory.Pell
 import Mathlib.Data.Nat.Factorization.Induction
 import Mathlib.Data.ZMod.Basic
+import Mathlib.NumberTheory.Multiplicity
+import Mathlib.FieldTheory.Finite.Basic
 
 /-! Smooth quadratic values and necessary divisibility of large exceptions to Erdős 889. -/
 
@@ -384,53 +386,417 @@ private theorem two_quadratic_factors {T u : ℕ} (hT : 4 ≤ T)
   have := Nat.le_of_dvd (by decide : 0<2) bad
   omega
 
-/-- For any fixed prime q, if the largest prime factor of x²+1 tends to
-infinity, all sufficiently large lowercase Erdős 889 solutions are divisible by q. -/
-theorem eventual_prime_divisibility
-    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B < x → ∃ q : ℕ, q.Prime ∧ T < q ∧ q∣x^2+1)
-    (q : ℕ) (pq : q.Prime) :
-    ∃ B : ℕ, ∀ n : ℕ, B < n → Erdos889.v_l 1 n=1 → q∣n := by
-  let M := q.factorial^3
-  let T := q+4*M
-  have mp : 0 < M := pow_pos q.factorial_pos 3
-  have hT : 4 ≤ T := by dsimp only [T]; omega
-  obtain ⟨K,hK⟩ := quadratic T
+/-- Uniformly over each fixed initial interval of offsets, a sufficiently large
+solution has a prime factor above any prescribed threshold at every offset. -/
+theorem eventual_large_prime_at_offsets
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B<x → ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣x^2+1)
+    (L T : ℕ) :
+    ∃ B : ℕ, ∀ n : ℕ, B<n → Erdos889.v_l 1 n=1 → ∀ k : ℕ, 0<k → k≤L →
+      ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣n+k := by
+  let M := T.factorial^3
+  let bound := L+4*M
+  have mp : 0<M := pow_pos T.factorial_pos 3
+  have top : 4≤bound := by dsimp only [bound]; omega
+  obtain ⟨K,hK⟩ := quadratic bound
   refine ⟨M*(K+2)^4,?_⟩
-  intro n hn sol
-  by_contra avoid
-  let k := q-n%q
-  have rem := Nat.mod_lt n pq.pos
-  have nr : n%q≠0 := fun z => avoid (Nat.dvd_of_mod_eq_zero z)
-  have kp : 0 < k := by dsimp only [k]; omega
-  have kq : k < q := by dsimp only [k]; omega
-  have qd : q∣n+k := by
-    refine ⟨n/q+1,?_⟩
-    have h := Nat.mod_add_div n q
-    rw [Nat.mul_add,mul_one]
-    dsimp only [k]
-    omega
-  have smooth (r : ℕ) (pr : r.Prime) (dr : r∣n+k) : r ≤ q := by
+  intro n hn sol k kp kl
+  by_contra! noLarge
+  have smooth (q : ℕ) (pq : q.Prime) (dq : q∣n+k) : q≤T := by
     by_contra! large
-    exact two_primes kp pq pr (by omega) kq (by omega) qd dr sol
-  obtain ⟨C,z,cap,_cp,_zp,form⟩ := smooth_fourth_decomposition q (n+k) (by omega) smooth
-  change C ≤ M at cap
-  have large : K+2 < z := by
+    exact noLarge q pq large dq
+  obtain ⟨C,z,cap,_cp,_zp,form⟩ := smooth_fourth_decomposition T (n+k) (by omega) smooth
+  change C≤M at cap
+  have large : K+2<z := by
     by_contra! low
     have cmp := Nat.mul_le_mul cap (Nat.pow_le_pow_left low 4)
     omega
   let u := z-1
   have zu : z=u+1 := by dsimp only [u]; omega
-  have ku : K < u := by omega
-  obtain ⟨a,b,pa,pb,ne,ha,hb,da,db⟩ := two_quadratic_factors hT (hK u ku) (hK (u+2) (by omega))
+  have ku : K<u := by omega
+  obtain ⟨a,b,pa,pb,ne,ha,hb,da,db⟩ := two_quadratic_factors top (hK u ku) (hK (u+2) (by omega))
   have fac : n+(k+4*C)=C*((u+1)^4+4) := by
     rw [zu] at form
     calc
       _ = (n+k)+4*C := by omega
       _ = _ := by rw [form]; ring
-  have ub : k+4*C ≤ T := by dsimp only [T]; omega
+  have ub : k+4*C≤bound := by dsimp only [bound]; omega
   exact two_primes (k:=k+4*C) (by omega) pa pb ne (by omega) (by omega)
     (fac ▸ dvd_mul_of_dvd_right da C) (fac ▸ dvd_mul_of_dvd_right db C) sol
 
+/-- Every fixed prime divides all sufficiently large lowercase Erdős 889
+solutions when the largest prime factor of x²+1 tends to infinity. -/
+theorem eventual_prime_divisibility
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B<x → ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣x^2+1)
+    (q : ℕ) (pq : q.Prime) :
+    ∃ B : ℕ, ∀ n : ℕ, B<n → Erdos889.v_l 1 n=1 → q∣n := by
+  obtain ⟨B,h⟩ := eventual_large_prime_at_offsets quadratic q q
+  refine ⟨B,?_⟩
+  intro n hn sol
+  by_contra avoid
+  let k := q-n%q
+  have rem := Nat.mod_lt n pq.pos
+  have nr : n%q≠0 := fun z => avoid (Nat.dvd_of_mod_eq_zero z)
+  have kp : 0<k := by dsimp only [k]; omega
+  have kq : k<q := by dsimp only [k]; omega
+  have qd : q∣n+k := by
+    refine ⟨n/q+1,?_⟩
+    have sum := Nat.mod_add_div n q
+    rw [Nat.mul_add,mul_one]
+    dsimp only [k]
+    omega
+  obtain ⟨r,pr,hr,dr⟩ := h n hn sol k kp kq.le
+  exact two_primes kp pq pr (by omega) kq (by omega) qd dr sol
+
+/-- Over a fixed initial interval of offsets, every prime dividing n+k
+eventually divides k itself, with exactly one exception above any fixed threshold. -/
+theorem eventual_prime_support
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B<x → ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣x^2+1)
+    (K T : ℕ) :
+    ∃ B : ℕ, ∀ n : ℕ, B<n → Erdos889.v_l 1 n=1 → ∀ k : ℕ, 0<k → k≤K →
+      ∃ q : ℕ, q.Prime ∧ max K T<q ∧ q∣n+k ∧
+        ∀ r : ℕ, r.Prime → (r∣n+k ↔ r∣k ∨ r=q) := by
+  have small (L : ℕ) : ∃ B : ℕ, ∀ n : ℕ, B<n → Erdos889.v_l 1 n=1 →
+      ∀ r : ℕ, r≤L → r.Prime → r∣n := by
+    induction L with
+    | zero =>
+      refine ⟨0,?_⟩
+      intro n hn sol r low pr
+      have := pr.two_le
+      omega
+    | succ l ih =>
+      obtain ⟨A,hA⟩ := ih
+      by_cases prime : (l+1).Prime
+      · obtain ⟨B,hB⟩ := eventual_prime_divisibility quadratic (l+1) prime
+        refine ⟨max A B,?_⟩
+        intro n hn sol r le pr
+        by_cases e : r=l+1
+        · exact e ▸ hB n (lt_of_le_of_lt (Nat.le_max_right _ _) hn) sol
+        · exact hA n (lt_of_le_of_lt (Nat.le_max_left _ _) hn) sol r (by omega) pr
+      · refine ⟨A,?_⟩
+        intro n hn sol r le pr
+        have ne : r≠l+1 := by rintro rfl; exact prime pr
+        exact hA n hn sol r (by omega) pr
+  obtain ⟨A,ha⟩ := small K
+  obtain ⟨B,hb⟩ := eventual_large_prime_at_offsets quadratic K (max K T)
+  refine ⟨max A B,?_⟩
+  intro n hn sol k kp kk
+  obtain ⟨q,pq,hq,dq⟩ := hb n (lt_of_le_of_lt (Nat.le_max_right _ _) hn) sol k kp kk
+  refine ⟨q,pq,hq,dq,?_⟩
+  intro r pr
+  constructor
+  · intro dr
+    by_cases low : r≤K
+    · have dn := ha n (lt_of_le_of_lt (Nat.le_max_left _ _) hn) sol r low pr
+      exact Or.inl ((Nat.dvd_add_iff_right dn).mpr dr)
+    · right
+      by_contra different
+      have := Nat.le_max_left K T
+      exact two_primes kp pr pq different (by omega) (by omega) dr dq sol
+  · rintro (dk|rfl)
+    · have low := (Nat.le_of_dvd kp dk).trans kk
+      exact dvd_add (ha n (lt_of_le_of_lt (Nat.le_max_left _ _) hn) sol r low pr) dk
+    · exact dq
+
+private theorem universal_odd_cofactor {x d : ℕ} (hx : 3≤x) (hd : 1<d) (od : Odd d) :
+    ∃ c : ℕ, Odd c ∧ d<c ∧ x^d+1=(x+1)*c := by
+  rcases Nat.even_or_odd x with ev|ox
+  · obtain ⟨c,fac⟩ : x+1∣x^d+1 := by simpa only [one_pow] using od.nat_add_dvd_pow_add_pow x 1
+    have oddC : Odd c := by
+      have e := ev.pow_of_ne_zero (by omega : d≠0)
+      have o : Odd (x^d+1) := by obtain ⟨j,hj⟩ := e; exact ⟨j,by omega⟩
+      rw [fac,Nat.odd_mul] at o
+      exact o.2
+    have growth (j : ℕ) : (j+3)*(x+1)<x^(j+3) := by
+      induction j with
+      | zero =>
+        have xs : 4<x^2 := lt_of_lt_of_le (by decide : 4<9) (Nat.pow_le_pow_left hx 2)
+        have mul := Nat.mul_lt_mul_of_pos_right xs (by omega : 0<x)
+        change 3*(x+1)<x^3
+        rw [pow_succ]
+        omega
+      | succ j ih =>
+        have z := Nat.mul_le_mul_right (x+1) (by omega : 1≤j+3)
+        simp only [one_mul] at z
+        have lower := Nat.mul_le_mul_left (x^(j+3)) (by omega : 2≤x)
+        rw [show j+1+3=j+3+1 by omega,pow_succ,Nat.add_mul,one_mul]
+        omega
+    have d3 : 3≤d := by obtain ⟨j,hj⟩ := od; omega
+    have h := growth (d-3)
+    rw [Nat.sub_add_cancel d3] at h
+    refine ⟨c,oddC,?_,fac⟩
+    by_contra! low
+    have := Nat.mul_le_mul_left (x+1) low
+    rw [Nat.mul_comm d (x+1)] at h
+    omega
+  · exact odd_cofactor ox (by omega) od hd
+
+private theorem fresh_prime_for_odd_power {x d : ℕ} (hx : 3≤x) (hd : 1<d) (od : Odd d) :
+    ∃ q : ℕ, q.Prime ∧ 3<q ∧ q∣x^d+1 ∧ ¬q∣x+1 := by
+  obtain ⟨c,oc,hc,fac⟩ := universal_odd_cofactor hx hd od
+  by_contra missing
+  have cd : c∣d := by
+    apply (Nat.factorization_le_iff_dvd (by omega : c≠0) (by omega : d≠0)).mp
+    intro q
+    by_cases pq : q.Prime
+    · by_cases dq : q∣c
+      · have hi : 2<q := by
+          have := pq.two_le
+          by_contra! low
+          have q2 : q=2 := by omega
+          rw [q2] at dq
+          obtain ⟨j,hj⟩ := oc
+          omega
+        have df : q∣x^d+1 := fac ▸ dvd_mul_of_dvd_right dq _
+        have dx : q∣x+1 := by
+          by_contra nx
+          by_cases three : q=3
+          · subst q
+            have nz : x%3≠0 := by
+              intro modzero
+              have dv := (Nat.dvd_of_mod_eq_zero modzero).trans (dvd_pow_self x (by omega : d≠0))
+              omega
+            have one : x%3=1 := by omega
+            have co := (Nat.mod_modEq x 3).pow d
+            change (x%3)^d%3=x^d%3 at co
+            rw [one,one_pow] at co
+            omega
+          · exact missing ⟨q,pq,by omega,df,nx⟩
+        let _ : Fact q.Prime := ⟨pq⟩
+        have nd : ¬q∣x := by
+          intro div
+          have one := (Nat.dvd_add_iff_right div).mpr dx
+          have := Nat.le_of_dvd Nat.one_pos one
+          omega
+        have val := padicValNat.pow_add_pow (x:=x) (y:=1) (pq.odd_of_ne_two (by omega)) dx nd od
+        rw [one_pow,fac,padicValNat.mul (by omega) (by omega)] at val
+        change c.factorization q≤d.factorization q
+        rw [Nat.factorization_def _ pq,Nat.factorization_def _ pq]
+        omega
+      · exact (Nat.factorization_eq_zero_of_not_dvd dq).trans_le (Nat.zero_le _)
+    · exact (Nat.factorization_eq_zero_of_not_prime c pq).trans_le (Nat.zero_le _)
+  exact (Nat.not_le_of_gt hc) (Nat.le_of_dvd (by omega) cd)
+
+private theorem odd_dvd_pullback {p d x : ℕ} (pp : p.Prime) (od : Odd d) (hd : 1<d)
+    (cop : d.Coprime (p-1)) (div : p∣x^d+1) : p∣x+1 := by
+  let _ : Fact p.Prime := ⟨pp⟩
+  have eq := (ZMod.natCast_eq_zero_iff (x^d+1) p).mpr div
+  push_cast at eq
+  have odd : (-(x:ZMod p))^d=1 := by
+    rw [neg_pow,od.neg_one_pow]
+    linear_combination -eq
+  have nz : -(x:ZMod p)≠0 := by
+    intro z
+    rw [z,zero_pow (by omega : d≠0)] at odd
+    exact zero_ne_one odd
+  have dn := Nat.dvd_gcd (orderOf_dvd_of_pow_eq_one odd)
+    (orderOf_dvd_of_pow_eq_one (ZMod.pow_card_sub_one_eq_one nz))
+  rw [cop.gcd_eq_one] at dn
+  have one := orderOf_eq_one_iff.mp (Nat.eq_one_of_dvd_one dn)
+  apply (ZMod.natCast_eq_zero_iff (x+1) p).mp
+  push_cast
+  linear_combination -one
+
+/-- For every fixed odd exponent greater than one and fixed positive offset k
+whose prime divisors have p−1 coprime to d, sufficiently large solutions cannot have n+k=k z^d. -/
+theorem normalized_odd_power_exclusion
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B<x → ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣x^2+1)
+    (k d : ℕ) (kp : 0<k) (compatible : ∀ q : ℕ, q.Prime → q∣k → d.Coprime (q-1))
+    (hd : 1<d) (od : Odd d) :
+    ∃ B : ℕ, ∀ n z : ℕ, B<n → Erdos889.v_l 1 n=1 → n+k≠k*z^d := by
+  let M := (2*k).factorial^3
+  let S := 1+4*M
+  have mp : 0<M := pow_pos (Nat.factorial_pos _) _
+  have s5 : 5≤S := by dsimp only [S]; omega
+  let T := k*(1+S^d)
+  have t4 : 4≤T := by
+    have s : S≤S^d := Nat.le_self_pow (by omega : d≠0) S
+    have r := Nat.mul_le_mul_right (1+S^d) kp
+    dsimp only [T]
+    omega
+  obtain ⟨K,hK⟩ := quadratic T
+  let Z := M*(K+3)^4+4
+  obtain ⟨A,hA⟩ := eventual_prime_support quadratic (2*k) 3
+  refine ⟨max A (k*Z^d),?_⟩
+  intro n z big sol eq
+  have lowA := Nat.le_max_left A (k*Z^d)
+  have lowZ := Nat.le_max_right A (k*Z^d)
+  have zlarge : Z<z := by
+    by_contra! low
+    have := Nat.mul_le_mul_left k (Nat.pow_le_pow_left low d)
+    omega
+  have z3 : 3≤z := by dsimp only [Z] at zlarge; omega
+  obtain ⟨q,pq,hq,dq,notOld⟩ := fresh_prime_for_odd_power z3 hd od
+  have next : n+2*k=k*(z^d+1) := by
+    calc
+      _ = (n+k)+k := by omega
+      _ = _ := by rw [eq]; ring
+  have dqn : q∣n+2*k := next ▸ dvd_mul_of_dvd_right dq _
+  obtain ⟨r,pr,hr,dr,all⟩ := hA n (by omega) sol (2*k) (by omega) le_rfl
+  have qnk : ¬q∣2*k := by
+    intro ds
+    rcases pq.dvd_mul.mp ds with d2|dk
+    · have := Nat.le_of_dvd (by decide : 0<2) d2; omega
+    · exact notOld (odd_dvd_pullback pq od hd (compatible q pq dk) dq)
+  have qr : q=r := ((all q pq).mp dqn).resolve_left qnk
+  have smoothZ (s : ℕ) (ps : s.Prime) (ds : s∣z+1) : s≤2*k := by
+    by_contra! high
+    have af : z+1∣z^d+1 := by simpa only [one_pow] using od.nat_add_dvd_pow_add_pow z 1
+    have dsn : s∣n+2*k := next ▸ dvd_mul_of_dvd_right (ds.trans af) _
+    have sr := ((all s ps).mp dsn).resolve_left (by intro d; have := Nat.le_of_dvd (by omega) d; omega)
+    have sq : s=q := sr.trans qr.symm
+    exact notOld (sq ▸ ds)
+  obtain ⟨C,y,cap,_cp,_yp,form⟩ := smooth_fourth_decomposition (2*k) (z+1) (by omega) smoothZ
+  change C≤M at cap
+  have ybig : K+3<y := by
+    by_contra! low
+    have cmp := Nat.mul_le_mul cap (Nat.pow_le_pow_left low 4)
+    dsimp only [Z] at zlarge
+    omega
+  let u := y-1
+  have yu : y=u+1 := by dsimp only [u]; omega
+  obtain ⟨a,b,pa,pb,ne,ha,hb,da,db⟩ := two_quadratic_factors t4 (hK u (by omega)) (hK (u+2) (by omega))
+  let s := 1+4*C
+  have sh : z+s=C*((u+1)^4+4) := by
+    dsimp only [s]
+    rw [yu] at form
+    calc
+      _ = (z+1)+4*C := by omega
+      _ = _ := by rw [form]; ring
+  have up : s≤S := by dsimp only [s,S]; omega
+  have pos : 0<k*(1+s^d) := Nat.mul_pos kp (by omega)
+  have bound : k*(1+s^d)≤T :=
+    Nat.mul_le_mul_left k (Nat.add_le_add_left (Nat.pow_le_pow_left up d) 1)
+  have offset : n+k*(1+s^d)=k*(z^d+s^d) := by
+    calc
+      _ = (n+k)+k*s^d := by ring
+      _ = _ := by rw [eq]; ring
+  have both : z+s∣n+k*(1+s^d) := offset ▸ dvd_mul_of_dvd_right (od.nat_add_dvd_pow_add_pow z s) _
+  exact two_primes pos pa pb ne (by omega) (by omega)
+    ((sh ▸ dvd_mul_of_dvd_right da C).trans both) ((sh ▸ dvd_mul_of_dvd_right db C).trans both) sol
+
+/-- A prime modulus detects the coefficient exponent modulo a prime l.
+The residue x^m has multiplicative order l. -/
+private theorem detect_exponent {n x j a t e l Q m : ℕ} (pl : l.Prime) (pQ : Q.Prime)
+    (xpos : 0<x) (xQ : x<Q) (qr : Q-1=m*l) (nonres : x^m%Q≠1)
+    (dn : Q∣n) (ep : 0<e) (ed : l∣e) (eq : n+x^j=x^a*t^e) : a%l=j%l := by
+  let _ : Fact Q.Prime := ⟨pQ⟩
+  let X : ZMod Q := x
+  let V : ZMod Q := t
+  let W := X^m
+  have Xnz : X≠0 := by
+    intro z
+    have := Nat.le_of_dvd xpos ((ZMod.natCast_eq_zero_iff x Q).mp z)
+    omega
+  have zn := (ZMod.natCast_eq_zero_iff n Q).mpr dn
+  have zeq := congrArg (fun y : ℕ => (y:ZMod Q)) eq
+  push_cast at zeq
+  rw [zn,zero_add] at zeq
+  change X^j=X^a*V^e at zeq
+  have Vnz : V≠0 := by
+    intro z
+    rw [z,zero_pow ep.ne',mul_zero] at zeq
+    exact (pow_ne_zero j Xnz) zeq
+  have Wpow : W^l=1 := by
+    dsimp only [W]; rw [←pow_mul,←qr]; exact ZMod.pow_card_sub_one_eq_one Xnz
+  have Wne : W≠1 := by
+    intro z
+    have co : ((x^m:ℕ):ZMod Q)=(1:ℕ) := by simpa only [Nat.cast_pow,Nat.cast_one] using z
+    have h := (ZMod.natCast_eq_natCast_iff _ _ _).mp co
+    change x^m%Q=1%Q at h
+    rw [Nat.mod_eq_of_lt pQ.one_lt] at h
+    exact nonres h
+  have ord : orderOf W=l := ((Nat.dvd_prime pl).mp (orderOf_dvd_of_pow_eq_one Wpow)).resolve_left
+    (fun h => Wne (orderOf_eq_one_iff.mp h))
+  obtain ⟨k,hk⟩ := ed
+  have vp : (V^e)^m=1 := by
+    rw [←pow_mul,hk,show l*k*m=(m*l)*k by ring,←qr,pow_mul,ZMod.pow_card_sub_one_eq_one Vnz,one_pow]
+  have h := congrArg (fun v : ZMod Q => v^m) zeq
+  change (X^j)^m=(X^a*V^e)^m at h
+  rw [mul_pow,vp,mul_one,←pow_mul,←pow_mul,Nat.mul_comm j m,Nat.mul_comm a m,pow_mul,pow_mul] at h
+  have finite := isOfFinOrder_iff_pow_eq_one.mpr ⟨l,pl.pos,Wpow⟩
+  have ex := finite.pow_inj_mod.mp (show W^a=W^j from h.symm)
+  rwa [ord] at ex
+
+/-- A modular certificate excludes the prime exponent divisor l in the factorization
+of a fixed shift by a power of x and a power of one variable base t. -/
+theorem fixed_prime_exponent_exclusion
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B<x → ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣x^2+1)
+    (x j l Q m : ℕ) (xpos : 0<x) (jl : j<l) (pl : l.Prime) (ol : Odd l)
+    (compatible : ∀ q : ℕ, q.Prime → q∣x^j → l.Coprime (q-1))
+    (pQ : Q.Prime) (xQ : x<Q) (qr : Q-1=m*l) (nonres : x^m%Q≠1) :
+    ∃ B : ℕ, ∀ n a t e : ℕ, B<n → Erdos889.v_l 1 n=1 → 0<e →
+      n+x^j=x^a*t^e → ¬l∣e := by
+  obtain ⟨A,hA⟩ := normalized_odd_power_exclusion quadratic (x^j) l (pow_pos xpos j) compatible
+    pl.one_lt ol
+  obtain ⟨F,hF⟩ := eventual_prime_divisibility quadratic Q pQ
+  refine ⟨max A F,?_⟩
+  intro n a t e hn sol ep eq de
+  have dQ := hF n (lt_of_le_of_lt (Nat.le_max_right _ _) hn) sol
+  have aligned := detect_exponent pl pQ xpos xQ qr nonres dQ ep de eq
+  rw [Nat.mod_eq_of_lt jl] at aligned
+  have rem : a=j+a/l*l := by rw [←aligned,Nat.mul_comm (a/l) l,Nat.mod_add_div]
+  obtain ⟨v,hv⟩ := de
+  apply hA n (x^(a/l)*t^v) (lt_of_le_of_lt (Nat.le_max_left _ _) hn) sol
+  calc
+    _ = x^(j+a/l*l)*t^(v*l) := by rw [←rem,Nat.mul_comm v l,←hv,eq]
+    _ = _ := by rw [pow_add,pow_mul,pow_mul,mul_pow]; ring
+
+/-- Common prime moduli certify the exclusions for each base 2, 3 and 5. -/
+theorem initial_odd_exponent_exclusions
+    (quadratic : ∀ T : ℕ, ∃ B : ℕ, ∀ x : ℕ, B<x → ∃ q : ℕ, q.Prime ∧ T<q ∧ q∣x^2+1)
+    (x j l Q : ℕ) (base : x=2 ∨ x=3 ∨ x=5) (jl : j<l)
+    (row : (l,Q) ∈ ([(3,7),(5,11),(7,29),(11,23),(13,53),(17,103),(19,191),(23,47),
+      (29,59),(31,311),(37,149),(41,83),(43,173),(47,283),(53,107)] : List (ℕ×ℕ))) :
+    ∃ B : ℕ, ∀ n a t e : ℕ, B<n → Erdos889.v_l 1 n=1 → 0<e → n+x^j=x^a*t^e → ¬l∣e := by
+  let rows : List (ℕ×ℕ) := [(3,7),(5,11),(7,29),(11,23),(13,53),(17,103),(19,191),(23,47),
+    (29,59),(31,311),(37,149),(41,83),(43,173),(47,283),(53,107)]
+  have table : ∀ r ∈ rows, ∀ v ∈ [2,3,5], r.1.Prime ∧ Odd r.1 ∧ r.2.Prime ∧ v<r.2 ∧
+      r.2-1=(r.2-1)/r.1*r.1 ∧ v^((r.2-1)/r.1)%r.2≠1 := by decide +kernel
+  obtain ⟨pl,ol,pQ,xQ,qr,nonres⟩ := table (l,Q) row x (by simpa using base)
+  have px : x.Prime := by rcases base with rfl|rfl|rfl <;> decide
+  apply fixed_prime_exponent_exclusion quadratic x j l Q ((Q-1)/l) px.pos jl pl ol _ pQ xQ qr nonres
+  intro q pq dq
+  have eq := (Nat.prime_dvd_prime_iff_eq pq px).mp (pq.dvd_of_dvd_pow dq)
+  rw [eq]
+  apply pl.coprime_iff_not_dvd.mpr
+  have l3 : 2<l := by obtain ⟨k,hk⟩ := ol; have := pl.two_le; omega
+  rcases base with rfl|rfl|rfl
+  · intro dv; have := Nat.le_of_dvd (by decide : 0<2-1) dv; omega
+  · intro dv; have := Nat.le_of_dvd (by decide : 0<3-1) dv; omega
+  · intro dv
+    have small := pl.dvd_of_dvd_pow (show l∣(2:ℕ)^2 from dv)
+    have := Nat.le_of_dvd (by decide : 0<2) small
+    omega
+
+/-- For these three bases, none of the odd primes through 53 divides the
+second exponent at any sufficiently large exceptional starting point. -/
+theorem initial_exponent_range (x j : ℕ) (base : x=2 ∨ x=3 ∨ x=5) (js : j≤2) :
+    ∃ B : ℕ, ∀ n a t e : ℕ, B<n → Erdos889.v_l 1 n=1 → 0<e → n+x^j=x^a*t^e →
+      ∀ l : ℕ, l.Prime → 2<l → l≤53 → ¬l∣e := by
+  classical
+  let rows : List (ℕ×ℕ) := [(3,7),(5,11),(7,29),(11,23),(13,53),(17,103),(19,191),(23,47),
+    (29,59),(31,311),(37,149),(41,83),(43,173),(47,283),(53,107)]
+  have cover : ∀ i : Fin 54, i.val.Prime → 2 < i.val → i.val ∈ rows.map Prod.fst := by decide +kernel
+  let P (i : Fin 54) (B : ℕ) := ∀ n a t e : ℕ, B<n → Erdos889.v_l 1 n=1 → 0<e →
+    n+x^j=x^a*t^e → i.val.Prime → 2 < i.val → ¬i.val∣e
+  have each (i : Fin 54) : ∃ B, P i B := by
+    by_cases yes : i.val.Prime ∧ 2 < i.val
+    · obtain ⟨⟨l,Q⟩,row,hv⟩ := List.mem_map.mp (cover i yes.1 yes.2)
+      change l=i.val at hv
+      subst l
+      obtain ⟨B,hB⟩ := initial_odd_exponent_exclusions
+        Erdos889.QuadraticSmooth.large_prime_of_square_add_one x j i.val Q base (by omega) row
+      exact ⟨B,fun n a t e hn sol ep eq _ _ => hB n a t e hn sol ep eq⟩
+    · refine ⟨0,?_⟩
+      intro n a t e hn sol ep eq pl hl
+      exact (yes ⟨pl,hl⟩).elim
+  let N (i : Fin 54) := Classical.choose (each i)
+  have hN (i : Fin 54) : P i (N i) := Classical.choose_spec (each i)
+  refine ⟨Finset.univ.sup N,?_⟩
+  intro n a t e hn sol ep eq l pl low hi
+  let i : Fin 54 := ⟨l,by omega⟩
+  have ni : N i ≤ Finset.univ.sup N := Finset.le_sup (f:=N) (Finset.mem_univ i)
+  exact hN i n a t e (lt_of_le_of_lt ni hn) sol ep eq pl low
 
 /-- Each fixed prime divides every sufficiently large exceptional starting point. -/
 theorem eventually_divides_bad (q : ℕ) (pq : q.Prime) :
@@ -1045,180 +1411,6 @@ private theorem bounded_shift_no_fourths
     fac ▸ dvd_mul_of_dvd_right (dvd_mul_of_dvd_left dq _) _,
     fac ▸ dvd_mul_of_dvd_right (dvd_mul_of_dvd_right ds _) _⟩
 
-private theorem cubic_alignment {x a y b j n : ℕ} (base : x=2 ∨ x=3) (index : j=1 ∨ j=2)
-    (dn : 7∣n) (eq : n+x^j=x^a*y^b) (div : 3∣b) : a%3=j%3 := by
-  obtain ⟨k,hk⟩ := div
-  have cyc : Nat.ModEq 7 (x^6) 1 := by rcases base with rfl|rfl <;> decide
-  have co := (pow_cycle cyc a).mul ((Nat.mod_modEq (y^k) 7).symm.pow 3)
-  rw [hk,Nat.mul_comm 3 k,pow_mul] at eq
-  change (x^a*(y^k)^3)%7=(x^(a%6)*((y^k)%7)^3)%7 at co
-  rw [←eq] at co
-  have ne : (n+x^j)%7=(x^j)%7 := by rw [Nat.add_mod,Nat.mod_eq_zero_of_dvd dn,zero_add,Nat.mod_mod]
-  have table : ∀ w ∈ [2,3], ∀ l ∈ [1,2], ∀ i : Fin 6, ∀ z : Fin 7,
-      (w^i.val*z.val^3)%7=w^l%7 → i.val%3=l%3 := by decide +kernel
-  have h := table x (by simpa using base) j (by simpa using index)
-    ⟨a%6,by omega⟩ ⟨(y^k)%7,by omega⟩ (co.symm.trans ne)
-  simpa only [Nat.mod_mod_of_dvd a (by decide : 3∣6)] using h
-
-private theorem large_factor_of_short_valuations {m : ℕ} (hm : 12 < m) (h8 : ¬8∣m)
-    (h9 : ¬9∣m) : ∃ q : ℕ, q.Prime ∧ 3<q ∧ q∣m := by
-  by_contra! bad
-  let a := m.factorization 2
-  let u := m/2^a
-  have form : 2^a*u=m := Nat.ordProj_mul_ordCompl_eq_self m 2
-  have du : u∣m := Nat.ordCompl_dvd m 2
-  have hu : 0<u := Nat.ordCompl_pos 2 (by omega)
-  have odd : ¬2∣u := Nat.not_dvd_ordCompl Nat.prime_two (by omega)
-  have pure : u=3^u.primeFactorsList.length := Nat.eq_prime_pow_of_unique_prime_dvd (by omega) (by
-    intro q pq dq
-    have := pq.two_le
-    have low : q≤3 := by by_contra! high; exact bad q pq high (dq.trans du)
-    by_contra ne
-    have e : q=2 := by omega
-    exact odd (e ▸ dq))
-  have a2 : a≤2 := by
-    by_contra! high
-    exact h8 ((pow_dvd_pow (2:ℕ) high).trans (form ▸ dvd_mul_right _ _))
-  have b1 : u.primeFactorsList.length≤1 := by
-    by_contra! high
-    exact h9 ((show 9∣u from pure ▸ pow_dvd_pow (3:ℕ) high).trans du)
-  have bound := Nat.mul_le_mul (Nat.pow_le_pow_right (by decide : 0<2) a2)
-    (Nat.pow_le_pow_right (by decide : 0<3) b1)
-  rw [←pure,form] at bound
-  omega
-
-private theorem cubic_quadratic_primes (w : ℕ) (hw : 2<w) :
-    (∃ q : ℕ, q.Prime ∧ 3<q ∧ q∣w^2+7*w+13) ∧
-    (∃ q : ℕ, q.Prime ∧ 3<q ∧ q∣w^2+6*w+12) := by
-  have avoid (m : ℕ) (hm : m=8 ∨ m=9) :
-      ¬m∣w^2+7*w+13 ∧ ¬m∣w^2+6*w+12 := by
-    have table : ∀ x : Fin m, (x.val^2+7*x.val+13)%m≠0 ∧ (x.val^2+6*x.val+12)%m≠0 := by
-      rcases hm with rfl|rfl <;> decide +kernel
-    have mpos : 0 < m := by omega
-    have atw := table ⟨w%m,Nat.mod_lt _ mpos⟩
-    have co := Nat.mod_modEq w m
-    have c1 := ((co.pow 2).add (co.mul_left 7)).add_right 13
-    have c2 := ((co.pow 2).add (co.mul_left 6)).add_right 12
-    exact ⟨fun d => atw.1 (c1.trans (Nat.modEq_zero_iff_dvd.mpr d)),
-      fun d => atw.2 (c2.trans (Nat.modEq_zero_iff_dvd.mpr d))⟩
-  have h8 := avoid 8 (Or.inl rfl)
-  have h9 := avoid 9 (Or.inr rfl)
-  exact ⟨large_factor_of_short_valuations (by nlinarith) h8.1 h9.1,
-    large_factor_of_short_valuations (by nlinarith) h8.2 h9.2⟩
-
-private theorem consecutive_small_support {m : ℕ} (hm : 16 < m)
-    (first : ∀ q : ℕ, q.Prime → q∣m → q≤3)
-    (second : ∀ q : ℕ, q.Prime → q∣m+1 → q≤3) : False := by
-  have pure (n p q : ℕ) (hn : 0<n) (opts : (p=2 ∧ q=3) ∨ (p=3 ∧ q=2))
-      (small : ∀ r : ℕ, r.Prime → r∣n → r≤3) (noq : ¬q∣n) : ∃ a : ℕ, n=p^a := by
-    refine ⟨_,Nat.eq_prime_pow_of_unique_prime_dvd hn.ne' ?_⟩
-    intro r pr dr
-    have := small r pr dr
-    have := pr.two_le
-    by_contra ne
-    have eq : r=q := by rcases opts with ⟨hp,hq⟩|⟨hp,hq⟩ <;> omega
-    exact noq (eq ▸ dr)
-  by_cases ev : 2∣m
-  · obtain ⟨b,hb⟩ := pure (m+1) 3 2 (by omega) (by decide) second (by omega)
-    have bn : b≠0 := by rintro rfl; norm_num at hb; omega
-    have d3 : 3∣m+1 := hb ▸ dvd_pow_self _ bn
-    obtain ⟨a,ha⟩ := pure m 2 3 (by omega) (by decide) first (by omega)
-    have a4 : 4≤a := by
-      by_contra! low
-      have := Nat.pow_le_pow_right (by decide : 0<2) (by omega : a≤3)
-      omega
-    exact power_plus_one_not_three a4 (ha ▸ hb)
-  · obtain ⟨b,hb⟩ := pure m 3 2 (by omega) (by decide) first ev
-    have bn : b≠0 := by rintro rfl; norm_num at hb; omega
-    have d3 : 3∣m := hb ▸ dvd_pow_self _ bn
-    obtain ⟨a,ha⟩ := pure (m+1) 2 3 (by omega) (by decide) second (by omega)
-    have a3 : 3≤a := by
-      by_contra! low
-      have := Nat.pow_le_pow_right (by decide : 0<2) (by omega : a≤2)
-      omega
-    have d8 : 8∣m+1 := ha ▸ pow_dvd_pow (2:ℕ) a3
-    have := three_pow_mod_eight b
-    omega
-
-/-- At offsets two, three and four, an integer multiple of the corresponding
-offset by a cube forces witnesses at twice or nine times that offset. -/
-private theorem no_scaled_cubes {n k z : ℕ} (large : 32000<n) (hk : k=2 ∨ k=3 ∨ k=4)
-    (eq : n+k=k*z^3) (small : ∀ r : ℕ, r.Prime → r≤36 → r∣n)
-    (sol : Erdos889.v_l 1 n=1) : False := by
-  have k4 : k≤4 := by omega
-  have zbig : 20<z := by
-    by_contra! low
-    have := Nat.mul_le_mul k4 (Nat.pow_le_pow_left low 3)
-    norm_num at this
-    omega
-  let w := z-4
-  have wz : z=w+4 := by dsimp only [w]; omega
-  have wb : 16 < w+5 := by omega
-  obtain ⟨first,second⟩ := cubic_quadratic_primes w (by omega)
-  have force (K L F G : ℕ) (shift : K ∈ [4,6,8,18,27,36]) (fac : n+K=k*(L*F))
-      (congr : F=G*L+3 ∨ F=G*L+12) (outside : ∃ q : ℕ, q.Prime ∧ 3<q ∧ q∣F) :
-      ∀ q : ℕ, q.Prime → q∣L → q≤3 := by
-    obtain ⟨s,ps,hs,ds⟩ := outside
-    have cap : K≤36 ∧ 0<K := by
-      simp only [List.mem_cons,List.not_mem_nil,or_false] at shift
-      omega
-    have eligible (q : ℕ) (pq : q.Prime) (hq : 3<q) (dq : q∣n+K) : K<q := by
-      by_contra! low
-      have dn := small q pq (by omega)
-      have dk := (Nat.dvd_add_iff_right dn).mpr dq
-      have table : ∀ k ∈ [4,6,8,18,27,36], ∀ p : Fin 37,
-          p.val.Prime → 3<p.val → ¬p.val∣k := by decide +kernel
-      exact table K shift ⟨q,by omega⟩ pq hq dk
-    intro q pq dq
-    by_contra! high
-    have ne : q≠s := by
-      rintro rfl
-      have mul := dvd_mul_of_dvd_right dq G
-      rcases congr with e|e
-      · rw [e] at ds
-        have d := (Nat.dvd_add_iff_right mul).mpr ds
-        have := Nat.le_of_dvd (by decide : 0<3) d
-        omega
-      · rw [e] at ds
-        have d := (Nat.dvd_add_iff_right mul).mpr ds
-        rcases pq.dvd_mul.mp (show q∣4*3 from d) with df|dt
-        · have dd := pq.dvd_of_dvd_pow (show q∣(2:ℕ)^2 from df)
-          have := Nat.le_of_dvd (by decide : 0<2) dd; omega
-        · have := Nat.le_of_dvd (by decide : 0<3) dt; omega
-    have d1 : q∣n+K := fac ▸ dvd_mul_of_dvd_right (dvd_mul_of_dvd_left dq _) _
-    have d2 : s∣n+K := fac ▸ dvd_mul_of_dvd_right (dvd_mul_of_dvd_right ds _) _
-    exact two_primes cap.2 pq ps ne (eligible q pq high d1) (eligible s ps hs d2) d1 d2 sol
-  have f1 : n+2*k=k*((w+5)*(w^2+7*w+13)) := by
-    calc
-      _ = (n+k)+k := by omega
-      _ = _ := by rw [eq,wz]; ring
-  have f2 : n+9*k=k*((w+6)*(w^2+6*w+12)) := by
-    calc
-      _ = (n+k)+8*k := by omega
-      _ = _ := by rw [eq,wz]; ring
-  have s1 := force (2*k) (w+5) (w^2+7*w+13) (w+2)
-    (by rcases hk with rfl|rfl|rfl <;> decide) f1 (Or.inl (by ring)) first
-  have s2 := force (9*k) (w+6) (w^2+6*w+12) w
-    (by rcases hk with rfl|rfl|rfl <;> decide) f2 (Or.inr (by ring)) second
-  exact consecutive_small_support wb s1 s2
-
-
-private theorem cubic_exponent_impossible {n x a y b j : ℕ} (large : 32000<n)
-    (base : x=2 ∨ x=3) (index : j=1 ∨ j=2) (allowed : x^j=2 ∨ x^j=3 ∨ x^j=4)
-    (eq : n+x^j=x^a*y^b) (small : ∀ r : ℕ, r.Prime → r≤36 → r∣n)
-    (sol : Erdos889.v_l 1 n=1) : ¬3∣b := by
-  intro div
-  have aligned := cubic_alignment base index (small 7 (by decide) (by decide)) eq div
-  have jj : j%3=j := Nat.mod_eq_of_lt (by omega)
-  rw [jj] at aligned
-  have ae : a=j+(a/3)*3 := by omega
-  obtain ⟨m,hm⟩ := div
-  have raised : n+x^j=x^j*(x^(a/3)*y^m)^3 := by
-    calc
-      _ = x^(j+(a/3)*3)*y^(m*3) := by rw [←ae,Nat.mul_comm m 3,←hm,eq]
-      _ = _ := by rw [pow_add,pow_mul,pow_mul,mul_pow]; ring
-  exact no_scaled_cubes large allowed raised small sol
-
 private theorem eventually_divides_through
     (eventual : ∀ q : ℕ, q.Prime → ∃ B : ℕ, ∀ n : ℕ, B<n → Erdos889.v_l 1 n=1 → q∣n)
     (T : ℕ) :
@@ -1251,28 +1443,33 @@ def H1 : Prop := ∃ T B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B<p →
     p%3=1 → (∀ l : ℕ, l.Prime → l≤T → l∣p-1) →
     (∃ t u : ℕ, t.Prime ∧ 3<t ∧ T<t ∧ 0<u ∧ p+2=3^u*t) →
     (∃ q r a b c d : ℕ, q.Prime ∧ r.Prime ∧ 2<q ∧ 3<r ∧ T<q ∧ T<r ∧ q≠r ∧
-      0<a ∧ 0<b ∧ 0<c ∧ 0<d ∧ (a=1 ∨ c=1) ∧ ¬4∣b ∧ ¬4∣d ∧ ¬3∣b ∧ ¬3∣d ∧ p+1=2^a*q^b ∧ p+3=2^c*r^d) →
+      0<a ∧ 0<b ∧ 0<c ∧ 0<d ∧ (a=1 ∨ c=1) ∧ ¬4∣b ∧ ¬4∣d ∧ (∀ l : ℕ, l.Prime → 2<l → l≤53 → ¬l∣b) ∧
+      (∀ l : ℕ, l.Prime → 2<l → l≤53 → ¬l∣d) ∧ p+1=2^a*q^b ∧ p+3=2^c*r^d) →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧ q∣p+d ∧ s∣p+d
 
 /-- The prime above three in p+2 occurs at least twice. Its exponent is
-coprime to that of three and cannot be a multiple of three or four. -/
+coprime to that of three. It is indivisible by four and by every odd prime through 53. -/
 def H2 : Prop := ∃ T B : ℕ, ∀ p : ℕ, p.Prime → Odd p → B<p →
     (∀ x : ℕ, 1<x → p≠x^4+1) → (∀ e : ℕ, p≠2^e+1) →
     p%3=1 → (∀ l : ℕ, l.Prime → l≤T → l∣p-1) →
     (∃ t u v : ℕ, t.Prime ∧ 3<t ∧ T<t ∧ 0<u ∧ 2≤v ∧ u.Coprime v ∧
-      ¬4∣v ∧ ¬3∣v ∧ p+2=3^u*t^v) →
+      ¬4∣v ∧ (∀ l : ℕ, l.Prime → 2<l → l≤53 → ¬l∣v) ∧ p+2=3^u*t^v) →
     (∃ q r a b c d : ℕ, q.Prime ∧ r.Prime ∧ 2<q ∧ 3<r ∧ T<q ∧ T<r ∧ q≠r ∧
-      0<a ∧ 0<b ∧ 0<c ∧ 0<d ∧ (a=1 ∨ c=1) ∧ ¬4∣b ∧ ¬4∣d ∧ ¬3∣b ∧ ¬3∣d ∧ p+1=2^a*q^b ∧ p+3=2^c*r^d) →
+      0<a ∧ 0<b ∧ 0<c ∧ 0<d ∧ (a=1 ∨ c=1) ∧ ¬4∣b ∧ ¬4∣d ∧ (∀ l : ℕ, l.Prime → 2<l → l≤53 → ¬l∣b) ∧
+      (∀ l : ℕ, l.Prime → 2<l → l≤53 → ¬l∣d) ∧ p+1=2^a*q^b ∧ p+3=2^c*r^d) →
     ∃ d q s : ℕ, q.Prime ∧ s.Prime ∧ q≠s ∧ d+1<q ∧ d+1<s ∧ q∣p+d ∧ s∣p+d
 
 theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2.H1 := by
   have eventual := Erdos889.EventualPrimeDivisibility.eventually_divides_bad
   have quadratic := Erdos889.QuadraticSmooth.large_prime_of_square_add_one
   rintro ⟨X,A,h₁⟩ ⟨Y,B,h₂⟩
-  let T := max X Y+36
+  let T := max X Y+3
   obtain ⟨F,hF⟩ := eventually_divides_through eventual T
   obtain ⟨G,hG⟩ := bounded_shift_no_fourths quadratic
-  refine ⟨max (max A B) (max F G)+32002,?_⟩
+  obtain ⟨U,hU⟩ := Erdos889.EventualPrimeDivisibility.initial_exponent_range 2 1 (by decide) (by decide)
+  obtain ⟨V,hV⟩ := Erdos889.EventualPrimeDivisibility.initial_exponent_range 2 2 (by decide) (by decide)
+  obtain ⟨W,hW⟩ := Erdos889.EventualPrimeDivisibility.initial_exponent_range 3 1 (by decide) (by decide)
+  refine ⟨max (max A B) (max F G)+U+V+W+224,?_⟩
   intro p pp op bound fourth outer
   have mA := Nat.le_max_left A B
   have mB := Nat.le_max_right A B
@@ -1288,7 +1485,6 @@ theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
   have sol := missing_prime_solution pp missing
   have small := hF (p-1) (by omega) sol
   have d3 := small 3 Nat.prime_three (by dsimp only [T]; omega)
-  have through36 (r : ℕ) (pr : r.Prime) (le : r≤36) : r∣p-1 := small r pr (by dsimp only [T]; omega)
   have pm : p%3=1 := by omega
   obtain ⟨t,u,v,pt,ht,up,vp,cop,mid⟩ := (middle_classification pp lo pm missing).resolve_left (by
     rintro ⟨k,pk,ok,eq⟩
@@ -1309,23 +1505,20 @@ theorem main : H1 → H2 → OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2
   have noFourB := hG p 1 2 q a b (by omega) (by decide) (by decide) left missing
   have noFourD := hG p 3 2 r c d (by omega) (by decide) (by decide) right missing
   have noFourV := hG p 2 3 t u v (by omega) (by decide) (by decide) mid missing
-  have noCubeB := cubic_exponent_impossible (x:=2) (j:=1) (by omega : 32000<p-1)
-    (Or.inl rfl) (Or.inl rfl) (by decide)
-    (show p-1+2^1=2^a*q^b by rw [←left]; omega) through36 sol
-  have noCubeD := cubic_exponent_impossible (x:=2) (j:=2) (by omega : 32000<p-1)
-    (Or.inl rfl) (Or.inr rfl) (by decide)
-    (show p-1+2^2=2^c*r^d by rw [←right]; omega) through36 sol
-  have noCubeV := cubic_exponent_impossible (x:=3) (j:=1) (by omega : 32000<p-1)
-    (Or.inr rfl) (Or.inl rfl) (by decide)
-    (show p-1+3^1=3^u*t^v by rw [←mid]; omega) through36 sol
+  have noOddB := hU (p-1) a q b (by omega) sol bp
+    (show p-1+2^1=2^a*q^b by rw [←left]; omega)
+  have noOddD := hV (p-1) c r d (by omega) sol dp
+    (show p-1+2^2=2^c*r^d by rw [←right]; omega)
+  have noOddV := hW (p-1) u t v (by omega) sol vp
+    (show p-1+3^1=3^u*t^v by rw [←mid]; omega)
   by_cases vOne : v=1
   · exact missing (h₁ p pp op (by omega) fourth fermat pm (fun l pl low => small l pl (low.trans xx))
       ⟨t,u,pt,ht,by omega,up,by simpa only [vOne,pow_one] using mid⟩
       ⟨q,r,a,b,c,d,pq,pr,hq,hr,by omega,by omega,qr,ap,bp,cp,dp,one,noFourB,noFourD,
-        noCubeB,noCubeD,left,right⟩)
+        noOddB,noOddD,left,right⟩)
   · exact missing (h₂ p pp op (by omega) fourth fermat pm (fun l pl low => small l pl (low.trans yy))
-      ⟨t,u,v,pt,ht,by omega,up,by omega,cop,noFourV,noCubeV,mid⟩
+      ⟨t,u,v,pt,ht,by omega,up,by omega,cop,noFourV,noOddV,mid⟩
       ⟨q,r,a,b,c,d,pq,pr,hq,hr,by omega,by omega,qr,ap,bp,cp,dp,one,noFourB,noFourD,
-        noCubeB,noCubeD,left,right⟩)
+        noOddB,noOddD,left,right⟩)
 
 end OMA.R_Erdos889_erdos_889_variants_v1_eq_1_finite_R2_H1_R1
