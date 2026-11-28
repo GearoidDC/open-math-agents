@@ -6,7 +6,7 @@ Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has 
 
 - [Merged Lean reduction for the first four multiplicities and the remaining hypotheses](https://github.com/lefttosolve2/open-math-agents/pull/12651)
 - [Every one of the 35 numerator-term intersections in columns 5 and 7 above $10^{136}$](Erdos849FiveSevenCells.md) and [Lean deduction of the prime counts from coverage](Erdos849FiveSevenCoverage.lean)
-- [At least 36 to 42 distinct primes as the height increases in the two four-column patterns](Erdos849ShallowPrimeCounts.md)
+- [The remaining intervals for exactly 35 primes, and bounds of 36 to 42 primes at larger heights](Erdos849ShallowPrimeCounts.md)
 - [Every one of the 28 shared-prime intersections for columns 7 and 8 above $10^{136}$](Erdos849SevenEightCellsSieve.md)
 - [How prime powers are distributed across all 840 or 1,680 individual four-column positions at explicit heights](Erdos849PrimePowerCells.md)
 - [All-height shared-prime constraints in columns 3 and 5, 5 and 6, and 6 and 8](Erdos849CellSieve.md), [3 and 8](Erdos849ThreeEightCells.md), [5 and 8](Erdos849FiveEightCellsSieve.md), and [3 and 7 and 6 and 7](Erdos849SevenCellsSieve.md)
