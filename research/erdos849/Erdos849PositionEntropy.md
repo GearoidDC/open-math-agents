@@ -2,12 +2,12 @@
 
 Suppose $a$ occurs in all four indicated columns. The following numbers are lower bounds on the number of distinct prime divisors of $a$, and in fact on the number of different four-way positions those primes occupy. Every bound persists above its stated height.
 
-| Columns | $a\ge10^{225}$ | $10^{300}$ | $10^{400}$ | $10^{600}$ | $10^{1000}$ | $10^{2000}$ | $10^{5000}$ |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| 3, 5, 7, 8 | 43 | 50 | 58 | 67 | 78 | 91 | 103 |
-| 5, 6, 7, 8 | 45 | 53 | 62 | 76 | 93 | 114 | 136 |
+| Columns | $a\ge10^{225}$ | $10^{250}$ | $10^{300}$ | $10^{400}$ | $10^{600}$ | $10^{1000}$ | $10^{2000}$ | $10^{5000}$ |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 3, 5, 7, 8 | 43 | 46 | 50 | 58 | 67 | 78 | 91 | 103 |
+| 5, 6, 7, 8 | 45 | 48 | 53 | 62 | 76 | 93 | 114 | 136 |
 
-Exactly 40 distinct primes would require $10^{137}<a<10^{204}$ in the first pattern or $10^{146}<a<10^{184}$ in the second. The lower endpoints come from complete finite searches. The upper endpoints use coverage of all 40 pairs in columns five and eight and all 35 pairs in columns five and seven. Run `python -B Erdos849PositionEntropy.py` for the exact arithmetic at both endpoints and all fourteen table entries. [Finite searches](Erdos849FourHostPairs.md) · [Five and eight](Erdos849FiveEightRawBranches.md) · [Five and seven](Erdos849FiveSevenCells.md)
+Exactly 40 distinct primes would require $10^{137}<a<10^{204}$ in the first pattern or $10^{146}<a<10^{184}$ in the second. The lower endpoints come from complete finite searches. The upper endpoints use coverage of all 40 pairs in columns five and eight and all 35 pairs in columns five and seven. Run `python -B Erdos849PositionEntropy.py` for the exact arithmetic at both endpoints and all sixteen table entries. [Finite searches](Erdos849FourHostPairs.md) · [Five and eight](Erdos849FiveEightRawBranches.md) · [Five and seven](Erdos849FiveSevenCells.md)
 
 ## Separating polynomials at the four rows
 

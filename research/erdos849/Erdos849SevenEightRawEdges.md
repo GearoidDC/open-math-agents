@@ -1,0 +1,11 @@
+# Two individual prime assignments in columns seven and eight
+
+Let `a = C(n,7) = C(m,8) ≥ 10^495`. For each prime dividing `a`, select a numerator factor of maximum valuation in each column, with any choice among ties. Some prime selects both `n` and `m`. A different prime selects both `n` and `m−7`. Thus these two positions within the reflected pair in column eight each receive a prime from the same position in column seven. The grouped result at the smaller threshold gives a prime for their union. [Grouped assignments](Erdos849SevenEightCellsSieve.md)
+
+Fix `j=0` or `7`, write `y=m−j`, and assume the cell is empty. The raw assignment denominator calculation gives the integer `Z=23520a/(ny)`. The calculation maximizes the sum of the two selected valuations minus the valuation of `a` at each prime through 7, subject to the two positions not both being forced. Larger primes occur in at most one position in each column. [Individual assignment denominators](Erdos849FiveEightRawBranches.md)
+
+The supplied integer coefficients define `G(Z)=Σ c_r binom(Z,r)` of degree 48. The verifier substitutes `Z=(23520/7!)∏_{s=1}^6(n−s)/y` and reduces powers of `n` using `8(n)_7=(m)_8`. It writes `G=P+F`, where `P` collects the nonnegative powers of `y` and `F` is the remaining Laurent polynomial. The grid check for `P` proves that it takes integral values on all integer pairs by the Newton difference formula. Therefore `F` is integral under the missing-cell assumption. For `j=7`, reflection takes `m` to `7−m` and `Z` to `−Z`. The verifier transforms the binomial coefficients and repeats every test on the reflected expression.
+
+Write `T=y^(1/7)`. The row equation bounds `n/T^8` between explicit positive rationals `lo,hi` and gives `T>B`, where `B=floor((8!·10^495)^(1/56))−1`. Each monomial `n^u y^v` in `F` has a distinct weight `8u+7v<0` because `0≤u<7`. The sum of the absolute coefficient bounds at `B` is strictly less than one. The term of largest weight dominates the sum of all the other terms there, with the lower slope bound used for that term. This dominance persists for all larger `T` because every other term has smaller weight. Hence `0<|F|<1`, contradicting integrality.
+
+Run `python -B Erdos849SevenEightRawEdges.py` beside its JSON certificate. All tests use exact arithmetic in the Python standard library.

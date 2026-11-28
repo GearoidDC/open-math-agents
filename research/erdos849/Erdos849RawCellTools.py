@@ -62,19 +62,27 @@ def integer_valued(poly):
             assert value==0
 
 
-def normal_form(k,h,i,j,cs):
+def binomial_forms(k,h,i,j,depth):
     rel=product_polynomial(range(k),0,(1,0));del rel[k,0]
     rel={key:-v for key,v in rel.items()}
     add(rel,product_polynomial(range(h),j,(0,1)),Fraction(factorial(k),factorial(h)))
     z={}
     add(z,product_polynomial([s for s in range(k) if s!=i],0,(1,0)),
         Fraction(missing_denominator(k,h,i,j),factorial(k)),offset_y=-1)
-    P={(0,0):1};out={}
-    for t,c in enumerate(cs,1):
+    P={(0,0):1}
+    for t in range(1,depth+1):
         raw=multiply(P,z);add(raw,P,1-t)
         for u in range(2*k-2,k-1,-1):
             for key in [e for e in raw if e[0]==u]:add(raw,rel,raw.pop(key),u-k,key[1])
-        P={e:Fraction(a,t) for e,a in raw.items() if a};add(out,P,c)
+        P={e:Fraction(a,t) for e,a in raw.items() if a}
+        yield P
+
+
+def normal_form(k,h,i,j,cs):
+    cs=tuple(cs)
+    out={}
+    for c,P in zip(cs,binomial_forms(k,h,i,j,len(cs))):
+        add(out,P,c)
     return out
 
 
