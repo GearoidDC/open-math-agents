@@ -5,6 +5,13 @@ Can every positive integer be the exact number of rows sharing an entry in the l
 Any entry $a$ shared by five or more admissible rows exceeds $10^{128}$ and has at least **21 distinct prime divisors**. At least seven of its prime divisors exceed 100. At least seven primes greater than both 19 and its largest proper column divide it to odd exponents, so its squarefree part is at least 63,392,725,189. Each of the proper-column patterns $\{3,5,7,8\}$ and $\{5,6,7,8\}$ requires at least 32 distinct prime divisors, including at least thirteen above 100. Each pattern also requires seven primes above 37 to odd exponents, and its squarefree part is at least 228,098,450,046,409. Its largest prime divisor is at least 173. The first pattern requires $a>10^{136}$ and the second requires $a>10^{144}$. Every full prime power $P$ in its factorization satisfies $P^{15}<a$. At or above $10^{230{,}000{,}000{,}000{,}000}$ it needs at least 840 distinct primes. The proofs combine published classifications, integer computations and mathematical arguments. Lean checks the deductions in the linked formal theorems, with external inputs exposed as hypotheses. The existence of a five-row entry remains open.
 
 - [Merged Lean reduction for the first four multiplicities and the remaining hypotheses](https://github.com/lefttosolve2/open-math-agents/pull/12651)
+- [All-height classification of disconnected prime assignments for the nine shallow column pairs](Erdos849FullHostCuts.md)
+- [At most two components after removing primes through seven, using only two rows](Erdos849PairComponents.md)
+- [Counting five-row candidates via simultaneous-column curves and two-torsion](Erdos849TorsionDensity.md)
+- [Good reduction of the pair curves](Erdos849PairReduction.md) and [the underlying uniform integral-point count](Erdos849MultiplicityDensity.md)
+- [Sharper counts for candidates occurring in column two or four](Erdos849HyperellipticDensity.md)
+- [The obstruction to obtaining three equal descendants by a fixed Pascal translation](Erdos849PascalDescent.md)
+- [The genus-six quotient of columns five and eight and the descents it excludes](Erdos849FiveEightQuintic.md)
 - [Primes above seven connect every numerator term across both four-column patterns at every height](Erdos849CommonFactors.md)
 - [Five all-height exclusions for individual numerator terms in the two four-column patterns](Erdos849SingletonSquareRows.md)
 - [A prime above 53 across each split into halves in columns six and eight](Erdos849BalancedCuts.md)

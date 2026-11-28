@@ -1,0 +1,27 @@
+# Removing the four small primes from two Pascal rows
+
+Let \(a\ge10^{128}\) occur in two proper columns \(k<h\) from one of \((3,5,7,8)\) and \((5,6,7,8)\). Use the \(k+h\) numerator positions as vertices. Each prime \(p>7\) dividing \(a\) joins its two divisible terms. **The graph has at most two connected components, counting isolated vertices.** This holds for each of the nine pairs by itself. In particular at most one term across the two rows can be 7-smooth. There is an edge because the proof rules out three components, and there are more than two vertices. For either four-column pattern the prior search ensures that the height hypothesis always holds. [Verifier](Erdos849PairComponents.py) · [Finite height exclusion](Erdos849PatternHeights.md)
+
+Suppose there are at least three components. Group them into three nonempty pieces, with counts \(u_i,v_i\) in the two rows. Choose a nonzero integer vector \(c\) orthogonal to both count triples. The verifier uses their primitive cross product; for proportional triples it uses a vector supported on two coordinates. No piece is empty in both rows. The program checks \(|c_i|\le56\) on all 1,045 possible count patterns up to permutation. Assign weight \(c_i\) to each term in piece \(i\) and form \(W\), the product of the weighted powers in the shorter row divided by the corresponding product in the longer row. Each row's weights sum to zero. At \(p>7\), both incident terms have valuation \(v_p(a)\), and their equal weights cancel. Hence \(W=\prod_{p=2,3,5,7}p^{b_p}\).
+
+## Proving that \(W\) differs from one
+
+For a row of length \(d\), ending at \(n\), let \(z=(d!a)^{1/d}\), \(D=2n-d+1\) and write its terms as \((D+j)/2\) for \(j=d-1,d-3,\ldots,1-d\). With weights \(w_j\) of sum zero its weighted logarithm is \(\sum_j w_j\log(1+j/D)\). If some weight is nonzero, the Vandermonde determinant gives a first nonzero integer moment \(m_r=\sum_j w_j j^r\) for \(1\le r<d\). Its leading term has magnitude \(|m_r|/(rD^r)\). The remaining Taylor series has absolute value at most
+\[
+ \frac{2\sum_j|w_j|(d-1)^{r+1}}{(r+1)D^{r+1}},
+\]
+since \(D>2(d-1)\). At least one row has a nonzero weight.
+
+Put \(a=10^{128}b,\ b\ge1\), and \(Z=\lfloor(d!10^{128})^{1/d}\rfloor\). All terms bracket their geometric mean within \(d-1\), so
+\((2Z-d)b^{1/d}<D<(2(Z+1)+d)b^{1/d}\).
+The verifier enumerates the distinct permutations of the weights and bounds each row's logarithm above and below in absolute value, in units of \(b^{-r/d}\). If both rows contribute, it certifies that the lower bound on the slower-decaying contribution exceeds the upper bound on the faster one. For equal rates it tests the two leading moment magnitudes individually. Thus the two contributions cannot cancel. One identically zero row only needs the lower bound on the other.
+
+Some count patterns can first be discarded by size. In any one piece the product \(V\) of its \(v\) longer-row terms and the product \(U\) of its \(u\) shorter-row terms agree at all primes above seven. For \(p\le7\) the full \(p\)-part of \(a\) divides a longest-row numerator term, by the maximal-valuation argument. Hence \(V/U\le h!\,9^4 a^{4/h}\), using \(n_h<9a^{1/h}\). The term bounds also give \(V/U\ge a^{v/h-u/k}/9^u\). The verifier discards a shape when these inequalities contradict \(a\ge10^{128}\). All decisions are exact integer or rational comparisons.
+
+## Excluding the remaining smooth ratios
+
+Write \(t=\log_{10}a\). For each small prime its exponent in \(a\) satisfies \(p^{v_p(a)}<9a^{1/h}\), hence \(v_p(a)\le t\) in this range. Using the total numerator valuation \(v_p(a)+v_p(d!)\) and \(|c_i|\le56\) in both rows gives \(|b_p|<1000t\). Also \(|\log W|<10^4a^{-1/8}\) by summing the logarithmic errors in the two rows (the zero sums cancel their centers). At \(t\ge10^{22}\) this gives \(\log|W-1|<-t/5\). Matveev's real four-logarithm estimate gives \(\log|W-1|>-10^{15}(1+\log(1000t))\), which contradicts that upper bound throughout the range. The rational numbers in this application are just the primes \(2,3,5,7\). [Theorem 9.4 in Bugeaud, Mignotte and Siksek](https://samirsiksek.github.io/siksek.github.io/papers/fibannalsfinal.pdf)
+
+For \(128\le t\le10^{22}\), the verifier uses the exact integer logarithm lattices from the three-row argument, with scale \(10^{18}\) and a new unimodular basis in the lowest band. In a band \([L,U]\), put \(Z_d=\lfloor(d!10^L)^{1/d}\rfloor\) and sort the assigned weights \(w_0\le\cdots\le w_{d-1}\). The absolute weighted row log is at most \(\sum i w_i/(Z_d-d)\). Indeed rearrangement gives the two extreme orderings with the logs sorted. Adjacent logs are separated by at most \(1/(Z_d-d)\); summation by parts with the zero-sum sorted weights proves the bound in either ordering. Each \(b_p\) is bounded using the smallest and largest weight in each row and the upper numerator valuation there. The rounded log coordinates have error at most \(1/2\) per exponent. The proposed nonzero lattice vector then has squared length strictly smaller than the minimum squared Gram–Schmidt length of the checked basis, a contradiction. [Integer-log and lattice verification method](Erdos849CommonFactors.md)
+
+Run the verifier with ordinary Python assertions enabled. Keeping every prime of \(a\) and assigning the full powers to maximal-valuation terms gives a different, stronger connectivity conclusion at every height except the known collision at 3003. [Full-prime classification](Erdos849FullHostCuts.md)
