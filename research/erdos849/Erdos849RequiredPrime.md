@@ -1,0 +1,7 @@
+# A forced prime in the finite search
+
+Suppose $10^{146}\le a\le10^{170}$ and $a$ occurs in columns 5, 6, 7 and 8. Then $53\mid a$. Modulo 53 the only possible residues of the common value are 0, 1 and 29. Up to independently reflecting the two even-column coordinates, each nonzero residue gives just one row tuple. In order $(8,7,6,5)$ these are $(8,7,6,5)$ and $(30,41,24,32)$ respectively. [Verifier and exact disk data](Erdos849RequiredPrime.py) · [Certificate](Erdos849RequiredPrime.json)
+
+For each tuple the verifier uses an auxiliary polynomial whose composition with the lifted row functions is zero modulo $53^{134}$. It checks a family of such polynomials by the Hensel and finite-difference argument for four columns. Their absolute values are all less than $53^{134}$ throughout the stated height range, so every one must vanish at integer rows belonging to the tuple. [Local proof](Erdos849ResidueDisks.md)
+
+To rule out simultaneous vanishing, bisect the interval of possible coefficients at its integer geometric mean. On each subinterval $[L,U]$, the absolute value of an actual or reflected row lies between $\lfloor(k!L)^{1/k}\rfloor-k$ and $\lfloor(k!U)^{1/k}\rfloor+k$. The sign of a reflected row is negative. The verifier bounds each monomial using these endpoints and its sign, and adds the bounds for the whole polynomial. It stops on a subinterval as soon as one polynomial excludes zero, and checks all four choices of even-row signs. Every interval closes. Run `python -B Erdos849RequiredPrime.py` to reproduce the check.
